@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ApiEnvelope } from "@/lib/apiClient";
 
 export interface PriceData {
   symbol: string;
@@ -30,8 +31,18 @@ export function usePriceStream(symbol: string) {
     es.onmessage = (event) => {
       retries.current = 0; // reset backoff on successful message
       try {
-        const data: PriceData = JSON.parse(event.data);
-        queryClient.setQueryData(["price", symbol], data);
+        // Backend wraps payload in { success: true, data: { ... } }
+        const envelope: ApiEnvelope<PriceData> = JSON.parse(event.data);
+
+        if (!envelope.success || !envelope.data) {
+          console.warn(
+            `[usePriceStream] Non-success envelope for ${symbol}:`,
+            envelope.error
+          );
+          return;
+        }
+
+        queryClient.setQueryData(["price", symbol], envelope.data);
       } catch {
         // malformed message — ignore
       }
@@ -42,7 +53,6 @@ export function usePriceStream(symbol: string) {
       esRef.current = null;
 
       if (retries.current >= MAX_RETRIES) {
-        // Give up — log for observability
         console.warn(`[usePriceStream] Max retries reached for ${symbol}`);
         return;
       }

@@ -3,6 +3,8 @@
 import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { v4 as uuidv4 } from "uuid";
+import { toast } from "sonner";
+import { apiClient, ApiError } from "@/lib/apiClient";
 
 export interface TradePayload {
   symbol: string;
@@ -21,31 +23,31 @@ export function useTrade() {
   const queryClient = useQueryClient();
   const clientMutationId = useRef<string>(uuidv4());
 
-  const mutation = useMutation<TradeResponse, Error, TradePayload>({
-    mutationFn: async (payload) => {
-      const res = await fetch("/api/trade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          clientMutationId: clientMutationId.current,
-        }),
-      });
+  const mutation = useMutation<TradeResponse, ApiError, TradePayload>({
+    mutationFn: (payload) =>
+      apiClient.post<TradeResponse>("/api/trade", {
+        ...payload,
+        clientMutationId: clientMutationId.current,
+      }),
 
-      if (!res.ok) {
-        throw new Error(`Trade failed: ${res.statusText}`);
-      }
-
-      return res.json();
-    },
     onSuccess: (data) => {
-      // Rotate ID so next submission is a fresh idempotency key
+      // Rotate ID so the next submission gets a fresh idempotency key
       clientMutationId.current = uuidv4();
 
-      // Invalidate portfolio so it refetches updated positions
       queryClient.invalidateQueries({ queryKey: ["portfolio"] });
 
-      return data;
+      toast.success("Order placed", {
+        description: `Order ${data.orderId} is ${data.status}.`,
+      });
+    },
+
+    onError: (error) => {
+      // error is always ApiError — surface backend message + correlation ID
+      const description = error.correlationId
+        ? `Ref: ${error.correlationId}`
+        : undefined;
+
+      toast.error(error.message, { description });
     },
   });
 
