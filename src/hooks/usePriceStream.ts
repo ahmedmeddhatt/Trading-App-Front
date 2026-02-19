@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { ApiEnvelope } from "@/lib/apiClient";
 
 export interface PriceData {
@@ -53,7 +54,9 @@ export function usePriceStream(symbol: string) {
       esRef.current = null;
 
       if (retries.current >= MAX_RETRIES) {
-        console.warn(`[usePriceStream] Max retries reached for ${symbol}`);
+        toast.error(`Price stream lost for ${symbol}`, {
+          description: "Max reconnection attempts reached. Refresh to retry.",
+        });
         return;
       }
 

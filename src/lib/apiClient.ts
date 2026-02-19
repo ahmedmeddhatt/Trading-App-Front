@@ -3,6 +3,7 @@
  * - Always sends cookies (credentials: 'include')
  * - Parses the standardized backend envelope: { success, data, error }
  * - Throws ApiError on non-2xx or success:false so callers get typed error info
+ * - Auto-redirects to /login on 401
  */
 
 export interface ApiEnvelope<T> {
@@ -41,6 +42,12 @@ async function request<T>(
       ...(options.headers ?? {}),
     },
   });
+
+  // Auto-redirect to login on session expiry
+  if (res.status === 401 && typeof window !== "undefined") {
+    window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+    throw new ApiError("Session expired — redirecting to login", "UNAUTHORIZED", undefined, 401);
+  }
 
   // Parse body regardless of status so we can surface backend error details
   let body: ApiEnvelope<T>;

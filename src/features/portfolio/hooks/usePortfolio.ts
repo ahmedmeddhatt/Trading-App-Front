@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/apiClient";
 
 export interface Position {
   symbol: string;
@@ -18,16 +19,10 @@ export interface Portfolio {
   positions: Position[];
 }
 
-async function fetchPortfolio(): Promise<Portfolio> {
-  const res = await fetch("/api/portfolio");
-  if (!res.ok) throw new Error("Failed to fetch portfolio");
-  return res.json();
-}
-
 export function usePortfolio() {
   return useQuery<Portfolio>({
     queryKey: ["portfolio"],
-    queryFn: fetchPortfolio,
+    queryFn: () => apiClient.get<Portfolio>("/api/portfolio"),
     refetchInterval: 30_000,
   });
 }
