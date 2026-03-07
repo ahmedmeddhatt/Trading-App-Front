@@ -63,14 +63,16 @@ async function request<T>(
   }
 
   // Backend returned success:false or non-2xx HTTP status
+  // Backend error shape: { success: false, message: "...", statusCode: N }
+  // or legacy: { success: false, error: { message, code, correlationId } }
   if (!res.ok || body.success === false) {
-    const err = body.error;
-    throw new ApiError(
-      err?.message ?? `Request failed with status ${res.status}`,
-      err?.code,
-      err?.correlationId,
-      res.status
-    );
+    const raw = body as unknown as Record<string, unknown>;
+    const err = raw.error as Record<string, string> | undefined;
+    const message =
+      err?.message ??
+      (raw.message as string | undefined) ??
+      `Request failed with status ${res.status}`;
+    throw new ApiError(message, err?.code, err?.correlationId, res.status);
   }
 
   return body.data as T;

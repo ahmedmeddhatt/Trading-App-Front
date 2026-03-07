@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-/** Cookie name your backend sets on login */
-const SESSION_COOKIE = "session";
+/** Cookie name the backend sets on login */
+const SESSION_COOKIE = "access_token";
 
 /** Routes that do NOT require authentication */
-const PUBLIC_PATHS = ["/login", "/register", "/api/auth"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/logout",
+  "/api/prices",
+  "/stocks",
+  "/api/stocks",
+  "/api/market-status",
+  "/dashboard",
+];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,10 +30,8 @@ export function middleware(request: NextRequest) {
   if (isPublic) return NextResponse.next();
 
   const session = request.cookies.get(SESSION_COOKIE);
-
   if (!session?.value) {
     const loginUrl = new URL("/login", request.url);
-    // Preserve the original destination so we can redirect back after login
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }

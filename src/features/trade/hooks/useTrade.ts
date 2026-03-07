@@ -11,6 +11,7 @@ export interface TradePayload {
   side: "buy" | "sell";
   quantity: number;
   price: number;
+  fees?: number;
 }
 
 export interface TradeResponse {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
 import { useTrade, type TradePayload } from "../hooks/useTrade";
 
@@ -10,32 +10,61 @@ type Step = "form" | "confirm";
 interface TradeFormProps {
   symbol: string;
   currentPrice: number | null;
+  ownedQuantity?: number;
 }
 
-export default function TradeForm({ symbol, currentPrice }: TradeFormProps) {
+const FEE_RATE = 0.00175;
+
+export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: TradeFormProps) {
   const [step, setStep] = useState<Step>("form");
   const [side, setSide] = useState<Side>("buy");
   const [quantity, setQuantity] = useState<string>("1");
+  const [priceInput, setPriceInput] = useState<string>(currentPrice != null ? currentPrice.toFixed(2) : "");
+  const [feesInput, setFeesInput] = useState<string>("");
   const [showSuccess, setShowSuccess] = useState(false);
 
   const { submit, isPending, isError, error, reset } = useTrade();
 
+  // Sync priceInput when live price arrives for the first time
+  useEffect(() => {
+    if (currentPrice != null && priceInput === "") {
+      setPriceInput(currentPrice.toFixed(2));
+    }
+  }, [currentPrice, priceInput]);
+
   const qty = Math.max(0, parseFloat(quantity) || 0);
-  const estimatedTotal = currentPrice ? currentPrice * qty : null;
+  const parsedPrice = parseFloat(priceInput) || 0;
+
+  // Auto-update fees when qty or price changes
+  useEffect(() => {
+    const computed = qty * parsedPrice * FEE_RATE;
+    setFeesInput(computed.toFixed(2));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quantity, priceInput]);
+
+  const parsedFees = parseFloat(feesInput) || 0;
+  const total = qty * parsedPrice + parsedFees;
+
+  const sellError = side === "sell" && qty > ownedQuantity
+    ? `Cannot sell ${qty} — you only own ${ownedQuantity} shares`
+    : null;
+
+  const canReview = qty > 0 && parsedPrice > 0 && !sellError;
 
   const handleReview = () => {
-    if (qty <= 0 || !currentPrice) return;
+    if (!canReview) return;
     reset();
     setStep("confirm");
   };
 
   const handleConfirm = () => {
-    if (!currentPrice) return;
+    if (parsedPrice <= 0) return;
     const payload: TradePayload = {
       symbol,
       side,
       quantity: qty,
-      price: currentPrice,
+      price: parsedPrice,
+      fees: parsedFees,
     };
     submit(payload, {
       onSuccess: () => {
@@ -48,6 +77,9 @@ export default function TradeForm({ symbol, currentPrice }: TradeFormProps) {
       },
     });
   };
+
+  const fmtEGP = (val: number) =>
+    new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", minimumFractionDigits: 2 }).format(val);
 
   // ── Success flash ────────────────────────────────────────────────────────────
   if (showSuccess) {
@@ -83,13 +115,10 @@ export default function TradeForm({ symbol, currentPrice }: TradeFormProps) {
           <Row label="Action" value={<span className={side === "buy" ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>{side.toUpperCase()}</span>} />
           <Row label="Symbol" value={symbol} />
           <Row label="Quantity" value={qty.toString()} />
-          <Row label="Price" value={currentPrice ? `$${currentPrice.toFixed(2)}` : "—"} />
+          <Row label="Price" value={fmtEGP(parsedPrice)} />
+          <Row label="Brokerage Fee" value={fmtEGP(parsedFees)} />
           <div className="border-t border-gray-700 pt-2 mt-2">
-            <Row
-              label="Est. Total"
-              value={estimatedTotal ? `$${estimatedTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "—"}
-              bold
-            />
+            <Row label="Total" value={fmtEGP(total)} bold />
           </div>
         </div>
 
@@ -168,27 +197,74 @@ export default function TradeForm({ symbol, currentPrice }: TradeFormProps) {
         />
       </div>
 
-      {/* Price display */}
+      {/* Price (editable, pre-filled with live price) */}
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">Market Price</label>
-        <div className={`bg-gray-800 rounded-lg px-4 py-2 text-sm font-mono ${isPending ? "animate-pulse text-gray-500" : "text-white"}`}>
-          {currentPrice ? `$${currentPrice.toFixed(2)}` : "Loading…"}
-        </div>
+        <label className="text-gray-500 text-xs flex justify-between">
+          <span>Price (EGP)</span>
+          {currentPrice != null && (
+            <button
+              type="button"
+              onClick={() => setPriceInput(currentPrice.toFixed(2))}
+              className="text-blue-400 hover:text-blue-300 text-xs"
+            >
+              Live: {currentPrice.toFixed(2)}
+            </button>
+          )}
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={priceInput}
+          onChange={(e) => setPriceInput(e.target.value)}
+          className="w-full bg-gray-800 rounded-lg px-4 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder={currentPrice != null ? currentPrice.toFixed(2) : "Enter price"}
+        />
       </div>
 
-      {/* Estimated total */}
-      {estimatedTotal !== null && qty > 0 && (
-        <div className="text-right text-gray-400 text-xs">
-          Est. total:{" "}
-          <span className="text-white font-medium">
-            ${estimatedTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-          </span>
+      {/* Brokerage Fee */}
+      <div className="space-y-1">
+        <label className="text-gray-500 text-xs flex justify-between">
+          <span>Brokerage Fee (EGP)</span>
+          <span className="text-gray-600">Suggested: 0.175% of trade value</span>
+        </label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          value={feesInput}
+          onChange={(e) => setFeesInput(e.target.value)}
+          className="w-full bg-gray-800 rounded-lg px-4 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      {/* Total */}
+      {qty > 0 && parsedPrice > 0 && (
+        <div className="bg-gray-800 rounded-lg px-4 py-3 flex justify-between text-sm">
+          <span className="text-gray-400">Total</span>
+          <span className="text-white font-semibold">{fmtEGP(total)}</span>
         </div>
+      )}
+
+      {/* Sell validation error */}
+      {sellError && (
+        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/20 rounded-lg p-3">
+          <AlertCircle size={16} />
+          <span>{sellError}</span>
+        </div>
+      )}
+
+      {/* Owned shares hint when selling */}
+      {side === "sell" && ownedQuantity > 0 && !sellError && (
+        <p className="text-gray-500 text-xs text-right">Available: {ownedQuantity} shares</p>
+      )}
+      {side === "sell" && ownedQuantity === 0 && (
+        <p className="text-gray-500 text-xs text-right">You don&apos;t own any shares</p>
       )}
 
       <button
         onClick={handleReview}
-        disabled={qty <= 0 || !currentPrice}
+        disabled={!canReview}
         className="w-full py-3 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Review Order

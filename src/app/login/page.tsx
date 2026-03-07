@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Activity, Loader2, AlertCircle } from "lucide-react";
+import Link from "next/link";
 import { apiClient } from "@/lib/apiClient";
 
 function LoginForm() {
@@ -74,6 +75,13 @@ function LoginForm() {
           "Sign In"
         )}
       </button>
+
+      <p className="text-center text-gray-500 text-sm">
+        No account?{" "}
+        <Link href="/register" className="text-blue-400 hover:text-blue-300">
+          Create one
+        </Link>
+      </p>
     </form>
   );
 }
