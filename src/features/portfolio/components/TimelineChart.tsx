@@ -103,7 +103,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
                   fontSize: 12,
                 }}
                 labelStyle={{ color: "#9ca3af" }}
-                formatter={(val: number) => [fmt.format(val), "Value"]}
+                formatter={(val: number | undefined) => [fmt.format(val ?? 0), "Value"]}
               />
               <Line
                 type="monotone"
