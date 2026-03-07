@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -94,7 +94,7 @@ function SkeletonRow() {
 
 const PAGE_SIZE = 25;
 
-export default function StocksPage() {
+function StocksPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -545,5 +545,13 @@ export default function StocksPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function StocksPage() {
+  return (
+    <Suspense>
+      <StocksPageInner />
+    </Suspense>
   );
 }
