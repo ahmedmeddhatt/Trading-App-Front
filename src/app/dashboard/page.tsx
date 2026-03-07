@@ -1,5 +1,262 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function DashboardIndex() {
-  redirect("/dashboard/AAPL");
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { TrendingUp, TrendingDown, Activity, LogOut, Search } from "lucide-react";
+import { apiClient } from "@/lib/apiClient";
+import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
+import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
+import PriceFreshnessBanner from "@/components/PriceFreshnessBanner";
+import MarketStatusBar from "@/components/MarketStatusBar";
+
+interface DashboardStock {
+  symbol: string;
+  name?: string;
+  price?: number;
+  change?: number;
+  changePercent?: number;
+  lastUpdate?: string;
+  sector?: string;
+  marketCap?: number;
+  pe?: number;
+}
+
+interface MyStockItem {
+  symbol: string;
+  totalQuantity: string | number;
+  averagePrice: string | number;
+  totalInvested: string | number;
+  price?: number;
+}
+
+interface DashboardData {
+  hottest: DashboardStock[];
+  recommended: DashboardStock[];
+  lowest: DashboardStock[];
+  myStocks?: MyStockItem[];
+}
+
+function useDashboardStocks() {
+  return useQuery<DashboardData>({
+    queryKey: ["stocks", "dashboard"],
+    queryFn: () => apiClient.get<DashboardData>("/api/stocks/dashboard"),
+    retry: 1,
+  });
+}
+
+export default function DashboardOverview() {
+  const router = useRouter();
+  const [search, setSearch] = useState("");
+
+  const { data: dashData, isLoading: dashLoading, isError: dashError } = useDashboardStocks();
+  const { data: portfolio } = usePortfolio();
+
+  // Stream only owned symbols — streaming all dashboard stocks (20-30+) saturates
+  // the browser HTTP connection pool and blocks navigation clicks.
+  const myStocksSymbols = (dashData?.myStocks ?? []).map((s) => s.symbol);
+  const portfolioSymbols = (portfolio?.positions ?? []).map((p) => p.symbol);
+  const ownedSymbols = [...new Set([...myStocksSymbols, ...portfolioSymbols])];
+  const allSymbols = ownedSymbols;
+
+  const { prices, loading: priceLoading } = usePriceStream(ownedSymbols);
+
+  const handleLogout = async () => {
+    await apiClient.post("/api/auth/logout", {}).catch(() => {});
+    router.push("/login");
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white">
+      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="text-blue-400" size={20} />
+          <span className="font-bold text-lg tracking-tight">TradeDesk</span>
+        </div>
+        <nav className="flex items-center gap-4 text-sm">
+          <Link href="/dashboard" className="text-white font-medium">Overview</Link>
+          <Link href="/portfolio" className="text-gray-400 hover:text-white transition-colors">Portfolio</Link>
+          <Link href="/stocks" className="text-gray-400 hover:text-white transition-colors">Stocks</Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+          >
+            <LogOut size={15} />
+            <span>Sign out</span>
+          </button>
+        </nav>
+      </header>
+
+      <MarketStatusBar />
+      <PriceFreshnessBanner prices={prices} symbols={allSymbols} />
+
+      <main className="max-w-7xl mx-auto p-6 space-y-8">
+        {portfolio && (
+          <div className="grid grid-cols-3 gap-4">
+            <StatCard
+              label="Portfolio Value"
+              value={`$${portfolio.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+            />
+            <StatCard
+              label="Total P&L"
+              value={`${portfolio.totalPnl >= 0 ? "+" : ""}$${Math.abs(portfolio.totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+              positive={portfolio.totalPnl >= 0}
+            />
+            <StatCard
+              label="P&L %"
+              value={`${portfolio.totalPnlPercent >= 0 ? "+" : ""}${portfolio.totalPnlPercent.toFixed(2)}%`}
+              positive={portfolio.totalPnlPercent >= 0}
+            />
+          </div>
+        )}
+
+        {dashError ? (
+          <div className="text-center text-gray-500 py-8 bg-gray-900 rounded-xl text-sm">
+            Dashboard data unavailable — backend endpoint not yet active.
+          </div>
+        ) : (
+          <>
+            <Section title="Hottest Stocks" stocks={dashData?.hottest ?? []} loading={dashLoading} prices={prices} />
+            <Section title="Recommended" stocks={dashData?.recommended ?? []} loading={dashLoading} prices={prices} />
+            <Section title="Lowest Stocks" stocks={dashData?.lowest ?? []} loading={dashLoading} prices={prices} />
+          </>
+        )}
+
+        {/* My Stocks — from /stocks/dashboard myStocks (JWT-authenticated) */}
+        {dashData?.myStocks && dashData.myStocks.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">My Stocks</h2>
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Filter…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="bg-gray-800 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500 w-40"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {dashData.myStocks
+                .filter((s) => s.symbol.toLowerCase().includes(search.toLowerCase()))
+                .map((ms) => {
+                  const qty = parseFloat(String(ms.totalQuantity));
+                  const avgPrice = parseFloat(String(ms.averagePrice));
+                  const live = prices[ms.symbol];
+                  const currentPrice = live?.price ?? ms.price ?? avgPrice;
+                  const pnl = (currentPrice - avgPrice) * qty;
+                  const pnlPct = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
+                  const isPos = pnl >= 0;
+                  return (
+                    <Link key={ms.symbol} href={`/stocks/${ms.symbol}`}>
+                      <div className="bg-gray-900 rounded-xl p-4 hover:bg-gray-800 transition-colors space-y-2">
+                        <div className="flex justify-between">
+                          <span className="font-bold text-white">{ms.symbol}</span>
+                          <span className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                            {isPos ? "+" : ""}{pnlPct.toFixed(2)}%
+                          </span>
+                        </div>
+                        <p className="text-2xl font-bold">${currentPrice.toFixed(2)}</p>
+                        <p className="text-gray-500 text-xs">{qty} shares · avg ${avgPrice.toFixed(2)}</p>
+                        <p className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                          {isPos ? "+" : ""}${pnl.toFixed(2)} unrealized
+                        </p>
+                        {live && <p className="text-gray-600 text-xs">{new Date(live.timestamp).toLocaleTimeString()}</p>}
+                      </div>
+                    </Link>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        {!dashLoading && !dashError && (!dashData?.myStocks || dashData.myStocks.length === 0) && (
+          <div className="text-center py-12 text-gray-600 text-sm">
+            No positions yet.{" "}
+            <Link href="/stocks/COMI" className="text-blue-400 hover:text-blue-300">Browse stocks →</Link>
+          </div>
+        )}
+      </main>
+
+      {priceLoading && allSymbols.length > 0 && (
+        <div className="fixed bottom-4 right-4 bg-gray-800 text-gray-400 text-xs px-3 py-2 rounded-lg animate-pulse">
+          Connecting to live prices…
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
+  return (
+    <div className="bg-gray-900 rounded-xl p-4">
+      <p className="text-gray-500 text-xs mb-1">{label}</p>
+      <p className={`text-2xl font-bold ${positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  stocks,
+  loading,
+  prices,
+}: {
+  title: string;
+  stocks: DashboardStock[];
+  loading: boolean;
+  prices: Record<string, PriceData>;
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{title}</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-gray-900 rounded-xl p-4 h-24 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (stocks.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{title}</h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {stocks.map((stock) => {
+          const live = prices[stock.symbol];
+          const price = live?.price ?? stock.price;
+          const change = live?.changePercent ?? stock.changePercent ?? null;
+          const isPos = (change ?? 0) >= 0;
+
+          return (
+            <Link key={stock.symbol} href={`/stocks/${stock.symbol}`}>
+              <div className="bg-gray-900 rounded-xl p-4 hover:bg-gray-800 transition-colors space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-white text-sm">{stock.symbol}</span>
+                  {change != null && (
+                    <span className={`text-xs font-medium flex items-center gap-0.5 ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                      {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {isPos ? "+" : ""}{change.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+                {price != null && <p className="text-lg font-bold">${price.toFixed(2)}</p>}
+                {stock.name && <p className="text-gray-500 text-xs truncate">{stock.name}</p>}
+                {live && <p className="text-gray-700 text-xs">{new Date(live.timestamp).toLocaleTimeString()}</p>}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

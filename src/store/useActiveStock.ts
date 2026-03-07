@@ -10,7 +10,7 @@ interface ActiveStockState {
 }
 
 const useActiveStockStore = create<ActiveStockState>((set) => ({
-  symbol: "AAPL",
+  symbol: "COMI",
   setSymbol: (symbol) => set({ symbol }),
 }));
 
