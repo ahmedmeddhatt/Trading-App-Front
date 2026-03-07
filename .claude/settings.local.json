@@ -45,7 +45,9 @@
       "Bash(npx --prefix /d/Work/Trading-app prisma db pull --url \"postgresql://postgres.cuppndmlqhrmvefmmsvh:verduravalleywebsite%401@aws-0-eu-west-1.pooler.supabase.com:5432/postgres\")",
       "Bash(cat /d/Work/Trading-app/src/common/filters/*.ts)",
       "Bash(netstat -ano)",
-      "Bash(node -e \"const p=require\\(''./package.json''\\); console.log\\(JSON.stringify\\(p.dependencies,null,2\\)\\)\")"
+      "Bash(node -e \"const p=require\\(''./package.json''\\); console.log\\(JSON.stringify\\(p.dependencies,null,2\\)\\)\")",
+      "Bash(ls \"D:/Work/Trading-app-front/tsconfig\"*)",
+      "Bash(ls \"D:/Work/Trading-app-front/\"tsconfig*.json)"
     ]
   }
 }
