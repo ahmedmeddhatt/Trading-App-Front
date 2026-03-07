@@ -344,7 +344,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                       contentStyle={{ backgroundColor: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
                       labelStyle={{ color: "#9ca3af" }}
                       itemStyle={{ color: chartColor }}
-                      formatter={(v: number) => [fmtEGP(v), "Price"]}
+                      formatter={(v: number | undefined) => [fmtEGP(v ?? 0), "Price"]}
                     />
                     <Line
                       type="monotone"

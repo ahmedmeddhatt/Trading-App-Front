@@ -86,9 +86,9 @@ function DonutChart({
               borderRadius: "8px",
               fontSize: 12,
             }}
-            formatter={(val: number, name: string) => [
-              `${fmt.format(val)} (${data.find((d) => d.name === name)?.percentage.toFixed(1)}%)`,
-              name,
+            formatter={(val: number | undefined, name: string | undefined) => [
+              `${fmt.format(val ?? 0)} (${data.find((d) => d.name === name)?.percentage.toFixed(1)}%)`,
+              name ?? "",
             ]}
           />
           <Legend
