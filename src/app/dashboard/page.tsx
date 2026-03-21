@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Activity, LogOut, Search } from "lucide-react";
+import { TrendingUp, TrendingDown, Search } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
 import PriceFreshnessBanner from "@/components/PriceFreshnessBanner";
 import MarketStatusBar from "@/components/MarketStatusBar";
+import AppShell from "@/components/AppShell";
 
 interface DashboardStock {
   symbol: string;
@@ -47,7 +47,6 @@ function useDashboardStocks() {
 }
 
 export default function DashboardOverview() {
-  const router = useRouter();
   const [search, setSearch] = useState("");
 
   const { data: dashData, isLoading: dashLoading, isError: dashError } = useDashboardStocks();
@@ -62,38 +61,14 @@ export default function DashboardOverview() {
 
   const { prices, loading: priceLoading } = usePriceStream(ownedSymbols);
 
-  const handleLogout = async () => {
-    await apiClient.post("/api/auth/logout", {}).catch(() => {});
-    router.push("/login");
-  };
-
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="text-blue-400" size={20} />
-          <span className="font-bold text-lg tracking-tight">TradeDesk</span>
-        </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/dashboard" className="text-white font-medium">Overview</Link>
-          <Link href="/portfolio" className="text-gray-400 hover:text-white transition-colors">Portfolio</Link>
-          <Link href="/stocks" className="text-gray-400 hover:text-white transition-colors">Stocks</Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-          >
-            <LogOut size={15} />
-            <span>Sign out</span>
-          </button>
-        </nav>
-      </header>
-
+    <AppShell>
       <MarketStatusBar />
       <PriceFreshnessBanner prices={prices} symbols={allSymbols} />
 
-      <main className="max-w-7xl mx-auto p-6 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8">
         {portfolio && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             <StatCard
               label="Portfolio Value"
               value={`$${portfolio.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
@@ -112,8 +87,9 @@ export default function DashboardOverview() {
         )}
 
         {dashError ? (
-          <div className="text-center text-gray-500 py-8 bg-gray-900 rounded-xl text-sm">
-            Dashboard data unavailable — backend endpoint not yet active.
+          <div className="flex flex-col items-center gap-2 py-10 bg-gray-900/60 border border-red-900/40 rounded-xl">
+            <span className="text-red-400 text-sm font-medium">Failed to load dashboard data</span>
+            <span className="text-gray-600 text-xs">Check your connection or try refreshing</span>
           </div>
         ) : (
           <>
@@ -182,11 +158,11 @@ export default function DashboardOverview() {
       </main>
 
       {priceLoading && allSymbols.length > 0 && (
-        <div className="fixed bottom-4 right-4 bg-gray-800 text-gray-400 text-xs px-3 py-2 rounded-lg animate-pulse">
+        <div className="fixed bottom-20 sm:bottom-4 right-4 bg-gray-800 text-gray-400 text-xs px-3 py-2 rounded-lg animate-pulse">
           Connecting to live prices…
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }
 

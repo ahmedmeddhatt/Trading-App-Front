@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, Activity, LogOut, ChevronLeft, History, Calendar,
 } from "lucide-react";
+import MobileNav from "@/components/MobileNav";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
@@ -160,41 +161,38 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/stocks" className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors">
+      <header className="sticky top-0 z-40 border-b border-gray-800/80 bg-gray-950/95 backdrop-blur-sm px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/stocks" className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors p-1 -ml-1 rounded-lg hover:bg-gray-800">
             <ChevronLeft size={18} />
           </Link>
           <div className="flex items-center gap-2">
-            <Activity className="text-blue-400" size={20} />
-            <span className="font-bold text-lg tracking-tight">TradeDesk</span>
+            <Activity className="text-blue-400" size={18} />
+            <span className="font-bold text-base tracking-tight">TradeDesk</span>
           </div>
         </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link href="/dashboard" className="text-gray-400 hover:text-white transition-colors">Overview</Link>
-          <Link href="/portfolio" className="text-gray-400 hover:text-white transition-colors">Portfolio</Link>
-          <Link href="/stocks" className="text-gray-400 hover:text-white transition-colors">Stocks</Link>
+        <div className="flex items-center gap-2">
           {position && (
             <button
               onClick={() => setHistoryOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
             >
-              <History size={15} />
-              <span>History</span>
+              <History size={14} />
+              <span className="hidden sm:inline">History</span>
             </button>
           )}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
           >
-            <LogOut size={15} />
-            <span>Sign out</span>
+            <LogOut size={14} />
+            <span className="hidden sm:inline">Sign out</span>
           </button>
-        </nav>
+        </div>
       </header>
 
       {/* Stock header */}
-      <div className="border-b border-gray-800 px-6 py-5">
+      <div className="border-b border-gray-800 px-4 sm:px-6 py-4 sm:py-5">
         <div className="max-w-7xl mx-auto">
           {stockLoading ? (
             <div className="space-y-2">
@@ -202,19 +200,19 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
               <div className="h-4 w-32 bg-gray-800 rounded animate-pulse" />
             </div>
           ) : stockError ? (
-            <div className="text-red-400 text-sm">
-              Failed to load stock.{" "}
-              <button onClick={() => refetchStock()} className="underline hover:text-red-300">Retry</button>
+            <div className="flex items-center gap-3 bg-red-900/20 border border-red-900/40 rounded-xl px-4 py-3">
+              <span className="text-red-400 text-sm font-medium">Failed to load stock.</span>
+              <button onClick={() => refetchStock()} className="text-xs text-blue-400 hover:text-blue-300 underline">Retry</button>
             </div>
           ) : (
-            <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="bg-blue-900 text-blue-300 px-2.5 py-1 rounded font-mono font-bold text-sm">
                     {symbol}
                   </span>
                   {stock?.name && (
-                    <h1 className="text-2xl font-bold">{stock.name}</h1>
+                    <h1 className="text-lg sm:text-2xl font-bold">{stock.name}</h1>
                   )}
                   {stock?.sector && (
                     <span className="bg-gray-800 text-gray-400 px-2 py-0.5 rounded text-xs">
@@ -233,7 +231,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                 </div>
               </div>
               <div className="text-right">
-                <p className={`text-3xl font-bold ${isPositive === true ? "text-emerald-400" : isPositive === false ? "text-red-400" : "text-white"}`}>
+                <p className={`text-2xl sm:text-3xl font-bold ${isPositive === true ? "text-emerald-400" : isPositive === false ? "text-red-400" : "text-white"}`}>
                   {priceData ? fmtEGP(priceData.price) : "—"}
                 </p>
                 {priceData && isPositive !== null && (
@@ -253,7 +251,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-24 sm:pb-6 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Left 2 cols */}
         <div className="lg:col-span-2 space-y-4">
 
@@ -283,7 +281,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                   value={`EGP ${(stock.marketCap / 1e9).toFixed(2)}B`}
                 />
               )}
-              {stock.pe && <InfoCard label="P/E Ratio" value={stock.pe.toFixed(2)} />}
+              {stock.pe != null && <InfoCard label="P/E Ratio" value={Number(stock.pe).toFixed(2)} />}
               {stock.recommendation && (
                 <div className="bg-gray-900 rounded-xl px-4 py-3">
                   <p className="text-gray-500 text-xs">Recommendation</p>
@@ -344,7 +342,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                       contentStyle={{ backgroundColor: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
                       labelStyle={{ color: "#9ca3af" }}
                       itemStyle={{ color: chartColor }}
-                      formatter={(v: number | undefined) => [fmtEGP(v ?? 0), "Price"]}
+                      formatter={(v: unknown) => [fmtEGP((v as number) ?? 0), "Price"]}
                     />
                     <Line
                       type="monotone"
@@ -434,6 +432,8 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
       />
+
+      <MobileNav active="/stocks" />
     </div>
   );
 }

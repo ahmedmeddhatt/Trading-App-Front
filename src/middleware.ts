@@ -16,6 +16,8 @@ const PUBLIC_PATHS = [
   "/api/stocks",
   "/api/market-status",
   "/dashboard",
+  "/analytics",
+  "/portfolio",
 ];
 
 export function middleware(request: NextRequest) {
