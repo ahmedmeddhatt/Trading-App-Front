@@ -64,8 +64,8 @@ function DonutChart({
             innerRadius={50}
             dataKey="value"
             nameKey="name"
-            onClick={(entry: AllocationSlice) =>
-              onFilter(activeKey === entry.name ? null : entry.name)
+            onClick={(entry: unknown) =>
+              onFilter(activeKey === (entry as AllocationSlice).name ? null : (entry as AllocationSlice).name)
             }
             style={{ cursor: "pointer" }}
           >
@@ -86,9 +86,9 @@ function DonutChart({
               borderRadius: "8px",
               fontSize: 12,
             }}
-            formatter={(val: number | undefined, name: string | undefined) => [
-              `${fmt.format(val ?? 0)} (${data.find((d) => d.name === name)?.percentage.toFixed(1)}%)`,
-              name ?? "",
+            formatter={(val: unknown, name: unknown) => [
+              `${fmt.format((val as number) ?? 0)} (${data.find((d) => d.name === name)?.percentage.toFixed(1)}%)`,
+              (name as string) ?? "",
             ]}
           />
           <Legend
