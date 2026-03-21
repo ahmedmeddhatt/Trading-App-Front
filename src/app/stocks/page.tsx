@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
-  LogOut,
   Search,
   Star,
   TrendingUp,
@@ -17,6 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
+import AppShell from "@/components/AppShell";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -192,11 +191,6 @@ function StocksPageInner() {
     []
   );
 
-  const handleLogout = async () => {
-    await apiClient.post("/api/auth/logout", {}).catch(() => {});
-    router.push("/login");
-  };
-
   const clearFilters = () => {
     setSearch("");
     setSector("");
@@ -210,40 +204,8 @@ function StocksPageInner() {
   const sectors = [...new Set(stocks.map((s) => s.sector).filter(Boolean))];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="text-blue-400" size={20} />
-          <span className="font-bold text-lg tracking-tight">TradeDesk</span>
-        </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link
-            href="/dashboard"
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            Overview
-          </Link>
-          <Link
-            href="/portfolio"
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            Portfolio
-          </Link>
-          <Link href="/stocks" className="text-white font-medium">
-            Stocks
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-          >
-            <LogOut size={15} />
-            <span>Sign out</span>
-          </button>
-        </nav>
-      </header>
-
-      <main className="max-w-7xl mx-auto p-6 space-y-4">
+    <AppShell>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-48">
@@ -393,14 +355,13 @@ function StocksPageInner() {
 
                 {isError && (
                   <tr>
-                    <td
-                      colSpan={9}
-                      className="text-center py-12 text-red-400 text-sm"
-                    >
-                      Failed to load stocks.{" "}
-                      <button onClick={() => refetch()} className="underline hover:text-red-300">
-                        Retry
-                      </button>
+                    <td colSpan={9} className="py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-red-400 text-sm font-medium">Failed to load stocks</span>
+                        <button onClick={() => refetch()} className="text-xs text-blue-400 hover:text-blue-300 underline">
+                          Retry
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -495,7 +456,7 @@ function StocksPageInner() {
                         {stock.sector ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-right text-gray-500 hidden lg:table-cell">
-                        {stock.pe != null ? stock.pe.toFixed(1) : "—"}
+                        {stock.pe != null ? Number(stock.pe).toFixed(1) : "—"}
                       </td>
                       <td className="px-4 py-3 text-center hidden lg:table-cell">
                         <SignalBadge signal={stock.signal} />
@@ -544,7 +505,7 @@ function StocksPageInner() {
           )}
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }
 

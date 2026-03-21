@@ -3,17 +3,15 @@
 import dynamic from "next/dynamic";
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
-  LogOut,
   TrendingUp,
   TrendingDown,
   ChevronDown,
   ChevronUp,
   Loader2,
 } from "lucide-react";
+import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { usePriceStream } from "@/hooks/usePriceStream";
@@ -327,7 +325,6 @@ function ExpandedHistory({ symbol }: { symbol: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PortfolioPage() {
-  const router = useRouter();
   const [range, setRange] = useState<DateRange>("1M");
   const [activeSector, setActiveSector] = useState<string | null>(null);
   const [activeSymbol, setActiveSymbol] = useState<string | null>(null);
@@ -348,11 +345,6 @@ export default function PortfolioPage() {
       ),
     [analytics]
   );
-
-  const handleLogout = async () => {
-    await apiClient.post("/api/auth/logout", {}).catch(() => {});
-    router.push("/login");
-  };
 
   // Apply allocation filters to positions
   const filteredPositions = useMemo(() => {
@@ -386,39 +378,8 @@ export default function PortfolioPage() {
     : (portfolio?.totalPnl ?? 0);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="text-blue-400" size={20} />
-          <span className="font-bold text-lg tracking-tight">TradeDesk</span>
-        </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link
-            href="/dashboard"
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            Overview
-          </Link>
-          <Link href="/portfolio" className="text-white font-medium">
-            Portfolio
-          </Link>
-          <Link
-            href="/stocks"
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            Stocks
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-          >
-            <LogOut size={15} />
-            <span>Sign out</span>
-          </button>
-        </nav>
-      </header>
-
-      <main className="max-w-7xl mx-auto p-6 space-y-6">
+    <AppShell>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
@@ -683,6 +644,6 @@ export default function PortfolioPage() {
           )}
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }

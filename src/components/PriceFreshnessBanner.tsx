@@ -17,10 +17,11 @@ export default function PriceFreshnessBanner({
   threshold = 60,
 }: Props) {
   const [dismissed, setDismissed] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(0);
 
   // Tick every 10 s to re-evaluate staleness
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 10_000);
     return () => clearInterval(id);
   }, []);

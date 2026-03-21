@@ -47,7 +47,9 @@
       "Bash(netstat -ano)",
       "Bash(node -e \"const p=require\\(''./package.json''\\); console.log\\(JSON.stringify\\(p.dependencies,null,2\\)\\)\")",
       "Bash(ls \"D:/Work/Trading-app-front/tsconfig\"*)",
-      "Bash(ls \"D:/Work/Trading-app-front/\"tsconfig*.json)"
+      "Bash(ls \"D:/Work/Trading-app-front/\"tsconfig*.json)",
+      "Bash(find /d/Work/Trading/Trading-app-front/src/app -name *dashboard* -o -name *stocks*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); stocks=d[''''data''''][''''data'''']; priced=[s for s in stocks if s.get\\(''''price''''\\)]; print\\(f''''Total: {d[\"\"data\"\"][\"\"total\"\"]}, Priced: {len\\(priced\\)}/{len\\(stocks\\)}''''\\)\")"
     ]
   }
 }

@@ -160,7 +160,7 @@ export default function DashboardPage() {
                     contentStyle={{ backgroundColor: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: "#9ca3af" }}
                     itemStyle={{ color: chartColor }}
-                    formatter={(v: number | undefined) => [`$${(v ?? 0).toFixed(2)}`, "Price"]}
+                    formatter={(v: unknown) => [`$${((v as number) ?? 0).toFixed(2)}`, "Price"]}
                   />
                   <Area type="monotone" dataKey="price" stroke={chartColor} strokeWidth={1.5} fill="url(#priceGrad)" dot={false} />
                 </AreaChart>
