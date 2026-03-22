@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity, LayoutDashboard, BarChart2, Briefcase, LineChart, LogOut,
-  Receipt, ShieldAlert,
+  Receipt, ShieldAlert, Sun, Moon,
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
+import { useTheme } from "@/context/ThemeContext";
 
 const NAV_ITEMS = [
   { href: "/dashboard",               label: "Overview",      icon: LayoutDashboard },
@@ -27,6 +28,7 @@ function isActive(href: string, pathname: string) {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
+  const { theme, toggle } = useTheme();
 
   const handleLogout = async () => {
     await apiClient.post("/api/auth/logout", {}).catch(() => {});
@@ -49,42 +51,78 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }
       `}</style>
 
-      <div className="min-h-screen bg-gray-950 text-white" style={{ overflowX: "hidden" }}>
+      <div
+        className={`min-h-screen text-white ${theme === "dark" ? "bg-gray-950" : "bg-[#EEF2FB]"}`}
+        style={{ overflowX: "hidden" }}
+      >
 
         {/* ── Top header ──────────────────────────────────── */}
         <header
-          className="border-b border-gray-800 bg-gray-950 px-4 py-3 flex items-center justify-between"
-          style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50 }}
+          className={`px-4 py-3 flex items-center justify-between ${
+            theme === "dark"
+              ? "border-b border-gray-800 bg-gray-950"
+              : "bg-white border-b border-[#D8E4F4]"
+          }`}
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+            boxShadow: theme === "light" ? "0 1px 12px rgba(14,30,60,0.07)" : undefined,
+          }}
         >
           <div className="flex items-center gap-2">
-            <Activity className="text-blue-400" size={18} />
-            <span className="font-bold text-base tracking-tight">TradeDesk</span>
+            <Activity className="text-blue-500" size={18} />
+            <span className={`font-bold text-base tracking-tight ${theme === "dark" ? "text-white" : "text-[#0C1A2E]"}`}>
+              TradeDesk
+            </span>
           </div>
 
           {/* Desktop nav links */}
-          <nav className="td-desktop-nav items-center gap-1">
-            {NAV_ITEMS.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive(href, pathname)
-                    ? "bg-gray-800 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800/60"
-                }`}
-              >
-                {label}
-              </Link>
-            ))}
+          <nav className="td-desktop-nav items-center gap-0.5">
+            {NAV_ITEMS.map(({ href, label }) => {
+              const active = isActive(href, pathname);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? theme === "dark"
+                        ? "bg-gray-800 text-white"
+                        : "bg-blue-50 text-blue-700 font-semibold"
+                      : theme === "dark"
+                        ? "text-gray-400 hover:text-white hover:bg-gray-800/60"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </nav>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-          >
-            <LogOut size={14} />
-            <span className="td-sign-label">Sign out</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggle}
+              aria-label="Toggle theme"
+              className={`p-1.5 rounded-lg transition-colors ${
+                theme === "dark"
+                  ? "text-gray-400 hover:text-white hover:bg-gray-800"
+                  : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            <button
+              onClick={handleLogout}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                theme === "dark"
+                  ? "text-gray-400 hover:text-white hover:bg-gray-800"
+                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+              }`}
+            >
+              <LogOut size={14} />
+              <span className="td-sign-label">Sign out</span>
+            </button>
+          </div>
         </header>
 
         {/* Page content */}
@@ -92,8 +130,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* ── Mobile bottom tab bar ──────────────────────── */}
         <div
-          className="td-mobile-nav border-t border-gray-800 bg-gray-950"
-          style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50 }}
+          className={`td-mobile-nav ${
+            theme === "dark" ? "border-t border-gray-800 bg-gray-950" : "bg-white border-t border-[#D8E4F4]"
+          }`}
+          style={{
+            position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
+            boxShadow: theme === "light" ? "0 -2px 16px rgba(14,30,60,0.07)" : undefined,
+          }}
         >
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = isActive(href, pathname);
@@ -103,7 +146,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 href={href}
                 style={{ flex: 1 }}
                 className={`flex flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium transition-colors ${
-                  active ? "text-blue-400" : "text-gray-500"
+                  active
+                    ? "text-blue-500"
+                    : theme === "dark" ? "text-gray-500" : "text-slate-400"
                 }`}
               >
                 <Icon size={22} strokeWidth={active ? 2.5 : 1.5} />

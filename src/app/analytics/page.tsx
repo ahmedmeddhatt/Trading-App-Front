@@ -27,6 +27,7 @@ interface AnalyticsPosition {
   unrealizedPnL: string | number;
   realizedPnL: string | number;
   returnPercent?: string | number;
+  daysSinceFirstBuy?: number;
 }
 
 interface Analytics {
@@ -231,14 +232,30 @@ export default function AnalyticsPage() {
   // Positions sorted by return%
   const positions = useMemo(() => {
     return (analytics?.positions ?? [])
-      .map((p) => ({
-        ...p,
-        returnPct: parseFloat(String(p.returnPercent ?? 0)),
-        unrealizedNum: parseFloat(String(p.unrealizedPnL)),
-        realizedNum: parseFloat(String(p.realizedPnL)),
-        investedNum: parseFloat(String(p.totalInvested)),
-      }))
+      .map((p) => {
+        const invested = parseFloat(String(p.totalInvested));
+        const unrealized = parseFloat(String(p.unrealizedPnL));
+        // Compute return% from unrealized PnL / invested if returnPercent not provided
+        const returnPct = p.returnPercent != null
+          ? parseFloat(String(p.returnPercent))
+          : invested > 0 ? (unrealized / invested) * 100 : 0;
+        return {
+          ...p,
+          returnPct,
+          unrealizedNum: unrealized,
+          realizedNum: parseFloat(String(p.realizedPnL)),
+          investedNum: invested,
+        };
+      })
       .sort((a, b) => b.returnPct - a.returnPct);
+  }, [analytics]);
+
+  // Avg hold days from positions (analytics endpoint doesn't include it directly)
+  const avgHoldDays = useMemo(() => {
+    const ps = analytics?.positions ?? [];
+    if (ps.length === 0) return null;
+    const total = ps.reduce((sum, p) => sum + (p.daysSinceFirstBuy ?? 0), 0);
+    return Math.round(total / ps.length);
   }, [analytics]);
 
   // Chart data
@@ -340,7 +357,7 @@ export default function AnalyticsPage() {
           />
           <KpiCard
             icon={Clock} label="Avg Hold"
-            value={analytics.avgHoldingDays !== undefined ? `${parseFloat(String(analytics.avgHoldingDays)).toFixed(0)}d` : "—"}
+            value={avgHoldDays !== null ? `${avgHoldDays}d` : "—"}
             color="amber"
           />
         </div>
@@ -408,8 +425,8 @@ export default function AnalyticsPage() {
                 <BarChart data={pnlBarData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                   <XAxis dataKey="symbol" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={55}
-                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
+                    tickFormatter={(v) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)} />
                   <Tooltip
                     contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: "#9ca3af" }}
@@ -440,7 +457,8 @@ export default function AnalyticsPage() {
                   <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11 }} tickLine={false} axisLine={false} width={48} />
                   <Tooltip
                     contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, "Return"]}
+                    formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, "Return %"]}
+                    labelFormatter={(label) => label}
                   />
                   <Bar dataKey="return" radius={[0, 3, 3, 0]}>
                     {returnData.map((entry, i) => (
@@ -821,8 +839,10 @@ function PnLCalendar() {
 // ─── Closed Trade Scoring ─────────────────────────────────────────────────────
 
 interface ClosedTrade {
-  id: string; symbol: string; quantity: string; buyPrice: string; sellPrice: string;
-  profit: string; returnPct: string; holdDays: number; annualizedReturn: number | null; grade: "A" | "B" | "C" | "D";
+  id: string; symbol: string; quantity: string;
+  entryPrice: string; exitPrice: string;
+  profit: string; returnPct: string; holdDays: number; annualizedReturn: number | null;
+  grade: "A" | "B" | "C" | "D";
 }
 interface ClosedTradesSummary {
   totalTrades: number; avgHoldDays: number; avgAnnualizedReturn: number;
@@ -869,8 +889,8 @@ function ClosedTradeScoring() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Total Closed", value: summary.totalTrades },
-            { label: "Avg Hold", value: `${summary.avgHoldDays.toFixed(0)}d` },
-            { label: "Avg Ann. Return", value: `${summary.avgAnnualizedReturn.toFixed(1)}%` },
+            { label: "Avg Hold", value: `${parseFloat(String(summary.avgHoldDays)).toFixed(0)}d` },
+            { label: "Avg Ann. Return", value: `${parseFloat(String(summary.avgAnnualizedReturn)).toFixed(1)}%` },
             { label: "Grade A", value: summary.gradeDistribution.A, cls: "text-emerald-400" },
           ].map(({ label, value, cls }) => (
             <div key={label} className="bg-gray-800 rounded-xl p-3 text-center">
@@ -940,8 +960,8 @@ function ClosedTradeScoring() {
               <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                 <td className="px-3 py-2 font-mono font-bold">{t.symbol}</td>
                 <td className="px-3 py-2">{t.quantity}</td>
-                <td className="px-3 py-2">{fmtEGP(parseFloat(t.buyPrice))}</td>
-                <td className="px-3 py-2">{fmtEGP(parseFloat(t.sellPrice))}</td>
+                <td className="px-3 py-2">{fmtEGP(parseFloat(t.entryPrice))}</td>
+                <td className="px-3 py-2">{fmtEGP(parseFloat(t.exitPrice))}</td>
                 <td className={`px-3 py-2 font-medium ${parseFloat(t.profit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                   {fmtEGP(parseFloat(t.profit))}
                 </td>
@@ -950,7 +970,7 @@ function ClosedTradeScoring() {
                 </td>
                 <td className="px-3 py-2 text-gray-400">{t.holdDays}d</td>
                 <td className={`px-3 py-2 ${t.annualizedReturn != null && t.annualizedReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {t.annualizedReturn != null ? `${t.annualizedReturn.toFixed(1)}%` : "—"}
+                  {t.annualizedReturn != null ? `${parseFloat(String(t.annualizedReturn)).toFixed(1)}%` : "—"}
                 </td>
                 <td className="px-3 py-2">
                   <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${GRADE_BG[t.grade]}`}>{t.grade}</span>

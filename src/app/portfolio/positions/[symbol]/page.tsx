@@ -24,7 +24,7 @@ interface PositionDetail {
   costBasisLadder: { date: string; quantity: number; buyPrice: number; lotValue: number; isAboveBreakEven: boolean }[];
   priceHistory: { timestamp: string; price: number }[];
   allTransactions: { id: string; createdAt: string; type: "BUY" | "SELL"; quantity: string; price: string; total: string; fees: string; cumulativeQty: string; cumulativeAvgPrice: string }[];
-  realizedGains: { id: string; createdAt: string; quantity: string; buyPrice: string; sellPrice: string; profit: string; returnPct: string }[];
+  realizedGains: { id: string; createdAt: string; quantity: string; avgPrice: string; sellPrice: string; profit: string; returnPct?: string }[];
 }
 
 export default function PositionDetailPage() {
@@ -284,14 +284,25 @@ export default function PositionDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {realizedGains.map((g) => (
-                  <tr key={g.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                {realizedGains.map((g, i) => (
+                  <tr key={g.id ?? i} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                     <td className="px-4 py-2 text-gray-400">{new Date(g.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-2">{g.quantity}</td>
-                    <td className="px-4 py-2">{formatEGP(g.buyPrice)}</td>
+                    <td className="px-4 py-2">{formatEGP(g.avgPrice)}</td>
                     <td className="px-4 py-2">{formatEGP(g.sellPrice)}</td>
                     <td className={`px-4 py-2 font-medium ${pnlColor(g.profit)}`}>{formatEGP(g.profit)}</td>
-                    <td className={`px-4 py-2 font-medium ${pnlColor(g.returnPct)}`}>{formatPct(g.returnPct)}</td>
+                    <td className={`px-4 py-2 font-medium ${pnlColor(g.returnPct ?? 0)}`}>
+                      {g.returnPct != null
+                        ? formatPct(g.returnPct)
+                        : (() => {
+                            const qty = parseFloat(g.quantity);
+                            const avg = parseFloat(g.avgPrice);
+                            const pft = parseFloat(g.profit);
+                            const base = qty * avg;
+                            return base > 0 ? formatPct(((pft / base) * 100).toFixed(2)) : "—";
+                          })()
+                      }
+                    </td>
                   </tr>
                 ))}
               </tbody>
