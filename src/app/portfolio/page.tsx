@@ -1,7 +1,7 @@
 "use client";
 
+import React, { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -555,9 +555,8 @@ export default function PortfolioPage() {
                   const isExpanded = expandedSymbol === pos.symbol;
 
                   return (
-                    <>
+                    <React.Fragment key={pos.symbol}>
                       <tr
-                        key={pos.symbol}
                         className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors cursor-pointer"
                         onClick={() =>
                           setExpandedSymbol(isExpanded ? null : pos.symbol)
@@ -624,10 +623,7 @@ export default function PortfolioPage() {
                         </td>
                       </tr>
                       {isExpanded && (
-                        <tr
-                          key={`${pos.symbol}-history`}
-                          className="bg-gray-800/30"
-                        >
+                        <tr className="bg-gray-800/30">
                           <td colSpan={9} className="px-6 py-3">
                             <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-2">
                               Transaction History — {pos.symbol}
@@ -636,7 +632,7 @@ export default function PortfolioPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

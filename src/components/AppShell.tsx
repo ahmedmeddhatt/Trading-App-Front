@@ -35,7 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         .td-desktop-nav { display: flex; }
         .td-mobile-nav  { display: none; }
         .td-sign-label  { display: inline; }
-        .td-content-pad { padding-bottom: 0; }
+        .td-content-pad { padding-top: 56px; padding-bottom: 0; }
         @media (max-width: 639px) {
           .td-desktop-nav { display: none; }
           .td-mobile-nav  { display: flex; }
@@ -44,12 +44,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }
       `}</style>
 
-      <div className="min-h-screen bg-gray-950 text-white">
+      <div className="min-h-screen bg-gray-950 text-white" style={{ overflowX: "hidden" }}>
 
         {/* ── Top header ──────────────────────────────────── */}
         <header
           className="border-b border-gray-800 bg-gray-950 px-4 py-3 flex items-center justify-between"
-          style={{ position: "sticky", top: 0, zIndex: 50 }}
+          style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50 }}
         >
           <div className="flex items-center gap-2">
             <Activity className="text-blue-400" size={18} />
