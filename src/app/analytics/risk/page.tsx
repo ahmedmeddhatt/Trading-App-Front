@@ -10,26 +10,35 @@ import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
 import { formatEGP, formatPct } from "@/lib/tradeCalcs";
 
+// Raw shape as returned by the backend (all numeric fields may be strings)
 interface RiskData {
   concentrationRisk: {
-    hhi: number;
-    diversificationScore: number;
-    top3Weight: number;
+    hhi: string | number;
+    diversificationScore: string | number;
+    top3Percent?: string | number;
   };
   positionRisk: {
     symbol: string;
-    marketValue: number;
-    portfolioPct: number;
-    isConcentrated: boolean;
+    marketValue: string | number;
+    portfolioPercent?: string | number;
+    portfolioPct?: string | number;
+    capitalAtRisk?: string | number;
+    unrealizedPnL?: string | number;
   }[];
   drawdown: {
-    maxDrawdownPct: number;
-    maxDrawdownValue: number;
-    peakDate: string | null;
-    troughDate: string | null;
-    timeline: { date: string; value: number; drawdown: number }[];
+    maxDrawdownPct: string | number;
+    maxDrawdownAbs?: string | number;
+    maxDrawdownValue?: string | number;
+    drawdownPeriod?: { peak: string; trough: string } | null;
+    timeline?: { date: string; value: number; drawdown: number }[];
   };
-  sectorRisk: { sector: string; weight: number; hhiContribution: number }[];
+  sectorRisk: {
+    sector: string;
+    percent?: string | number;
+    weight?: string | number;
+    hhi_contribution?: string | number;
+    hhiContribution?: string | number;
+  }[];
 }
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
@@ -64,7 +73,33 @@ export default function RiskPage() {
     );
   }
 
-  const { concentrationRisk, positionRisk, drawdown, sectorRisk } = data;
+  const { concentrationRisk: _cr, positionRisk: _pr, drawdown } = data;
+
+  // Normalize all numeric fields — backend returns strings and uses different field names
+  const concentrationRisk = {
+    hhi: parseFloat(String(_cr.hhi)),
+    diversificationScore: parseFloat(String(_cr.diversificationScore)),
+    top3Weight: parseFloat(String(_cr.top3Percent ?? 0)),
+  };
+  const positionRisk = _pr.map((p) => {
+    const pct = parseFloat(String(p.portfolioPercent ?? p.portfolioPct ?? 0));
+    return {
+      symbol: p.symbol,
+      marketValue: parseFloat(String(p.marketValue)),
+      portfolioPct: pct,
+      isConcentrated: pct > 25,
+    };
+  });
+  const sectorRisk = (data.sectorRisk ?? []).map((s) => ({
+    sector: s.sector,
+    weight: parseFloat(String(s.percent ?? s.weight ?? 0)),
+    hhiContribution: parseFloat(String(s.hhi_contribution ?? s.hhiContribution ?? 0)),
+  }));
+
+  const drawdownPct = parseFloat(String(data.drawdown.maxDrawdownPct));
+  const drawdownAbs = parseFloat(String(data.drawdown.maxDrawdownAbs ?? data.drawdown.maxDrawdownValue ?? 0));
+  const drawdownTimeline = data.drawdown.timeline ?? [];
+
   const { label: riskLbl, color: riskColor } = riskLabel(concentrationRisk.hhi);
 
   // Pie data: top positions + others
@@ -75,7 +110,6 @@ export default function RiskPage() {
     ...(othersWeight > 0.5 ? [{ name: "Others", value: parseFloat(othersWeight.toFixed(2)) }] : []),
   ];
 
-  const drawdownTimeline = drawdown.timeline ?? [];
   const minVal = Math.min(...drawdownTimeline.map((d) => d.value), 0);
 
   return (
@@ -118,11 +152,11 @@ export default function RiskPage() {
               <TrendingDown size={16} className="text-red-400" />
               <p className="text-gray-400 text-sm">Max Drawdown (90d)</p>
             </div>
-            <p className="text-3xl font-bold text-red-400">{formatPct(drawdown.maxDrawdownPct)}</p>
-            <p className="text-sm text-gray-500 mt-1">{formatEGP(drawdown.maxDrawdownValue)} peak-to-trough</p>
-            {drawdown.peakDate && (
+            <p className="text-3xl font-bold text-red-400">{isNaN(drawdownPct) ? "0.00%" : `${drawdownPct.toFixed(2)}%`}</p>
+            <p className="text-sm text-gray-500 mt-1">{formatEGP(drawdownAbs)} peak-to-trough</p>
+            {data.drawdown.drawdownPeriod && (
               <p className="text-xs text-gray-600 mt-1">
-                {new Date(drawdown.peakDate).toLocaleDateString()} → {drawdown.troughDate ? new Date(drawdown.troughDate).toLocaleDateString() : "now"}
+                {new Date(data.drawdown.drawdownPeriod.peak).toLocaleDateString()} → {new Date(data.drawdown.drawdownPeriod.trough).toLocaleDateString()}
               </p>
             )}
           </div>
