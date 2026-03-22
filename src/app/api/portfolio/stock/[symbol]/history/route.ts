@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchBackend } from "@/lib/proxy";
-import { getUserIdFromCookieHeader } from "@/lib/decodeJwt";
+import { fetchBackend, getBackendUserId } from "@/lib/proxy";
 
 export async function GET(
   req: NextRequest,
@@ -8,7 +7,7 @@ export async function GET(
 ) {
   const { symbol } = await params;
   const cookieHeader = req.headers.get("cookie") ?? "";
-  const userId = getUserIdFromCookieHeader(cookieHeader);
+  const userId = await getBackendUserId(cookieHeader);
   if (!userId) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
@@ -20,7 +19,7 @@ export async function GET(
   );
 
   if (!backendRes.ok) {
-    return NextResponse.json({ success: true, data: [] });
+    return NextResponse.json({ success: true, data: { transactions: [], summary: {} } });
   }
 
   const body = await backendRes.json();

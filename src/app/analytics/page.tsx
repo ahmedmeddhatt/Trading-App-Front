@@ -1,12 +1,11 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, BarChart2, Loader2, AlertCircle,
-  Target, Clock, DollarSign, Award, Activity, Zap,
+  Target, Clock, DollarSign, Award, Activity, Zap, ChevronDown, ChevronUp,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -50,6 +49,19 @@ interface TimelinePoint { timestamp: string; totalValue: number; }
 interface AllocationSlice { name: string; value: number; percentage: number; }
 interface AllocationData { bySector: AllocationSlice[]; bySymbol: AllocationSlice[]; }
 
+interface StockTransaction {
+  type: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+  timestamp: string;
+  total?: number;
+}
+
+interface StockHistoryResponse {
+  transactions: StockTransaction[];
+  summary?: { totalBought?: number; totalSold?: number; netFlow?: number };
+}
+
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 function useAnalytics() {
@@ -87,6 +99,16 @@ function useAllocation() {
   });
 }
 
+function useStockHistory(symbol: string | null) {
+  return useQuery<StockHistoryResponse>({
+    queryKey: ["portfolio", "stock-history", symbol],
+    queryFn: () =>
+      apiClient.get<StockHistoryResponse>(`/api/portfolio/stock/${symbol}/history`),
+    enabled: !!symbol,
+    retry: 1,
+  });
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtEGP = (v: number) =>
@@ -99,6 +121,47 @@ const RANGES: DateRange[] = ["1W", "1M", "3M", "6M", "1Y"];
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16"];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+const fmtTx = (v: number) =>
+  new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", minimumFractionDigits: 2 }).format(v);
+
+function HistoryRow({ tx }: { tx: StockTransaction }) {
+  const isBuy = tx.type === "BUY";
+  const total = tx.total ?? tx.price * tx.quantity;
+  return (
+    <div className="flex items-center justify-between text-xs py-2 border-b border-gray-800 last:border-0">
+      <div className="flex items-center gap-2">
+        <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${isBuy ? "bg-emerald-900/50 text-emerald-400" : "bg-red-900/50 text-red-400"}`}>
+          {tx.type}
+        </span>
+        <span className="text-gray-400">{tx.quantity} shares</span>
+        <span className="text-gray-600">@ {fmtTx(tx.price)}</span>
+      </div>
+      <div className="text-right">
+        <p className="text-white font-medium">{fmtTx(total)}</p>
+        <p className="text-gray-600">
+          {new Date(tx.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ExpandedHistory({ symbol }: { symbol: string }) {
+  const { data, isLoading } = useStockHistory(symbol);
+  if (isLoading) {
+    return <div className="flex justify-center py-4"><Loader2 className="animate-spin text-gray-500" size={16} /></div>;
+  }
+  const transactions = data?.transactions ?? [];
+  if (transactions.length === 0) {
+    return <p className="text-gray-600 text-xs text-center py-4">No transaction history.</p>;
+  }
+  return (
+    <div>
+      {transactions.map((tx, i) => <HistoryRow key={i} tx={tx} />)}
+    </div>
+  );
+}
 
 function KpiCard({
   icon: Icon, label, value, sub, positive, color = "blue",
@@ -150,6 +213,7 @@ function EmptyState({ message }: { message: string }) {
 
 export default function AnalyticsPage() {
   const [range, setRange] = useState<DateRange>("1M");
+  const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
   const { data: timeline = [], isLoading: timelineLoading } = useTimeline(range);
@@ -269,13 +333,13 @@ export default function AnalyticsPage() {
           />
           <KpiCard
             icon={Target} label="Win Rate"
-            value={analytics.winRate !== undefined ? `${analytics.winRate.toFixed(1)}%` : "—"}
+            value={analytics.winRate !== undefined ? `${parseFloat(String(analytics.winRate)).toFixed(1)}%` : "—"}
             sub={`${analytics.symbolsTraded ?? positions.length} symbols`}
             color="purple"
           />
           <KpiCard
             icon={Clock} label="Avg Hold"
-            value={analytics.avgHoldingDays !== undefined ? `${analytics.avgHoldingDays.toFixed(0)}d` : "—"}
+            value={analytics.avgHoldingDays !== undefined ? `${parseFloat(String(analytics.avgHoldingDays)).toFixed(0)}d` : "—"}
             color="amber"
           />
         </div>
@@ -446,38 +510,54 @@ export default function AnalyticsPage() {
                   <th className="text-right px-4 py-3">Unrealized</th>
                   <th className="text-right px-4 py-3">Realized</th>
                   <th className="text-right px-4 py-3">Return %</th>
+                  <th className="w-8" />
                 </tr>
               </thead>
               <tbody>
                 {positions.map((p) => {
                   const isPos = p.returnPct >= 0;
+                  const isExpanded = expandedSymbol === p.symbol;
                   return (
-                    <tr
-                      key={p.symbol}
-                      className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors cursor-pointer"
-                      onClick={() => window.location.href = `/stocks/${p.symbol}`}
-                    >
-                      <td className="px-4 py-3">
-                        <Link href={`/stocks/${p.symbol}`} className="font-bold text-white hover:text-blue-400 transition-colors" onClick={(e) => e.stopPropagation()}>
-                          {p.symbol}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-400">{parseFloat(String(p.totalQuantity)).toFixed(0)}</td>
-                      <td className="px-4 py-3 text-right text-gray-400">{fmtEGP(parseFloat(String(p.averagePrice)))}</td>
-                      <td className="px-4 py-3 text-right text-gray-300">{fmtEGP(p.investedNum)}</td>
-                      <td className={`px-4 py-3 text-right font-medium ${p.unrealizedNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {p.unrealizedNum >= 0 ? "+" : ""}{fmtEGP(p.unrealizedNum)}
-                      </td>
-                      <td className={`px-4 py-3 text-right font-medium ${p.realizedNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        {p.realizedNum >= 0 ? "+" : ""}{fmtEGP(p.realizedNum)}
-                      </td>
-                      <td className={`px-4 py-3 text-right font-bold ${isPos ? "text-emerald-400" : "text-red-400"}`}>
-                        <span className="flex items-center justify-end gap-1">
-                          {isPos ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                          {pct(p.returnPct)}
-                        </span>
-                      </td>
-                    </tr>
+                    <React.Fragment key={p.symbol}>
+                      <tr
+                        className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors cursor-pointer"
+                        onClick={() => setExpandedSymbol(isExpanded ? null : p.symbol)}
+                      >
+                        <td className="px-4 py-3">
+                          <Link href={`/stocks/${p.symbol}`} className="font-bold text-white hover:text-blue-400 transition-colors" onClick={(e) => e.stopPropagation()}>
+                            {p.symbol}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-400">{parseFloat(String(p.totalQuantity)).toFixed(0)}</td>
+                        <td className="px-4 py-3 text-right text-gray-400">{fmtEGP(parseFloat(String(p.averagePrice)))}</td>
+                        <td className="px-4 py-3 text-right text-gray-300">{fmtEGP(p.investedNum)}</td>
+                        <td className={`px-4 py-3 text-right font-medium ${p.unrealizedNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {p.unrealizedNum >= 0 ? "+" : ""}{fmtEGP(p.unrealizedNum)}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-medium ${p.realizedNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {p.realizedNum >= 0 ? "+" : ""}{fmtEGP(p.realizedNum)}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-bold ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                          <span className="flex items-center justify-end gap-1">
+                            {isPos ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                            {pct(p.returnPct)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-600">
+                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-gray-800/30">
+                          <td colSpan={8} className="px-6 py-3">
+                            <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-2">
+                              Transaction History — {p.symbol}
+                            </p>
+                            <ExpandedHistory symbol={p.symbol} />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -497,7 +577,7 @@ export default function AnalyticsPage() {
                   <p className="text-gray-500 text-xs">Best Performer</p>
                   <p className="text-white font-bold text-lg">{analytics.bestPerformer.symbol}</p>
                   <p className="text-emerald-400 text-sm font-medium">
-                    +{analytics.bestPerformer.returnPercent.toFixed(2)}% · {fmtEGP(parseFloat(analytics.bestPerformer.unrealizedPnL))}
+                    +{parseFloat(String(analytics.bestPerformer.returnPercent)).toFixed(2)}% · {fmtEGP(parseFloat(analytics.bestPerformer.unrealizedPnL))}
                   </p>
                 </div>
               </div>
@@ -511,7 +591,7 @@ export default function AnalyticsPage() {
                   <p className="text-gray-500 text-xs">Worst Performer</p>
                   <p className="text-white font-bold text-lg">{analytics.worstPerformer.symbol}</p>
                   <p className="text-red-400 text-sm font-medium">
-                    {analytics.worstPerformer.returnPercent.toFixed(2)}% · {fmtEGP(parseFloat(analytics.worstPerformer.unrealizedPnL))}
+                    {parseFloat(String(analytics.worstPerformer.returnPercent)).toFixed(2)}% · {fmtEGP(parseFloat(analytics.worstPerformer.unrealizedPnL))}
                   </p>
                 </div>
               </div>
