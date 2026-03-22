@@ -44,6 +44,11 @@ interface AnalyticsPosition {
   realizedPnL: string | number;
   returnPercent?: string | number;
   graphData?: Array<{ price: string; timestamp: string }>;
+  // Feature 10 extended fields
+  breakEvenPrice?: string | number;
+  daysSinceFirstBuy?: number;
+  totalFeesPaid?: string | number;
+  portfolioContributionPct?: string | number;
 }
 
 interface Performer {
@@ -468,7 +473,7 @@ export default function PortfolioPage() {
 
         {/* Positions table */}
         <div className="bg-gray-900 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-gray-800">
+          <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-wrap gap-2">
             <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
               Positions
               {(activeSector || activeSymbol) && (
@@ -487,10 +492,15 @@ export default function PortfolioPage() {
                 </span>
               )}
             </h2>
-            <span className="text-gray-600 text-xs">
-              {filteredPositions.length} position
-              {filteredPositions.length !== 1 ? "s" : ""}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-gray-600 text-xs">
+                {filteredPositions.length} position
+                {filteredPositions.length !== 1 ? "s" : ""}
+              </span>
+              <Link href="/portfolio/transactions" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
+                All Transactions →
+              </Link>
+            </div>
           </div>
 
           {isLoading && (
@@ -522,7 +532,12 @@ export default function PortfolioPage() {
                   <th className="text-right px-4 py-3">Market Value</th>
                   <th className="text-right px-4 py-3">Unrealized P&L</th>
                   <th className="text-right px-4 py-3">Return %</th>
+                  <th className="text-center px-4 py-3 hidden lg:table-cell">Break-even</th>
+                  <th className="text-right px-4 py-3 hidden xl:table-cell">Days</th>
+                  <th className="text-right px-4 py-3 hidden xl:table-cell">Fees</th>
+                  <th className="text-right px-4 py-3 hidden xl:table-cell">Port. %</th>
                   <th className="text-center px-4 py-3 hidden lg:table-cell">30d</th>
+                  <th className="text-center px-4 py-3">Detail</th>
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -553,6 +568,13 @@ export default function PortfolioPage() {
                       : 0;
                   const isPos = pnl >= 0;
                   const isExpanded = expandedSymbol === pos.symbol;
+
+                  // Feature 10 advanced metrics
+                  const breakEven = ap?.breakEvenPrice != null ? parseFloat(String(ap.breakEvenPrice)) : avgCost;
+                  const beGap = breakEven > 0 ? ((currentPrice - breakEven) / breakEven) * 100 : null;
+                  const daysHeld = ap?.daysSinceFirstBuy ?? null;
+                  const feesPaid = ap?.totalFeesPaid != null ? parseFloat(String(ap.totalFeesPaid)) : null;
+                  const portPct = ap?.portfolioContributionPct != null ? parseFloat(String(ap.portfolioContributionPct)) : null;
 
                   return (
                     <React.Fragment key={pos.symbol}>
@@ -611,8 +633,41 @@ export default function PortfolioPage() {
                           {isPos ? "+" : ""}
                           {pnlPct.toFixed(2)}%
                         </td>
+                        {/* Feature 6: Break-even gauge */}
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <div className="w-20 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${beGap != null && beGap >= 0 ? "bg-emerald-500" : "bg-red-500"}`}
+                                style={{ width: `${Math.min(100, Math.max(0, 50 + (beGap ?? 0) * 2))}%` }}
+                              />
+                            </div>
+                            {beGap != null && (
+                              <span className={`text-[10px] ${beGap >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {beGap >= 0 ? "+" : ""}{beGap.toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        {/* Feature 10: Days held */}
+                        <td className="px-4 py-3 text-right text-gray-400 text-xs hidden xl:table-cell">
+                          {daysHeld != null ? `${daysHeld}d` : "—"}
+                        </td>
+                        {/* Feature 10: Fees paid */}
+                        <td className="px-4 py-3 text-right text-gray-400 text-xs hidden xl:table-cell">
+                          {feesPaid != null ? fmt(feesPaid) : "—"}
+                        </td>
+                        {/* Feature 10: Portfolio % */}
+                        <td className="px-4 py-3 text-right text-gray-400 text-xs hidden xl:table-cell">
+                          {portPct != null ? `${portPct.toFixed(1)}%` : "—"}
+                        </td>
                         <td className="px-4 py-3 text-center hidden lg:table-cell">
                           <Sparkline symbol={pos.symbol} />
+                        </td>
+                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                          <Link href={`/portfolio/positions/${pos.symbol}`} className="text-blue-400 hover:text-blue-300 text-xs whitespace-nowrap">
+                            Details →
+                          </Link>
                         </td>
                         <td className="px-4 py-3 text-right text-gray-600">
                           {isExpanded ? (
@@ -624,11 +679,14 @@ export default function PortfolioPage() {
                       </tr>
                       {isExpanded && (
                         <tr className="bg-gray-800/30">
-                          <td colSpan={9} className="px-6 py-3">
+                          <td colSpan={13} className="px-6 py-3">
                             <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-2">
                               Transaction History — {pos.symbol}
                             </p>
                             <ExpandedHistory symbol={pos.symbol} />
+                            <Link href={`/portfolio/positions/${pos.symbol}`} className="text-xs text-blue-400 hover:text-blue-300 mt-2 inline-block">
+                              Full position details →
+                            </Link>
                           </td>
                         </tr>
                       )}
