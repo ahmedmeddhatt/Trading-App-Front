@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, BarChart2, Loader2, AlertCircle,
   Target, Clock, DollarSign, Award, Activity, Zap, ChevronDown, ChevronUp,
+  AlertTriangle, Info, CheckCircle, Shield, Calendar,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -622,7 +623,344 @@ export default function AnalyticsPage() {
           </div>
         )}
 
+        {/* ── Smart Insights Panel (Feature 9) ─────────── */}
+        <InsightsPanel />
+
+        {/* ── P&L Calendar Heatmap (Feature 5) ─────────── */}
+        <PnLCalendar />
+
+        {/* ── Closed Trade Scoring (Feature 8) ─────────── */}
+        <ClosedTradeScoring />
+
       </main>
     </AppShell>
   );
 }
+
+// ─── Smart Insights Panel ─────────────────────────────────────────────────────
+
+interface Insight { type: "WARNING" | "INFO" | "SUCCESS"; icon: string; message: string; symbol?: string; priority: number }
+
+const INSIGHT_ICON: Record<string, React.ElementType> = {
+  WARNING: AlertTriangle,
+  INFO: Info,
+  SUCCESS: CheckCircle,
+};
+
+const INSIGHT_COLOR: Record<string, string> = {
+  WARNING: "text-amber-400 bg-amber-900/20 border-amber-800/40",
+  INFO: "text-blue-400 bg-blue-900/20 border-blue-800/40",
+  SUCCESS: "text-emerald-400 bg-emerald-900/20 border-emerald-800/40",
+};
+
+function InsightsPanel() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["insights"],
+    queryFn: () => apiClient.get<{ insights: Insight[] }>("/api/analytics/insights"),
+  });
+
+  if (isLoading) return null;
+  const insights = data?.insights ?? [];
+  if (insights.length === 0) return null;
+
+  return (
+    <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <Shield size={16} className="text-blue-400" />
+        <SectionHeader title="Smart Insights" sub="Automated analysis of your portfolio" />
+      </div>
+      <div className="space-y-2">
+        {insights.sort((a, b) => a.priority - b.priority).map((insight, i) => {
+          const Icon = INSIGHT_ICON[insight.type] ?? Info;
+          return (
+            <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border ${INSIGHT_COLOR[insight.type]}`}>
+              <Icon size={16} className="mt-0.5 shrink-0" />
+              <div className="text-sm">
+                {insight.symbol && <span className="font-bold font-mono mr-1">{insight.symbol}</span>}
+                {insight.message}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── P&L Calendar Heatmap ─────────────────────────────────────────────────────
+
+interface DayPnL { date: string; realizedPnL: number; tradeCount: number }
+
+function PnLCalendar() {
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["pnl-calendar", year],
+    queryFn: () => apiClient.get<{ dailyPnL: DayPnL[] }>(`/api/analytics/pnl-calendar?year=${year}`),
+  });
+
+  const dailyMap = useMemo(() => {
+    const m = new Map<string, DayPnL>();
+    (data?.dailyPnL ?? []).forEach((d) => m.set(d.date.slice(0, 10), d));
+    return m;
+  }, [data]);
+
+  // Build 53 weeks × 7 days grid for the year
+  const weeks = useMemo(() => {
+    const jan1 = new Date(year, 0, 1);
+    const startDow = jan1.getDay(); // 0=Sun
+    const days: (Date | null)[] = Array(startDow).fill(null);
+    const dec31 = new Date(year, 11, 31);
+    let d = new Date(jan1);
+    while (d <= dec31) {
+      days.push(new Date(d));
+      d.setDate(d.getDate() + 1);
+    }
+    while (days.length % 7 !== 0) days.push(null);
+    const w: (Date | null)[][] = [];
+    for (let i = 0; i < days.length; i += 7) w.push(days.slice(i, i + 7));
+    return w;
+  }, [year]);
+
+  const maxPnL = useMemo(() => {
+    let m = 0;
+    dailyMap.forEach((v) => { if (Math.abs(v.realizedPnL) > m) m = Math.abs(v.realizedPnL); });
+    return m || 1;
+  }, [dailyMap]);
+
+  function cellColor(d: Date | null): string {
+    if (!d) return "bg-transparent";
+    const key = d.toISOString().slice(0, 10);
+    const entry = dailyMap.get(key);
+    if (!entry) return "bg-gray-800";
+    const intensity = Math.min(1, Math.abs(entry.realizedPnL) / maxPnL);
+    if (entry.realizedPnL > 0) return intensity > 0.7 ? "bg-emerald-500" : intensity > 0.3 ? "bg-emerald-600" : "bg-emerald-800";
+    return intensity > 0.7 ? "bg-red-500" : intensity > 0.3 ? "bg-red-600" : "bg-red-800";
+  }
+
+  function cellTitle(d: Date | null): string {
+    if (!d) return "";
+    const key = d.toISOString().slice(0, 10);
+    const entry = dailyMap.get(key);
+    if (!entry) return key;
+    return `${key}: ${entry.realizedPnL >= 0 ? "+" : ""}${fmtEGP(entry.realizedPnL)} (${entry.tradeCount} trades)`;
+  }
+
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+
+  return (
+    <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Calendar size={16} className="text-gray-400" />
+          <SectionHeader title="P&L Calendar" sub="Realized gains/losses by day" />
+        </div>
+        <div className="flex gap-1">
+          {[currentYear - 1, currentYear].map((y) => (
+            <button key={y} onClick={() => setYear(y)}
+              className={`px-2.5 py-1 rounded text-xs font-medium ${year === y ? "bg-blue-600 text-white" : "text-gray-500 hover:text-white hover:bg-gray-800"}`}>
+              {y}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="animate-spin text-gray-600" size={20} /></div>
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="inline-flex gap-1 min-w-max">
+            {/* Day labels */}
+            <div className="flex flex-col gap-0.5 mr-1">
+              <div className="h-4" /> {/* month label space */}
+              {DAYS.map((d, i) => (
+                <div key={i} className="h-3 w-3 text-gray-600 text-[9px] flex items-center justify-center">{d}</div>
+              ))}
+            </div>
+            {weeks.map((week, wi) => {
+              // Month label: show month name when first day of month appears in week
+              const monthDay = week.find((d) => d?.getDate() === 1);
+              return (
+                <div key={wi} className="flex flex-col gap-0.5">
+                  <div className="h-4 text-[9px] text-gray-600">
+                    {monthDay ? MONTHS[monthDay.getMonth()] : ""}
+                  </div>
+                  {week.map((d, di) => (
+                    <div
+                      key={di}
+                      title={cellTitle(d)}
+                      className={`w-3 h-3 rounded-sm ${cellColor(d)} cursor-pointer hover:ring-1 hover:ring-white/30`}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+            <span>Less</span>
+            <div className="w-3 h-3 rounded-sm bg-gray-800" />
+            <div className="w-3 h-3 rounded-sm bg-emerald-800" />
+            <div className="w-3 h-3 rounded-sm bg-emerald-600" />
+            <div className="w-3 h-3 rounded-sm bg-emerald-500" />
+            <span className="text-gray-600">Profit</span>
+            <span className="ml-2">|</span>
+            <span className="ml-2 text-gray-600">Loss</span>
+            <div className="w-3 h-3 rounded-sm bg-red-800" />
+            <div className="w-3 h-3 rounded-sm bg-red-600" />
+            <div className="w-3 h-3 rounded-sm bg-red-500" />
+            <span>More</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Closed Trade Scoring ─────────────────────────────────────────────────────
+
+interface ClosedTrade {
+  id: string; symbol: string; quantity: string; buyPrice: string; sellPrice: string;
+  profit: string; returnPct: string; holdDays: number; annualizedReturn: number | null; grade: "A" | "B" | "C" | "D";
+}
+interface ClosedTradesSummary {
+  totalTrades: number; avgHoldDays: number; avgAnnualizedReturn: number;
+  gradeDistribution: { A: number; B: number; C: number; D: number };
+}
+
+const GRADE_COLORS = { A: "#10b981", B: "#3b82f6", C: "#f59e0b", D: "#ef4444" };
+const GRADE_BG: Record<string, string> = {
+  A: "bg-emerald-900/30 text-emerald-400",
+  B: "bg-blue-900/30 text-blue-400",
+  C: "bg-amber-900/30 text-amber-400",
+  D: "bg-red-900/30 text-red-400",
+};
+
+function ClosedTradeScoring() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["closed-trades"],
+    queryFn: () => apiClient.get<{ trades: ClosedTrade[]; summary: ClosedTradesSummary }>("/api/analytics/closed-trades"),
+  });
+
+  if (isLoading) return null;
+  const trades = data?.trades ?? [];
+  const summary = data?.summary;
+  if (trades.length === 0) return null;
+
+  const gradeData = summary ? Object.entries(summary.gradeDistribution)
+    .filter(([, v]) => v > 0)
+    .map(([k, v]) => ({ name: `Grade ${k}`, value: v, key: k })) : [];
+
+  const returnBarData = trades.slice(0, 20).map((t) => ({
+    symbol: `${t.symbol} ${new Date(t.id.slice(0, 10) || Date.now()).toLocaleDateString()}`,
+    return: parseFloat(t.returnPct),
+    grade: t.grade,
+  }));
+
+  return (
+    <div className="bg-gray-900 rounded-xl p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <Award size={16} className="text-amber-400" />
+        <SectionHeader title="Closed Trade Scoring" sub="Grade breakdown of all your realized trades" />
+      </div>
+
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Total Closed", value: summary.totalTrades },
+            { label: "Avg Hold", value: `${summary.avgHoldDays.toFixed(0)}d` },
+            { label: "Avg Ann. Return", value: `${summary.avgAnnualizedReturn.toFixed(1)}%` },
+            { label: "Grade A", value: summary.gradeDistribution.A, cls: "text-emerald-400" },
+          ].map(({ label, value, cls }) => (
+            <div key={label} className="bg-gray-800 rounded-xl p-3 text-center">
+              <p className="text-gray-500 text-xs mb-1">{label}</p>
+              <p className={`text-xl font-bold ${cls ?? "text-white"}`}>{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Grade distribution donut */}
+        {gradeData.length > 0 && (
+          <div>
+            <p className="text-gray-500 text-xs mb-2">Grade Distribution</p>
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie data={gradeData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                  {gradeData.map((entry, i) => (
+                    <Cell key={i} fill={GRADE_COLORS[entry.key as keyof typeof GRADE_COLORS] ?? "#6b7280"} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }} />
+                <Legend formatter={(v) => <span className="text-xs text-gray-400">{v}</span>} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Return % bar chart */}
+        {returnBarData.length > 0 && (
+          <div>
+            <p className="text-gray-500 text-xs mb-2">Return % per Trade (last 20)</p>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={returnBarData} margin={{ left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <XAxis dataKey="symbol" tick={false} />
+                <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                <Tooltip
+                  contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
+                  formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, "Return"]}
+                />
+                <Bar dataKey="return" radius={[3, 3, 0, 0]}>
+                  {returnBarData.map((entry, i) => (
+                    <Cell key={i} fill={GRADE_COLORS[entry.grade] ?? "#6b7280"} opacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Trade list */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-gray-500 border-b border-gray-800">
+              {["Symbol", "Qty", "Buy Price", "Sell Price", "Profit", "Return", "Hold", "Ann. Return", "Grade"].map((h) => (
+                <th key={h} className="px-3 py-2 text-left">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {trades.map((t) => (
+              <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                <td className="px-3 py-2 font-mono font-bold">{t.symbol}</td>
+                <td className="px-3 py-2">{t.quantity}</td>
+                <td className="px-3 py-2">{fmtEGP(parseFloat(t.buyPrice))}</td>
+                <td className="px-3 py-2">{fmtEGP(parseFloat(t.sellPrice))}</td>
+                <td className={`px-3 py-2 font-medium ${parseFloat(t.profit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {fmtEGP(parseFloat(t.profit))}
+                </td>
+                <td className={`px-3 py-2 font-medium ${parseFloat(t.returnPct) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {parseFloat(t.returnPct) >= 0 ? "+" : ""}{parseFloat(t.returnPct).toFixed(2)}%
+                </td>
+                <td className="px-3 py-2 text-gray-400">{t.holdDays}d</td>
+                <td className={`px-3 py-2 ${t.annualizedReturn != null && t.annualizedReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {t.annualizedReturn != null ? `${t.annualizedReturn.toFixed(1)}%` : "—"}
+                </td>
+                <td className="px-3 py-2">
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${GRADE_BG[t.grade]}`}>{t.grade}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+

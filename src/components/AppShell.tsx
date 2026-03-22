@@ -4,18 +4,23 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity, LayoutDashboard, BarChart2, Briefcase, LineChart, LogOut,
+  Receipt, ShieldAlert,
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Overview",  icon: LayoutDashboard },
-  { href: "/stocks",    label: "Stocks",    icon: BarChart2 },
-  { href: "/portfolio", label: "Portfolio", icon: Briefcase },
-  { href: "/analytics", label: "Analytics", icon: LineChart },
+  { href: "/dashboard",               label: "Overview",      icon: LayoutDashboard },
+  { href: "/stocks",                  label: "Stocks",        icon: BarChart2 },
+  { href: "/portfolio",               label: "Portfolio",     icon: Briefcase },
+  { href: "/portfolio/transactions",  label: "Transactions",  icon: Receipt },
+  { href: "/analytics",               label: "Analytics",     icon: LineChart },
+  { href: "/analytics/risk",          label: "Risk",          icon: ShieldAlert },
 ];
 
 function isActive(href: string, pathname: string) {
   if (href === "/stocks") return pathname.startsWith("/stocks");
+  if (href === "/portfolio") return pathname === "/portfolio" || pathname.startsWith("/portfolio/positions");
+  if (href === "/analytics") return pathname === "/analytics";
   return pathname === href || pathname.startsWith(href + "/");
 }
 
