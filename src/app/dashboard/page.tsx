@@ -10,6 +10,7 @@ import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
 import PriceFreshnessBanner from "@/components/PriceFreshnessBanner";
 import MarketStatusBar from "@/components/MarketStatusBar";
 import AppShell from "@/components/AppShell";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface DashboardStock {
   symbol: string;
@@ -48,6 +49,7 @@ function useDashboardStocks() {
 
 export default function DashboardOverview() {
   const [search, setSearch] = useState("");
+  const { t } = useLanguage();
 
   const { data: dashData, isLoading: dashLoading, isError: dashError } = useDashboardStocks();
   const { data: portfolio } = usePortfolio();
@@ -70,16 +72,16 @@ export default function DashboardOverview() {
         {portfolio && (
           <div className="grid grid-cols-3 gap-2 sm:gap-4">
             <StatCard
-              label="Portfolio Value"
+              label={t("dashboard.portfolioVal")}
               value={`$${portfolio.totalValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
             />
             <StatCard
-              label="Total P&L"
+              label={t("dashboard.totalPnl")}
               value={`${portfolio.totalPnl >= 0 ? "+" : ""}$${Math.abs(portfolio.totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
               positive={portfolio.totalPnl >= 0}
             />
             <StatCard
-              label="P&L %"
+              label={t("dashboard.pnlPct")}
               value={`${portfolio.totalPnlPercent >= 0 ? "+" : ""}${portfolio.totalPnlPercent.toFixed(2)}%`}
               positive={portfolio.totalPnlPercent >= 0}
             />
@@ -88,14 +90,14 @@ export default function DashboardOverview() {
 
         {dashError ? (
           <div className="flex flex-col items-center gap-2 py-10 bg-gray-900/60 border border-red-900/40 rounded-xl">
-            <span className="text-red-400 text-sm font-medium">Failed to load dashboard data</span>
-            <span className="text-gray-600 text-xs">Check your connection or try refreshing</span>
+            <span className="text-red-400 text-sm font-medium">{t("dashboard.failed")}</span>
+            <span className="text-gray-600 text-xs">{t("dashboard.checkConn")}</span>
           </div>
         ) : (
           <>
-            <Section title="Hottest Stocks" stocks={dashData?.hottest ?? []} loading={dashLoading} prices={prices} />
-            <Section title="Recommended" stocks={dashData?.recommended ?? []} loading={dashLoading} prices={prices} />
-            <Section title="Lowest Stocks" stocks={dashData?.lowest ?? []} loading={dashLoading} prices={prices} />
+            <Section title={t("dashboard.hottest")} stocks={dashData?.hottest ?? []} loading={dashLoading} prices={prices} />
+            <Section title={t("dashboard.recommended")} stocks={dashData?.recommended ?? []} loading={dashLoading} prices={prices} />
+            <Section title={t("dashboard.lowest")} stocks={dashData?.lowest ?? []} loading={dashLoading} prices={prices} />
           </>
         )}
 
@@ -103,12 +105,12 @@ export default function DashboardOverview() {
         {dashData?.myStocks && dashData.myStocks.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">My Stocks</h2>
+              <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{t("dashboard.myStocks")}</h2>
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="text"
-                  placeholder="Filter…"
+                  placeholder={t("dashboard.filter")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="bg-gray-800 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500 w-40"
@@ -136,9 +138,9 @@ export default function DashboardOverview() {
                           </span>
                         </div>
                         <p className="text-2xl font-bold">${currentPrice.toFixed(2)}</p>
-                        <p className="text-gray-500 text-xs">{qty} shares · avg ${avgPrice.toFixed(2)}</p>
+                        <p className="text-gray-500 text-xs">{qty} {t("dashboard.shares")} · {t("dashboard.avg")} ${avgPrice.toFixed(2)}</p>
                         <p className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
-                          {isPos ? "+" : ""}${pnl.toFixed(2)} unrealized
+                          {isPos ? "+" : ""}${pnl.toFixed(2)} {t("dashboard.unrealizedLabel")}
                         </p>
                         {live && <p className="text-gray-600 text-xs">{new Date(live.timestamp).toLocaleTimeString()}</p>}
                       </div>
@@ -151,15 +153,15 @@ export default function DashboardOverview() {
 
         {!dashLoading && !dashError && (!dashData?.myStocks || dashData.myStocks.length === 0) && (
           <div className="text-center py-12 text-gray-600 text-sm">
-            No positions yet.{" "}
-            <Link href="/stocks/COMI" className="text-blue-400 hover:text-blue-300">Browse stocks →</Link>
+            {t("dashboard.noPositions")}{" "}
+            <Link href="/stocks/COMI" className="text-blue-400 hover:text-blue-300">{t("dashboard.browseStocks")}</Link>
           </div>
         )}
       </main>
 
       {priceLoading && allSymbols.length > 0 && (
         <div className="fixed bottom-20 sm:bottom-4 right-4 bg-gray-800 text-gray-400 text-xs px-3 py-2 rounded-lg animate-pulse">
-          Connecting to live prices…
+          {t("dashboard.connecting")}
         </div>
       )}
     </AppShell>

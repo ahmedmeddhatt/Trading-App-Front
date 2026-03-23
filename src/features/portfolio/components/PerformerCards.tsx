@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Performer {
   symbol: string;
@@ -29,6 +30,7 @@ function PerformerCard({
   performer: Performer;
   positive: boolean;
 }) {
+  const { t } = useLanguage();
   const pnl = parseFloat(performer.unrealizedPnL);
   return (
     <Link href={`/stocks/${performer.symbol}`} className="flex-1">
@@ -52,7 +54,7 @@ function PerformerCard({
         </p>
         <p className={`text-sm font-medium ${positive ? "text-emerald-400" : "text-red-400"}`}>
           {performer.returnPercent >= 0 ? "+" : ""}
-          {performer.returnPercent.toFixed(2)}% return
+          {performer.returnPercent.toFixed(2)}% {t("analytics.returnLabel")}
         </p>
       </div>
     </Link>
@@ -60,12 +62,13 @@ function PerformerCard({
 }
 
 export default function PerformerCards({ best, worst }: Props) {
+  const { t } = useLanguage();
   if (!best && !worst) return null;
 
   return (
     <div className="flex gap-4">
-      {best && <PerformerCard title="Best Performer" performer={best} positive={true} />}
-      {worst && <PerformerCard title="Worst Performer" performer={worst} positive={false} />}
+      {best && <PerformerCard title={t("analytics.bestPerformer")} performer={best} positive={true} />}
+      {worst && <PerformerCard title={t("analytics.worstPerformer")} performer={worst} positive={false} />}
     </div>
   );
 }

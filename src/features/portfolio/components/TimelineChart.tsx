@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useLanguage } from "@/context/LanguageContext";
 
 export interface TimelinePoint {
   timestamp: string;
@@ -39,6 +40,7 @@ function formatDate(ts: string, range: DateRange) {
 }
 
 export default function TimelineChart({ data, range, onRangeChange, loading }: Props) {
+  const { t, dir } = useLanguage();
   const chartData = data.map((p) => ({
     date: formatDate(p.timestamp, range),
     totalValue: p.totalValue,
@@ -52,7 +54,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
     <div className="bg-gray-900 rounded-xl p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-          Portfolio Value Over Time
+          {t("analytics.portfolioOverTime")}
         </h2>
         <div className="flex gap-1">
           {RANGES.map((r) => (
@@ -76,11 +78,12 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
           <div className="h-full bg-gray-800 rounded-lg animate-pulse" />
         ) : data.length < 2 ? (
           <div className="h-full flex items-center justify-center text-gray-600 text-sm border border-dashed border-gray-800 rounded-lg">
-            No timeline data available
+            {t("analytics.noTimeline")}
           </div>
         ) : (
+          <div dir="ltr" style={{ height: "100%" }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 4, right: dir === "rtl" ? 40 : 8, left: dir === "rtl" ? 0 : 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
               <XAxis
                 dataKey="date"
@@ -89,6 +92,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
                 tickLine={false}
               />
               <YAxis
+                orientation={dir === "rtl" ? "right" : "left"}
                 tick={{ fill: "#6b7280", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
@@ -103,7 +107,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
                   fontSize: 12,
                 }}
                 labelStyle={{ color: "#9ca3af" }}
-                formatter={(val: unknown) => [fmt.format((val as number) ?? 0), "Value"]}
+                formatter={(val: unknown) => [fmt.format((val as number) ?? 0), t("analytics.value")]}
               />
               <Line
                 type="monotone"
@@ -115,6 +119,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
               />
             </LineChart>
           </ResponsiveContainer>
+          </div>
         )}
       </div>
     </div>

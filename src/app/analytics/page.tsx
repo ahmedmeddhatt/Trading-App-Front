@@ -15,6 +15,7 @@ import {
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,7 @@ const fmtTx = (v: number) =>
   new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", minimumFractionDigits: 2 }).format(v);
 
 function HistoryRow({ tx }: { tx: StockTransaction }) {
+  const { t } = useLanguage();
   const isBuy = tx.type === "BUY";
   const total = tx.total ?? tx.price * tx.quantity;
   return (
@@ -136,7 +138,7 @@ function HistoryRow({ tx }: { tx: StockTransaction }) {
         <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${isBuy ? "bg-emerald-900/50 text-emerald-400" : "bg-red-900/50 text-red-400"}`}>
           {tx.type}
         </span>
-        <span className="text-gray-400">{tx.quantity} shares</span>
+        <span className="text-gray-400">{tx.quantity} {t("trade.sharesUnit")}</span>
         <span className="text-gray-600">@ {fmtTx(tx.price)}</span>
       </div>
       <div className="text-right">
@@ -150,13 +152,14 @@ function HistoryRow({ tx }: { tx: StockTransaction }) {
 }
 
 function ExpandedHistory({ symbol }: { symbol: string }) {
+  const { t } = useLanguage();
   const { data, isLoading } = useStockHistory(symbol);
   if (isLoading) {
     return <div className="flex justify-center py-4"><Loader2 className="animate-spin text-gray-500" size={16} /></div>;
   }
   const transactions = data?.transactions ?? [];
   if (transactions.length === 0) {
-    return <p className="text-gray-600 text-xs text-center py-4">No transaction history.</p>;
+    return <p className="text-gray-600 text-xs text-center py-4">{t("portfolio.noTxHistory")}</p>;
   }
   return (
     <div>
@@ -214,6 +217,7 @@ function EmptyState({ message }: { message: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
+  const { t, dir } = useLanguage();
   const [range, setRange] = useState<DateRange>("1M");
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
@@ -314,12 +318,12 @@ export default function AnalyticsPage() {
       <AppShell>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 flex flex-col items-center gap-4 text-center">
           <BarChart2 size={40} className="text-gray-700" />
-          <p className="text-white font-semibold">No analytics yet</p>
+          <p className="text-white font-semibold">{t("analytics.noData")}</p>
           <p className="text-gray-500 text-sm max-w-xs">
-            Start trading to unlock your performance analytics, P&L breakdown, and risk metrics.
+            {t("analytics.noDataSub")}
           </p>
           <Link href="/stocks" className="mt-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors">
-            Browse Stocks
+            {t("analytics.browseStocks")}
           </Link>
         </div>
       </AppShell>
@@ -333,30 +337,30 @@ export default function AnalyticsPage() {
         {/* ── KPI Row ─────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <KpiCard
-            icon={DollarSign} label="Total Invested" value={fmtEGP(totalInvested)} color="blue"
+            icon={DollarSign} label={t("portfolio.totalInvested")} value={fmtEGP(totalInvested)} color="blue"
           />
           <KpiCard
-            icon={TrendingUp} label="Unrealized P&L" value={fmtEGP(totalUnrealized)}
+            icon={TrendingUp} label={t("portfolio.unrealizedPnl")} value={fmtEGP(totalUnrealized)}
             sub={totalInvested > 0 ? pct((totalUnrealized / totalInvested) * 100) : undefined}
             positive={totalUnrealized >= 0} color={totalUnrealized >= 0 ? "green" : "red"}
           />
           <KpiCard
-            icon={Award} label="Realized P&L" value={fmtEGP(totalRealized)}
+            icon={Award} label={t("portfolio.realizedPnl")} value={fmtEGP(totalRealized)}
             positive={totalRealized >= 0} color={totalRealized >= 0 ? "green" : "red"}
           />
           <KpiCard
-            icon={Activity} label="Net P&L" value={netPnL !== null ? fmtEGP(netPnL) : fmtEGP(totalPnL)}
-            sub={fees > 0 ? `${fmtEGP(fees)} fees` : undefined}
+            icon={Activity} label={t("analytics.netPnl")} value={netPnL !== null ? fmtEGP(netPnL) : fmtEGP(totalPnL)}
+            sub={fees > 0 ? `${fmtEGP(fees)} ${t("analytics.fees")}` : undefined}
             positive={(netPnL ?? totalPnL) >= 0} color={(netPnL ?? totalPnL) >= 0 ? "green" : "red"}
           />
           <KpiCard
-            icon={Target} label="Win Rate"
+            icon={Target} label={t("analytics.winRate")}
             value={analytics.winRate !== undefined ? `${parseFloat(String(analytics.winRate)).toFixed(1)}%` : "—"}
-            sub={`${analytics.symbolsTraded ?? positions.length} symbols`}
+            sub={`${analytics.symbolsTraded ?? positions.length} ${t("analytics.symbols")}`}
             color="purple"
           />
           <KpiCard
-            icon={Clock} label="Avg Hold"
+            icon={Clock} label={t("analytics.avgHold")}
             value={avgHoldDays !== null ? `${avgHoldDays}d` : "—"}
             color="amber"
           />
@@ -366,8 +370,8 @@ export default function AnalyticsPage() {
         <div className="bg-gray-900 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <SectionHeader
-              title="Portfolio Value"
-              sub={timelineChange ? `${pct(timelineChange.pct)} · ${fmtEGP(timelineChange.abs)} this period` : undefined}
+              title={t("analytics.portfolioValue")}
+              sub={timelineChange ? `${pct(timelineChange.pct)} · ${fmtEGP(timelineChange.abs)} ${t("analytics.thisPeriod")}` : undefined}
             />
             <div className="flex gap-1">
               {RANGES.map((r) => (
@@ -388,20 +392,22 @@ export default function AnalyticsPage() {
               <Loader2 className="animate-spin text-gray-600" size={20} />
             </div>
           ) : timelineChartData.length === 0 ? (
-            <EmptyState message="No timeline data for this range" />
+            <EmptyState message={t("analytics.noTimeline")} />
           ) : (
+            <div dir="ltr">
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={timelineChartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <LineChart data={timelineChartData} margin={{ top: 4, right: dir === "rtl" ? 60 : 4, left: dir === "rtl" ? 0 : 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                 <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
                 <YAxis
+                  orientation={dir === "rtl" ? "right" : "left"}
                   tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
                   tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
                   contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: "#9ca3af" }}
-                  formatter={(v: unknown) => [fmtEGP(v as number), "Value"]}
+                  formatter={(v: unknown) => [fmtEGP(v as number), t("analytics.value")]}
                 />
                 <Line
                   type="monotone" dataKey="value" stroke={timelineColor}
@@ -409,6 +415,7 @@ export default function AnalyticsPage() {
                 />
               </LineChart>
             </ResponsiveContainer>
+            </div>
           )}
         </div>
 
@@ -417,20 +424,21 @@ export default function AnalyticsPage() {
 
           {/* P&L per symbol bar chart */}
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <SectionHeader title="P&L by Position" sub="Unrealized + Realized" />
+            <SectionHeader title={t("analytics.pnlByPosition")} sub={t("analytics.pnlSub")} />
             {pnlBarData.length === 0 ? (
-              <EmptyState message="No positions" />
+              <EmptyState message={t("analytics.noPositions2")} />
             ) : (
+              <div dir="ltr">
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={pnlBarData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <BarChart data={pnlBarData} margin={{ top: 4, right: dir === "rtl" ? 60 : 4, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                   <XAxis dataKey="symbol" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
+                  <YAxis orientation={dir === "rtl" ? "right" : "left"} tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
                     tickFormatter={(v) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)} />
                   <Tooltip
                     contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: "#9ca3af" }}
-                    formatter={(v: unknown, name: unknown) => [fmtEGP(v as number), name === "unrealized" ? "Unrealized" : "Realized"]}
+                    formatter={(v: unknown, name: unknown) => [fmtEGP(v as number), name === "unrealized" ? t("common.unrealized") : t("common.realized")]}
                   />
                   <Bar dataKey="unrealized" name="unrealized" radius={[3, 3, 0, 0]}>
                     {pnlBarData.map((entry, i) => (
@@ -440,24 +448,26 @@ export default function AnalyticsPage() {
                   <Bar dataKey="realized" name="realized" radius={[3, 3, 0, 0]} fill="#3b82f6" fillOpacity={0.6} />
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             )}
           </div>
 
           {/* Return % per symbol */}
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <SectionHeader title="Return % by Position" sub="Sorted best to worst" />
+            <SectionHeader title={t("analytics.returnByPosition")} sub={t("analytics.returnSub")} />
             {returnData.length === 0 ? (
-              <EmptyState message="No positions" />
+              <EmptyState message={t("analytics.noPositions2")} />
             ) : (
+              <div dir="ltr">
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={returnData} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                <BarChart data={returnData} layout="vertical" margin={{ top: 4, right: dir === "rtl" ? 48 : 12, left: dir === "rtl" ? 12 : 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
                   <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
                     tickFormatter={(v) => `${v.toFixed(0)}%`} />
-                  <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11 }} tickLine={false} axisLine={false} width={48} />
+                  <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11 }} tickLine={false} axisLine={false} width={48} orientation={dir === "rtl" ? "right" : "left"} />
                   <Tooltip
                     contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, "Return %"]}
+                    formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, t("common.return")]}
                     labelFormatter={(label) => label}
                   />
                   <Bar dataKey="return" radius={[0, 3, 3, 0]}>
@@ -467,6 +477,7 @@ export default function AnalyticsPage() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             )}
           </div>
         </div>
@@ -475,14 +486,15 @@ export default function AnalyticsPage() {
         {allocation && (allocation.bySector.length > 0 || allocation.bySymbol.length > 0) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {[
-              { title: "Sector Allocation", data: allocation.bySector },
-              { title: "Symbol Allocation", data: allocation.bySymbol },
+              { title: t("analytics.sectorAlloc"), data: allocation.bySector },
+              { title: t("analytics.symbolAlloc"), data: allocation.bySymbol },
             ].map(({ title, data }) => (
               <div key={title} className="bg-gray-900 rounded-xl p-4 space-y-3">
                 <SectionHeader title={title} />
-                {data.length === 0 ? <EmptyState message="No data" /> : (
+                {data.length === 0 ? <EmptyState message={t("common.noData")} /> : (
                   <div className="flex items-center gap-4">
-                    <ResponsiveContainer width="50%" height={160}>
+                    <div style={{ width: "50%" }} dir="ltr">
+                  <ResponsiveContainer width="100%" height={160}>
                       <PieChart>
                         <Pie
                           data={data} dataKey="value" nameKey="name"
@@ -497,6 +509,7 @@ export default function AnalyticsPage() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
+                  </div>
                     <div className="flex-1 space-y-1.5 text-xs min-w-0">
                       {data.slice(0, 6).map((s, i) => (
                         <div key={s.name} className="flex items-center gap-2 min-w-0">
@@ -516,19 +529,19 @@ export default function AnalyticsPage() {
         {/* ── Position Table ───────────────────────────── */}
         <div className="bg-gray-900 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-800">
-            <SectionHeader title="All Positions" sub={`${positions.length} holdings`} />
+            <SectionHeader title={t("analytics.allPositions")} sub={`${positions.length} ${t("analytics.holdings")}`} />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
-                  <th className="text-left px-4 py-3">Symbol</th>
-                  <th className="text-right px-4 py-3">Qty</th>
-                  <th className="text-right px-4 py-3">Avg Cost</th>
-                  <th className="text-right px-4 py-3">Invested</th>
-                  <th className="text-right px-4 py-3">Unrealized</th>
-                  <th className="text-right px-4 py-3">Realized</th>
-                  <th className="text-right px-4 py-3">Return %</th>
+                  <th className="text-left px-4 py-3">{t("common.symbol")}</th>
+                  <th className="text-right px-4 py-3">{t("common.qty")}</th>
+                  <th className="text-right px-4 py-3">{t("common.avgCost")}</th>
+                  <th className="text-right px-4 py-3">{t("common.invested")}</th>
+                  <th className="text-right px-4 py-3">{t("common.unrealized")}</th>
+                  <th className="text-right px-4 py-3">{t("common.realized")}</th>
+                  <th className="text-right px-4 py-3">{t("common.return")}</th>
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -570,7 +583,7 @@ export default function AnalyticsPage() {
                         <tr className="bg-gray-800/30">
                           <td colSpan={8} className="px-6 py-3">
                             <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-2">
-                              Transaction History — {p.symbol}
+                              {t("portfolio.txHistoryFor")} {p.symbol}
                             </p>
                             <ExpandedHistory symbol={p.symbol} />
                           </td>
@@ -593,7 +606,7 @@ export default function AnalyticsPage() {
                   <Zap size={18} className="text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs">Best Performer</p>
+                  <p className="text-gray-500 text-xs">{t("analytics.bestPerformer")}</p>
                   <p className="text-white font-bold text-lg">{analytics.bestPerformer.symbol}</p>
                   <p className="text-emerald-400 text-sm font-medium">
                     +{parseFloat(String(analytics.bestPerformer.returnPercent)).toFixed(2)}% · {fmtEGP(parseFloat(analytics.bestPerformer.unrealizedPnL))}
@@ -607,7 +620,7 @@ export default function AnalyticsPage() {
                   <AlertCircle size={18} className="text-red-400" />
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs">Worst Performer</p>
+                  <p className="text-gray-500 text-xs">{t("analytics.worstPerformer")}</p>
                   <p className="text-white font-bold text-lg">{analytics.worstPerformer.symbol}</p>
                   <p className="text-red-400 text-sm font-medium">
                     {parseFloat(String(analytics.worstPerformer.returnPercent)).toFixed(2)}% · {fmtEGP(parseFloat(analytics.worstPerformer.unrealizedPnL))}
@@ -621,18 +634,18 @@ export default function AnalyticsPage() {
         {/* ── Fee breakdown ────────────────────────────── */}
         {fees > 0 && (
           <div className="bg-gray-900 rounded-xl p-4">
-            <SectionHeader title="Fee Impact" sub="How fees affect your net returns" />
+            <SectionHeader title={t("analytics.feeImpact")} sub={t("analytics.feeImpactSub")} />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <div className="text-center">
-                <p className="text-gray-500 text-xs mb-1">Gross P&L</p>
+                <p className="text-gray-500 text-xs mb-1">{t("analytics.grossPnlLabel")}</p>
                 <p className={`text-xl font-bold ${totalPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtEGP(totalPnL)}</p>
               </div>
               <div className="text-center">
-                <p className="text-gray-500 text-xs mb-1">Total Fees</p>
+                <p className="text-gray-500 text-xs mb-1">{t("analytics.totalFees")}</p>
                 <p className="text-xl font-bold text-amber-400">−{fmtEGP(fees)}</p>
               </div>
               <div className="text-center">
-                <p className="text-gray-500 text-xs mb-1">Net P&L</p>
+                <p className="text-gray-500 text-xs mb-1">{t("analytics.netPnl")}</p>
                 <p className={`text-xl font-bold ${(netPnL ?? totalPnL) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                   {fmtEGP(netPnL ?? totalPnL - fees)}
                 </p>
@@ -672,6 +685,7 @@ const INSIGHT_COLOR: Record<string, string> = {
 };
 
 function InsightsPanel() {
+  const { t } = useLanguage();
   const { data, isLoading } = useQuery({
     queryKey: ["insights"],
     queryFn: () => apiClient.get<{ insights: Insight[] }>("/api/analytics/insights"),
@@ -685,7 +699,7 @@ function InsightsPanel() {
     <div className="bg-gray-900 rounded-xl p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Shield size={16} className="text-blue-400" />
-        <SectionHeader title="Smart Insights" sub="Automated analysis of your portfolio" />
+        <SectionHeader title={t("analytics.smartInsights")} sub={t("analytics.smartInsightsSub")} />
       </div>
       <div className="space-y-2">
         {insights.sort((a, b) => a.priority - b.priority).map((insight, i) => {
@@ -710,6 +724,7 @@ function InsightsPanel() {
 interface DayPnL { date: string; realizedPnL: number; tradeCount: number }
 
 function PnLCalendar() {
+  const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
 
@@ -773,7 +788,7 @@ function PnLCalendar() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Calendar size={16} className="text-gray-400" />
-          <SectionHeader title="P&L Calendar" sub="Realized gains/losses by day" />
+          <SectionHeader title={t("analytics.pnlCalendar")} sub={t("analytics.pnlCalendarSub")} />
         </div>
         <div className="flex gap-1">
           {[currentYear - 1, currentYear].map((y) => (
@@ -817,18 +832,18 @@ function PnLCalendar() {
             })}
           </div>
           <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
-            <span>Less</span>
+            <span>{t("common.less")}</span>
             <div className="w-3 h-3 rounded-sm bg-gray-800" />
             <div className="w-3 h-3 rounded-sm bg-emerald-800" />
             <div className="w-3 h-3 rounded-sm bg-emerald-600" />
             <div className="w-3 h-3 rounded-sm bg-emerald-500" />
-            <span className="text-gray-600">Profit</span>
+            <span className="text-gray-600">{t("analytics.profit")}</span>
             <span className="ml-2">|</span>
-            <span className="ml-2 text-gray-600">Loss</span>
+            <span className="ml-2 text-gray-600">{t("analytics.loss")}</span>
             <div className="w-3 h-3 rounded-sm bg-red-800" />
             <div className="w-3 h-3 rounded-sm bg-red-600" />
             <div className="w-3 h-3 rounded-sm bg-red-500" />
-            <span>More</span>
+            <span>{t("common.more")}</span>
           </div>
         </div>
       )}
@@ -858,6 +873,7 @@ const GRADE_BG: Record<string, string> = {
 };
 
 function ClosedTradeScoring() {
+  const { t, dir } = useLanguage();
   const { data, isLoading } = useQuery({
     queryKey: ["closed-trades"],
     queryFn: () => apiClient.get<{ trades: ClosedTrade[]; summary: ClosedTradesSummary }>("/api/analytics/closed-trades"),
@@ -872,26 +888,26 @@ function ClosedTradeScoring() {
     .filter(([, v]) => v > 0)
     .map(([k, v]) => ({ name: `Grade ${k}`, value: v, key: k })) : [];
 
-  const returnBarData = trades.slice(0, 20).map((t) => ({
-    symbol: `${t.symbol} ${new Date(t.id.slice(0, 10) || Date.now()).toLocaleDateString()}`,
-    return: parseFloat(t.returnPct),
-    grade: t.grade,
+  const returnBarData = trades.slice(0, 20).map((trade) => ({
+    symbol: `${trade.symbol} ${new Date(trade.id.slice(0, 10) || Date.now()).toLocaleDateString()}`,
+    return: parseFloat(trade.returnPct),
+    grade: trade.grade,
   }));
 
   return (
     <div className="bg-gray-900 rounded-xl p-4 space-y-4">
       <div className="flex items-center gap-2">
         <Award size={16} className="text-amber-400" />
-        <SectionHeader title="Closed Trade Scoring" sub="Grade breakdown of all your realized trades" />
+        <SectionHeader title={t("analytics.closedScoring")} sub={t("analytics.closedScoringSub")} />
       </div>
 
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Total Closed", value: summary.totalTrades },
-            { label: "Avg Hold", value: `${parseFloat(String(summary.avgHoldDays)).toFixed(0)}d` },
-            { label: "Avg Ann. Return", value: `${parseFloat(String(summary.avgAnnualizedReturn)).toFixed(1)}%` },
-            { label: "Grade A", value: summary.gradeDistribution.A, cls: "text-emerald-400" },
+            { label: t("analytics.totalClosed"), value: summary.totalTrades },
+            { label: t("analytics.avgHold"), value: `${parseFloat(String(summary.avgHoldDays)).toFixed(0)}d` },
+            { label: t("analytics.avgAnnReturn"), value: `${parseFloat(String(summary.avgAnnualizedReturn)).toFixed(1)}%` },
+            { label: t("analytics.gradeA"), value: summary.gradeDistribution.A, cls: "text-emerald-400" },
           ].map(({ label, value, cls }) => (
             <div key={label} className="bg-gray-800 rounded-xl p-3 text-center">
               <p className="text-gray-500 text-xs mb-1">{label}</p>
@@ -905,7 +921,8 @@ function ClosedTradeScoring() {
         {/* Grade distribution donut */}
         {gradeData.length > 0 && (
           <div>
-            <p className="text-gray-500 text-xs mb-2">Grade Distribution</p>
+            <p className="text-gray-500 text-xs mb-2">{t("analytics.gradeDist")}</p>
+            <div dir="ltr">
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie data={gradeData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} dataKey="value"
@@ -918,21 +935,23 @@ function ClosedTradeScoring() {
                 <Legend formatter={(v) => <span className="text-xs text-gray-400">{v}</span>} />
               </PieChart>
             </ResponsiveContainer>
+            </div>
           </div>
         )}
 
         {/* Return % bar chart */}
         {returnBarData.length > 0 && (
           <div>
-            <p className="text-gray-500 text-xs mb-2">Return % per Trade (last 20)</p>
+            <p className="text-gray-500 text-xs mb-2">{t("analytics.returnPerTrade")}</p>
+            <div dir="ltr">
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={returnBarData} margin={{ left: -20 }}>
+              <BarChart data={returnBarData} margin={{ left: dir === "rtl" ? 0 : -20, right: dir === "rtl" ? -20 : 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                 <XAxis dataKey="symbol" tick={false} />
-                <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                <YAxis orientation={dir === "rtl" ? "right" : "left"} tick={{ fill: "#6b7280", fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
                 <Tooltip
                   contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
-                  formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, "Return"]}
+                  formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, t("common.return")]}
                 />
                 <Bar dataKey="return" radius={[3, 3, 0, 0]}>
                   {returnBarData.map((entry, i) => (
@@ -941,6 +960,7 @@ function ClosedTradeScoring() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
         )}
       </div>
@@ -950,30 +970,30 @@ function ClosedTradeScoring() {
         <table className="w-full text-xs">
           <thead>
             <tr className="text-gray-500 border-b border-gray-800">
-              {["Symbol", "Qty", "Buy Price", "Sell Price", "Profit", "Return", "Hold", "Ann. Return", "Grade"].map((h) => (
+              {[t("common.symbol"), t("common.qty"), t("pos.buyPrice"), t("pos.sellPrice"), t("analytics.profit"), t("common.return"), t("analytics.hold"), t("analytics.annReturn"), t("analytics.grade")].map((h) => (
                 <th key={h} className="px-3 py-2 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {trades.map((t) => (
-              <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                <td className="px-3 py-2 font-mono font-bold">{t.symbol}</td>
-                <td className="px-3 py-2">{t.quantity}</td>
-                <td className="px-3 py-2">{fmtEGP(parseFloat(t.entryPrice))}</td>
-                <td className="px-3 py-2">{fmtEGP(parseFloat(t.exitPrice))}</td>
-                <td className={`px-3 py-2 font-medium ${parseFloat(t.profit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {fmtEGP(parseFloat(t.profit))}
+            {trades.map((trade) => (
+              <tr key={trade.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                <td className="px-3 py-2 font-mono font-bold">{trade.symbol}</td>
+                <td className="px-3 py-2">{trade.quantity}</td>
+                <td className="px-3 py-2">{fmtEGP(parseFloat(trade.entryPrice))}</td>
+                <td className="px-3 py-2">{fmtEGP(parseFloat(trade.exitPrice))}</td>
+                <td className={`px-3 py-2 font-medium ${parseFloat(trade.profit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {fmtEGP(parseFloat(trade.profit))}
                 </td>
-                <td className={`px-3 py-2 font-medium ${parseFloat(t.returnPct) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {parseFloat(t.returnPct) >= 0 ? "+" : ""}{parseFloat(t.returnPct).toFixed(2)}%
+                <td className={`px-3 py-2 font-medium ${parseFloat(trade.returnPct) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {parseFloat(trade.returnPct) >= 0 ? "+" : ""}{parseFloat(trade.returnPct).toFixed(2)}%
                 </td>
-                <td className="px-3 py-2 text-gray-400">{t.holdDays}d</td>
-                <td className={`px-3 py-2 ${t.annualizedReturn != null && t.annualizedReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {t.annualizedReturn != null ? `${parseFloat(String(t.annualizedReturn)).toFixed(1)}%` : "—"}
+                <td className="px-3 py-2 text-gray-400">{trade.holdDays}d</td>
+                <td className={`px-3 py-2 ${trade.annualizedReturn != null && trade.annualizedReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {trade.annualizedReturn != null ? `${parseFloat(String(trade.annualizedReturn)).toFixed(1)}%` : "—"}
                 </td>
                 <td className="px-3 py-2">
-                  <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${GRADE_BG[t.grade]}`}>{t.grade}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${GRADE_BG[trade.grade]}`}>{trade.grade}</span>
                 </td>
               </tr>
             ))}

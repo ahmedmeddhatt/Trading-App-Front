@@ -1,3 +1,6 @@
+/* Cairo covers Arabic + Latin — loaded from Google Fonts via next/font or CDN */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -18,6 +21,89 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   overscroll-behavior: none;
   overflow-x: hidden;
+}
+
+/* Arabic: use Cairo font for the whole document */
+[dir="rtl"] body,
+[dir="rtl"] * {
+  font-family: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Keep numbers / financial figures in LTR even inside RTL context */
+[dir="rtl"] .ltr-nums,
+[dir="rtl"] td.text-right,
+[dir="rtl"] td.tabular-nums {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* ── RTL layout overrides ───────────────────────────────────────────────────
+   Most RTL corrections are automatic via dir=rtl on <html>.
+   These rules handle edge-cases where Tailwind outputs positional (l/r) values
+   that don't respond to the bidi direction.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Flip chart legend alignment */
+[dir="rtl"] .recharts-legend-wrapper { right: auto !important; left: 0 !important; }
+
+/* RTL: table text alignment — headers default left in LTR → right in RTL */
+[dir="rtl"] th.text-left  { text-align: right !important; }
+[dir="rtl"] th.text-right { text-align: left  !important; }
+[dir="rtl"] td.text-left  { text-align: right !important; }
+[dir="rtl"] td.text-right { text-align: left  !important; }
+
+/* RTL: flex row reverse for explicit row layouts that shouldn't flip via dir */
+[dir="rtl"] .items-center.justify-between { flex-direction: row-reverse; }
+
+/* RTL: chevron icons inside expanded rows */
+[dir="rtl"] .chevron-flip { transform: scaleX(-1); }
+
+/* RTL: recharts axis — mirror XAxis/YAxis positions */
+[dir="rtl"] .recharts-yAxis { left: auto !important; right: 0 !important; }
+
+/* ── Mobile — global fixes ───────────────────────────────────────────────────
+   Applies at ≤639px (below Tailwind's sm breakpoint).
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 639px) {
+
+  /* All data tables must scroll horizontally, not clip */
+  .overflow-x-auto { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  table { min-width: 480px; }     /* force scroll before table shrinks text */
+
+  /* Cards: tighter padding on mobile */
+  .rounded-xl.p-4 { padding: 12px !important; }
+  .rounded-xl.p-5 { padding: 14px !important; }
+
+  /* Charts: reasonable height on small screens */
+  .recharts-responsive-container { min-height: 160px; }
+
+  /* Stat grids: always 2 cols on mobile */
+  .grid-cols-3,
+  .grid-cols-4,
+  .grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+  /* Section text: scale down oversized headings */
+  .text-3xl { font-size: 1.5rem !important; }
+  .text-2xl  { font-size: 1.25rem !important; }
+
+  /* Ensure px-4 on all main wrappers */
+  .max-w-7xl,
+  .max-w-5xl { padding-left: 12px !important; padding-right: 12px !important; }
+
+  /* Hide very-wide-only columns already marked as such */
+  .hidden.xl\:table-cell { display: none !important; }
+
+  /* Position / transaction tables: reduce cell padding */
+  td, th { padding-left: 8px !important; padding-right: 8px !important; }
+  td.px-6, th.px-6 { padding-left: 12px !important; padding-right: 12px !important; }
+
+  /* KPI icon badges: smaller on mobile */
+  .rounded-lg.p-2 { padding: 6px !important; }
+}
+
+/* Slightly larger phones (360-639px) — undo the harshest reductions */
+@media (min-width: 360px) and (max-width: 639px) {
+  table { min-width: 540px; }
 }
 
 /* Thin scrollbars on desktop */

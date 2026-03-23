@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
+import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -191,6 +192,8 @@ function StocksPageInner() {
     []
   );
 
+  const { t } = useLanguage();
+
   const clearFilters = () => {
     setSearch("");
     setSector("");
@@ -215,7 +218,7 @@ function StocksPageInner() {
             />
             <input
               type="text"
-              placeholder="Search symbol or name…"
+              placeholder={t("stocks.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-gray-900 border border-gray-800 rounded-lg pl-8 pr-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500"
@@ -239,7 +242,7 @@ function StocksPageInner() {
             }`}
           >
             <SlidersHorizontal size={14} />
-            Filters
+            {t("stocks.filters")}
             {hasFilters && (
               <span className="bg-blue-500 text-white rounded-full text-xs w-4 h-4 flex items-center justify-center">
                 !
@@ -256,7 +259,7 @@ function StocksPageInner() {
             }`}
           >
             <Star size={14} />
-            Watchlist
+            {t("stocks.watchlist")}
             {watchlist.size > 0 && (
               <span className="text-xs text-gray-400">({watchlist.size})</span>
             )}
@@ -267,7 +270,7 @@ function StocksPageInner() {
               onClick={clearFilters}
               className="text-xs text-gray-500 hover:text-gray-300 underline"
             >
-              Clear all
+              {t("stocks.clearAll")}
             </button>
           )}
         </div>
@@ -276,13 +279,13 @@ function StocksPageInner() {
         {showFilters && (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-gray-500 text-xs block mb-1">Sector</label>
+              <label className="text-gray-500 text-xs block mb-1">{t("common.sector")}</label>
               <select
                 value={sector}
                 onChange={(e) => { setSector(e.target.value); setPage(1); }}
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white outline-none"
               >
-                <option value="">All sectors</option>
+                <option value="">{t("common.allSectors")}</option>
                 {sectors.map((s) => (
                   <option key={s} value={s as string}>
                     {s}
@@ -291,7 +294,7 @@ function StocksPageInner() {
               </select>
             </div>
             <div>
-              <label className="text-gray-500 text-xs block mb-1">Min P/E</label>
+              <label className="text-gray-500 text-xs block mb-1">{t("stocks.minPe")}</label>
               <input
                 type="number"
                 placeholder="0"
@@ -301,7 +304,7 @@ function StocksPageInner() {
               />
             </div>
             <div>
-              <label className="text-gray-500 text-xs block mb-1">Max P/E</label>
+              <label className="text-gray-500 text-xs block mb-1">{t("stocks.maxPe")}</label>
               <input
                 type="number"
                 placeholder="100"
@@ -315,7 +318,7 @@ function StocksPageInner() {
                 onClick={clearFilters}
                 className="w-full bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
               >
-                Reset filters
+                {t("stocks.resetFilters")}
               </button>
             </div>
           </div>
@@ -325,10 +328,10 @@ function StocksPageInner() {
         <div className="bg-gray-900 rounded-xl overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
             <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-              {watchlistOnly ? "Watchlist" : "All Stocks"}
+              {watchlistOnly ? t("stocks.watchlist") : t("stocks.allStocks")}
             </h2>
             <span className="text-gray-600 text-xs">
-              Showing {displayed.length} of {watchlistOnly ? watchlist.size : total} stocks
+              {t("stocks.showing")} {displayed.length} {t("stocks.of")} {watchlistOnly ? watchlist.size : total} {t("stocks.stocks2")}
             </span>
           </div>
 
@@ -337,13 +340,13 @@ function StocksPageInner() {
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
                   <th className="text-left px-4 py-3 w-8" />
-                  <th className="text-left px-4 py-3">Symbol</th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">Name</th>
-                  <th className="text-right px-4 py-3">Price</th>
-                  <th className="text-right px-4 py-3">Change %</th>
-                  <th className="text-right px-4 py-3 hidden lg:table-cell">Sector</th>
-                  <th className="text-right px-4 py-3 hidden lg:table-cell">P/E</th>
-                  <th className="text-center px-4 py-3 hidden lg:table-cell">Signal</th>
+                  <th className="text-left px-4 py-3">{t("common.symbol")}</th>
+                  <th className="text-left px-4 py-3 hidden md:table-cell">{t("common.name")}</th>
+                  <th className="text-right px-4 py-3">{t("common.price")}</th>
+                  <th className="text-right px-4 py-3">{t("common.change")}</th>
+                  <th className="text-right px-4 py-3 hidden lg:table-cell">{t("common.sector")}</th>
+                  <th className="text-right px-4 py-3 hidden lg:table-cell">{t("stocks.pe")}</th>
+                  <th className="text-center px-4 py-3 hidden lg:table-cell">{t("common.signal")}</th>
                   <th className="text-right px-4 py-3 w-16" />
                 </tr>
               </thead>
@@ -357,9 +360,9 @@ function StocksPageInner() {
                   <tr>
                     <td colSpan={9} className="py-12">
                       <div className="flex flex-col items-center gap-2">
-                        <span className="text-red-400 text-sm font-medium">Failed to load stocks</span>
+                        <span className="text-red-400 text-sm font-medium">{t("stocks.failed")}</span>
                         <button onClick={() => refetch()} className="text-xs text-blue-400 hover:text-blue-300 underline">
-                          Retry
+                          {t("common.retry")}
                         </button>
                       </div>
                     </td>
@@ -373,8 +376,8 @@ function StocksPageInner() {
                       className="text-center py-12 text-gray-600 text-sm"
                     >
                       {watchlistOnly
-                        ? "Your watchlist is empty. Star stocks to add them."
-                        : "No stocks found."}
+                        ? t("stocks.watchlistEmpty")
+                        : t("stocks.noStocks")}
                     </td>
                   </tr>
                 )}
@@ -403,8 +406,8 @@ function StocksPageInner() {
                           }`}
                           title={
                             inWatchlist
-                              ? "Remove from watchlist"
-                              : "Add to watchlist"
+                              ? t("stocks.removeWatchlist")
+                              : t("stocks.addWatchlist")
                           }
                         >
                           <Star
@@ -425,7 +428,7 @@ function StocksPageInner() {
                           : "—"}
                         {live && (
                           <span className="block text-xs text-emerald-500 font-normal">
-                            live
+                            {t("stocks.live")}
                           </span>
                         )}
                       </td>
@@ -467,7 +470,7 @@ function StocksPageInner() {
                           onClick={(e) => e.stopPropagation()}
                           className="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded text-xs text-gray-300 hover:text-white transition-colors"
                         >
-                          View
+                          {t("stocks.view")}
                         </Link>
                       </td>
                     </tr>
@@ -481,7 +484,7 @@ function StocksPageInner() {
           {!isLoading && !isError && !watchlistOnly && totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
               <span className="text-gray-600 text-xs">
-                Page {page} of {totalPages}
+                {t("stocks.page")} {page} {t("stocks.of")} {totalPages}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -490,14 +493,14 @@ function StocksPageInner() {
                   className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft size={14} />
-                  Prev
+                  {t("stocks.prev")}
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
                   className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Next
+                  {t("stocks.next")}
                   <ChevronRight size={14} />
                 </button>
               </div>

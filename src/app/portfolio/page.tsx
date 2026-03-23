@@ -14,6 +14,7 @@ import {
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
+import { useLanguage } from "@/context/LanguageContext";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
@@ -251,21 +252,23 @@ function StatCard({
 }
 
 function WinRateBadge({ positions }: { positions: AnalyticsPosition[] }) {
+  const { t } = useLanguage();
   const winning = positions.filter(
     (p) => parseFloat(String(p.unrealizedPnL)) >= 0
   ).length;
   const rate = positions.length > 0 ? (winning / positions.length) * 100 : 0;
   return (
     <StatCard
-      label="Win Rate"
+      label={t("portfolio.winRate")}
       value={`${rate.toFixed(0)}%`}
       positive={rate >= 50}
-      sub={`${winning} / ${positions.length} positions`}
+      sub={`${winning} / ${positions.length} ${t("analytics.positions")}`}
     />
   );
 }
 
 function HistoryRow({ tx }: { tx: StockTransaction }) {
+  const { t } = useLanguage();
   const isBuy = tx.type === "BUY";
   const total = tx.total ?? tx.price * tx.quantity;
   return (
@@ -280,7 +283,7 @@ function HistoryRow({ tx }: { tx: StockTransaction }) {
         >
           {tx.type}
         </span>
-        <span className="text-gray-400">{tx.quantity} shares</span>
+        <span className="text-gray-400">{tx.quantity} {t("dashboard.shares")}</span>
         <span className="text-gray-600">@ {fmt(tx.price)}</span>
       </div>
       <div className="text-right">
@@ -298,6 +301,7 @@ function HistoryRow({ tx }: { tx: StockTransaction }) {
 }
 
 function ExpandedHistory({ symbol }: { symbol: string }) {
+  const { t } = useLanguage();
   const { data, isLoading } = useStockHistory(symbol);
 
   if (isLoading) {
@@ -313,7 +317,7 @@ function ExpandedHistory({ symbol }: { symbol: string }) {
   if (!data || transactions.length === 0) {
     return (
       <p className="text-gray-600 text-xs text-center py-4">
-        No transaction history.
+        {t("portfolio.noTxHistory")}
       </p>
     );
   }
@@ -330,6 +334,7 @@ function ExpandedHistory({ symbol }: { symbol: string }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PortfolioPage() {
+  const { t } = useLanguage();
   const [range, setRange] = useState<DateRange>("1M");
   const [activeSector, setActiveSector] = useState<string | null>(null);
   const [activeSymbol, setActiveSymbol] = useState<string | null>(null);
@@ -388,16 +393,16 @@ export default function PortfolioPage() {
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
-            label="Total Invested"
+            label={t("portfolio.totalInvested")}
             value={`EGP ${totalInvested.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
           />
           <StatCard
-            label="Unrealized P&L"
+            label={t("portfolio.unrealizedPnl")}
             value={`${unrealized >= 0 ? "+" : ""}EGP ${Math.abs(unrealized).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
             positive={unrealized >= 0}
           />
           <StatCard
-            label={realized !== null ? "Realized P&L" : "Total P&L"}
+            label={realized !== null ? t("portfolio.realizedPnl") : t("portfolio.totalPnl")}
             value={`${(realized ?? totalPnl) >= 0 ? "+" : ""}EGP ${Math.abs(realized ?? totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
             positive={(realized ?? totalPnl) >= 0}
           />
@@ -405,7 +410,7 @@ export default function PortfolioPage() {
             <WinRateBadge positions={analytics.positions} />
           ) : (
             <StatCard
-              label="Total P&L"
+              label={t("portfolio.totalPnl")}
               value={`${totalPnl >= 0 ? "+" : ""}EGP ${Math.abs(totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
               positive={totalPnl >= 0}
             />
@@ -417,26 +422,26 @@ export default function PortfolioPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {analytics.totalFeesPaid !== undefined && (
               <StatCard
-                label="Total Fees Paid"
+                label={t("portfolio.totalFees")}
                 value={`EGP ${parseFloat(analytics.totalFeesPaid).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
               />
             )}
             {analytics.netPnL !== undefined && (
               <StatCard
-                label="Net P&L (after fees)"
+                label={t("portfolio.netPnl")}
                 value={`${parseFloat(analytics.netPnL) >= 0 ? "+" : ""}EGP ${Math.abs(parseFloat(analytics.netPnL)).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
                 positive={parseFloat(analytics.netPnL) >= 0}
               />
             )}
             {analytics.avgHoldingDays !== undefined && (
               <StatCard
-                label="Avg Holding Period"
-                value={`${analytics.avgHoldingDays.toFixed(1)} days`}
+                label={t("portfolio.avgHold")}
+                value={`${analytics.avgHoldingDays.toFixed(1)} ${t("common.days")}`}
               />
             )}
             {analytics.symbolsTraded !== undefined && (
               <StatCard
-                label="Symbols Traded"
+                label={t("portfolio.symbolsTraded")}
                 value={analytics.symbolsTraded.toString()}
               />
             )}
@@ -475,10 +480,10 @@ export default function PortfolioPage() {
         <div className="bg-gray-900 rounded-xl overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-wrap gap-2">
             <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-              Positions
+              {t("portfolio.positions")}
               {(activeSector || activeSymbol) && (
                 <span className="ml-2 text-blue-400">
-                  (filtered:{" "}
+                  ({t("common.filtered")}:{" "}
                   <button
                     onClick={() => {
                       setActiveSector(null);
@@ -486,7 +491,7 @@ export default function PortfolioPage() {
                     }}
                     className="underline hover:text-blue-300"
                   >
-                    clear
+                    {t("common.clear")}
                   </button>
                   )
                 </span>
@@ -494,11 +499,10 @@ export default function PortfolioPage() {
             </h2>
             <div className="flex items-center gap-3">
               <span className="text-gray-600 text-xs">
-                {filteredPositions.length} position
-                {filteredPositions.length !== 1 ? "s" : ""}
+                {filteredPositions.length} {filteredPositions.length !== 1 ? t("portfolio.positionPlural") : t("portfolio.positionSingular")}
               </span>
               <Link href="/portfolio/transactions" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
-                All Transactions →
+                {t("common.allTx")}
               </Link>
             </div>
           </div>
@@ -511,13 +515,13 @@ export default function PortfolioPage() {
 
           {isError && (
             <div className="text-center py-12 text-red-400 text-sm">
-              Failed to load portfolio.
+              {t("portfolio.failed")}
             </div>
           )}
 
           {!isLoading && !isError && filteredPositions.length === 0 && (
             <div className="text-center py-12 text-gray-600 text-sm">
-              No positions yet.
+              {t("portfolio.noPositions")}
             </div>
           )}
 
@@ -525,19 +529,19 @@ export default function PortfolioPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
-                  <th className="text-left px-4 py-3">Symbol</th>
-                  <th className="text-right px-4 py-3">Qty</th>
-                  <th className="text-right px-4 py-3">Avg Cost</th>
-                  <th className="text-right px-4 py-3">Current Price</th>
-                  <th className="text-right px-4 py-3">Market Value</th>
-                  <th className="text-right px-4 py-3">Unrealized P&L</th>
-                  <th className="text-right px-4 py-3">Return %</th>
-                  <th className="text-center px-4 py-3 hidden lg:table-cell">Break-even</th>
-                  <th className="text-right px-4 py-3 hidden xl:table-cell">Days</th>
-                  <th className="text-right px-4 py-3 hidden xl:table-cell">Fees</th>
-                  <th className="text-right px-4 py-3 hidden xl:table-cell">Port. %</th>
-                  <th className="text-center px-4 py-3 hidden lg:table-cell">30d</th>
-                  <th className="text-center px-4 py-3">Detail</th>
+                  <th className="text-left px-4 py-3">{t("common.symbol")}</th>
+                  <th className="text-right px-4 py-3">{t("common.qty")}</th>
+                  <th className="text-right px-4 py-3">{t("common.avgCost")}</th>
+                  <th className="text-right px-4 py-3">{t("common.currentPrice")}</th>
+                  <th className="text-right px-4 py-3">{t("common.marketValue")}</th>
+                  <th className="text-right px-4 py-3">{t("portfolio.unrealizedPnl")}</th>
+                  <th className="text-right px-4 py-3">{t("common.return")}</th>
+                  <th className="text-center px-4 py-3 hidden lg:table-cell">{t("portfolio.breakEven")}</th>
+                  <th className="text-right px-4 py-3 hidden xl:table-cell">{t("common.days")}</th>
+                  <th className="text-right px-4 py-3 hidden xl:table-cell">{t("common.fees")}</th>
+                  <th className="text-right px-4 py-3 hidden xl:table-cell">{t("portfolio.portfolioPct")}</th>
+                  <th className="text-center px-4 py-3 hidden lg:table-cell">{t("portfolio.30d")}</th>
+                  <th className="text-center px-4 py-3">{t("common.details")}</th>
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -603,7 +607,7 @@ export default function PortfolioPage() {
                           {fmt(currentPrice)}
                           {live && (
                             <span className="block text-xs text-emerald-500 font-normal">
-                              live
+                              {t("portfolio.live")}
                             </span>
                           )}
                         </td>
@@ -666,7 +670,7 @@ export default function PortfolioPage() {
                         </td>
                         <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <Link href={`/portfolio/positions/${pos.symbol}`} className="text-blue-400 hover:text-blue-300 text-xs whitespace-nowrap">
-                            Details →
+                            {t("portfolio.details")}
                           </Link>
                         </td>
                         <td className="px-4 py-3 text-right text-gray-600">
@@ -681,11 +685,11 @@ export default function PortfolioPage() {
                         <tr className="bg-gray-800/30">
                           <td colSpan={13} className="px-6 py-3">
                             <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-2">
-                              Transaction History — {pos.symbol}
+                              {t("portfolio.txHistoryFor")} {pos.symbol}
                             </p>
                             <ExpandedHistory symbol={pos.symbol} />
                             <Link href={`/portfolio/positions/${pos.symbol}`} className="text-xs text-blue-400 hover:text-blue-300 mt-2 inline-block">
-                              Full position details →
+                              {t("portfolio.fullDetails")}
                             </Link>
                           </td>
                         </tr>
