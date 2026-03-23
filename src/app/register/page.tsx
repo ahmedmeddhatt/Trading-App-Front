@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { Activity, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { apiClient } from "@/lib/apiClient";
+import { useLanguage } from "@/context/LanguageContext";
 
 function RegisterForm() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,7 +34,7 @@ function RegisterForm() {
   return (
     <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl p-6 space-y-4">
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">Name</label>
+        <label className="text-gray-500 text-xs">{t("auth.name")}</label>
         <input
           type="text"
           required
@@ -43,7 +45,7 @@ function RegisterForm() {
       </div>
 
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">Email</label>
+        <label className="text-gray-500 text-xs">{t("auth.email")}</label>
         <input
           type="email"
           required
@@ -54,7 +56,7 @@ function RegisterForm() {
       </div>
 
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">Password</label>
+        <label className="text-gray-500 text-xs">{t("auth.password")}</label>
         <input
           type="password"
           required
@@ -79,17 +81,17 @@ function RegisterForm() {
         {isPending ? (
           <>
             <Loader2 className="animate-spin" size={16} />
-            <span>Creating account…</span>
+            <span>{t("auth.creatingAccount")}</span>
           </>
         ) : (
-          "Create Account"
+          t("auth.createAccountBtn")
         )}
       </button>
 
       <p className="text-center text-gray-500 text-sm">
-        Already have an account?{" "}
+        {t("auth.hasAccount")}{" "}
         <Link href="/login" className="text-blue-400 hover:text-blue-300">
-          Sign in
+          {t("auth.signInLink")}
         </Link>
       </p>
     </form>
@@ -97,13 +99,14 @@ function RegisterForm() {
 }
 
 export default function RegisterPage() {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2">
           <Activity className="text-blue-400" size={28} />
           <h1 className="text-xl font-bold tracking-tight">TradeDesk</h1>
-          <p className="text-gray-500 text-sm">Create your account</p>
+          <p className="text-gray-500 text-sm">{t("auth.createAccount")}</p>
         </div>
         <Suspense>
           <RegisterForm />

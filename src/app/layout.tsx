@@ -22,9 +22,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Set theme class before first paint to avoid flash */}
+        {/* Restore theme + language before first paint */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('td-theme');if(!t||t==='dark')document.documentElement.classList.add('dark')}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('td-theme');if(!t||t==='dark')document.documentElement.classList.add('dark');var l=localStorage.getItem('td-lang');if(l==='ar'){document.documentElement.setAttribute('lang','ar');document.documentElement.setAttribute('dir','rtl')}}catch(e){}`,
           }}
         />
       </head>

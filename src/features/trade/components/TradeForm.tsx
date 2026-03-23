@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
 import { useTrade, type TradePayload } from "../hooks/useTrade";
+import { useLanguage } from "@/context/LanguageContext";
 
 type Side = "buy" | "sell";
 type Step = "form" | "confirm";
@@ -16,6 +17,7 @@ interface TradeFormProps {
 const FEE_RATE = 0.00175;
 
 export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: TradeFormProps) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<Step>("form");
   const [side, setSide] = useState<Side>("buy");
   const [quantity, setQuantity] = useState<string>("1");
@@ -46,7 +48,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
   const total = qty * parsedPrice + parsedFees;
 
   const sellError = side === "sell" && qty > ownedQuantity
-    ? `Cannot sell ${qty} — you only own ${ownedQuantity} shares`
+    ? `${t("trade.cantSell")} ${qty} — ${t("trade.youOnlyOwn")} ${ownedQuantity} ${t("trade.sharesUnit")}`
     : null;
 
   const canReview = qty > 0 && parsedPrice > 0 && !sellError;
@@ -86,7 +88,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
     return (
       <div className="bg-gray-900 rounded-xl p-5 flex flex-col items-center justify-center gap-3 min-h-[260px]">
         <CheckCircle className="text-emerald-400" size={40} />
-        <p className="text-white font-semibold text-lg">Order Placed</p>
+        <p className="text-white font-semibold text-lg">{t("trade.orderPlaced")}</p>
         <p className="text-gray-400 text-sm">
           {side.toUpperCase()} {qty} {symbol}
         </p>
@@ -107,18 +109,18 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
             <ChevronLeft size={20} />
           </button>
           <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-            Review Order
+            {t("trade.reviewOrder")}
           </h2>
         </div>
 
         <div className="space-y-2 bg-gray-800 rounded-lg p-4 text-sm">
-          <Row label="Action" value={<span className={side === "buy" ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>{side.toUpperCase()}</span>} />
-          <Row label="Symbol" value={symbol} />
-          <Row label="Quantity" value={qty.toString()} />
-          <Row label="Price" value={fmtEGP(parsedPrice)} />
-          <Row label="Brokerage Fee" value={fmtEGP(parsedFees)} />
+          <Row label={t("trade.action")} value={<span className={side === "buy" ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>{side.toUpperCase()}</span>} />
+          <Row label={t("common.symbol")} value={symbol} />
+          <Row label={t("trade.quantity")} value={qty.toString()} />
+          <Row label={t("common.price")} value={fmtEGP(parsedPrice)} />
+          <Row label={t("trade.brokerageFee")} value={fmtEGP(parsedFees)} />
           <div className="border-t border-gray-700 pt-2 mt-2">
-            <Row label="Total" value={fmtEGP(total)} bold />
+            <Row label={t("common.total")} value={fmtEGP(total)} bold />
           </div>
         </div>
 
@@ -141,10 +143,10 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
           {isPending ? (
             <>
               <Loader2 className="animate-spin" size={16} />
-              <span>Placing Order…</span>
+              <span>{t("trade.placingOrder")}</span>
             </>
           ) : (
-            `Confirm ${side === "buy" ? "Buy" : "Sell"}`
+            side === "buy" ? t("trade.confirmBuy") : t("trade.confirmSell")
           )}
         </button>
       </div>
@@ -155,7 +157,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
   return (
     <div className="bg-gray-900 rounded-xl p-5 space-y-5">
       <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-        Place Order
+        {t("trade.placeOrder")}
       </h2>
 
       {/* Side selector */}
@@ -171,14 +173,14 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
                   : "bg-red-500 text-white"
                 : "bg-transparent text-gray-400 hover:text-white"}`}
           >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
+            {s === "buy" ? t("trade.buy") : t("trade.sell")}
           </button>
         ))}
       </div>
 
       {/* Symbol (read-only) */}
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">Symbol</label>
+        <label className="text-gray-500 text-xs">{t("common.symbol")}</label>
         <div className="bg-gray-800 rounded-lg px-4 py-2 text-white text-sm font-mono">
           {symbol}
         </div>
@@ -186,7 +188,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
 
       {/* Quantity */}
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">Quantity</label>
+        <label className="text-gray-500 text-xs">{t("trade.quantity")}</label>
         <input
           type="number"
           min="0"
@@ -200,14 +202,14 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
       {/* Price (editable, pre-filled with live price) */}
       <div className="space-y-1">
         <label className="text-gray-500 text-xs flex justify-between">
-          <span>Price (EGP)</span>
+          <span>{t("trade.price")}</span>
           {currentPrice != null && (
             <button
               type="button"
               onClick={() => setPriceInput(currentPrice.toFixed(2))}
               className="text-blue-400 hover:text-blue-300 text-xs"
             >
-              Live: {currentPrice.toFixed(2)}
+              {t("trade.livePrice")} {currentPrice.toFixed(2)}
             </button>
           )}
         </label>
@@ -225,8 +227,8 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
       {/* Brokerage Fee */}
       <div className="space-y-1">
         <label className="text-gray-500 text-xs flex justify-between">
-          <span>Brokerage Fee (EGP)</span>
-          <span className="text-gray-600">Suggested: 0.175% of trade value</span>
+          <span>{t("trade.fee")}</span>
+          <span className="text-gray-600">{t("trade.brokerageSuggested")}</span>
         </label>
         <input
           type="number"
@@ -241,7 +243,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
       {/* Total */}
       {qty > 0 && parsedPrice > 0 && (
         <div className="bg-gray-800 rounded-lg px-4 py-3 flex justify-between text-sm">
-          <span className="text-gray-400">Total</span>
+          <span className="text-gray-400">{t("common.total")}</span>
           <span className="text-white font-semibold">{fmtEGP(total)}</span>
         </div>
       )}
@@ -256,10 +258,10 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
 
       {/* Owned shares hint when selling */}
       {side === "sell" && ownedQuantity > 0 && !sellError && (
-        <p className="text-gray-500 text-xs text-right">Available: {ownedQuantity} shares</p>
+        <p className="text-gray-500 text-xs text-right">{t("trade.available")} {ownedQuantity} {t("trade.sharesUnit")}</p>
       )}
       {side === "sell" && ownedQuantity === 0 && (
-        <p className="text-gray-500 text-xs text-right">You don&apos;t own any shares</p>
+        <p className="text-gray-500 text-xs text-right">{t("trade.noShares")}</p>
       )}
 
       <button
@@ -267,7 +269,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
         disabled={!canReview}
         className="w-full py-3 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        Review Order
+        {t("trade.reviewOrder")}
       </button>
     </div>
   );

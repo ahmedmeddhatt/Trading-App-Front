@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useLanguage } from "@/context/LanguageContext";
 
 export interface AllocationSlice {
   name: string;
@@ -40,6 +41,8 @@ function DonutChart({
   activeKey: string | null;
   onFilter: (key: string | null) => void;
 }) {
+  const { t } = useLanguage();
+  const clearFilterLabel = t("common.clear");
   if (!data.length) {
     return (
       <div className="flex-1">
@@ -54,6 +57,7 @@ function DonutChart({
   return (
     <div className="flex-1">
       <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-3">{title}</p>
+      <div dir="ltr">
       <ResponsiveContainer width="100%" height={200}>
         <PieChart>
           <Pie
@@ -97,12 +101,13 @@ function DonutChart({
           />
         </PieChart>
       </ResponsiveContainer>
+      </div>
       {activeKey && (
         <button
           onClick={() => onFilter(null)}
           className="mt-1 text-xs text-blue-400 hover:text-blue-300 block mx-auto"
         >
-          Clear filter
+          {clearFilterLabel}
         </button>
       )}
     </div>
@@ -117,20 +122,21 @@ export default function AllocationCharts({
   activeSector,
   activeSymbol,
 }: Props) {
+  const { t } = useLanguage();
   return (
     <div className="bg-gray-900 rounded-xl p-5">
       <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-4">
-        Allocation{(activeSector || activeSymbol) && " (filtered — click chart to clear)"}
+        {(activeSector || activeSymbol) ? `${t("analytics.sectorAlloc")} (${t("common.filtered")})` : t("analytics.sectorAlloc")}
       </h2>
       <div className="flex gap-6">
         <DonutChart
-          title="By Sector"
+          title={t("analytics.sectorAlloc")}
           data={bySector}
           activeKey={activeSector}
           onFilter={onSectorFilter}
         />
         <DonutChart
-          title="By Symbol"
+          title={t("analytics.symbolAlloc")}
           data={bySymbol}
           activeKey={activeSymbol}
           onFilter={onSymbolFilter}

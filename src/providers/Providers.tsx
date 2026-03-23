@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "sonner";
 import { queryClient } from "@/lib/queryClient";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 function ThemedToaster() {
   const { theme } = useTheme();
@@ -13,12 +14,14 @@ function ThemedToaster() {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        {children}
-        <ThemedToaster />
-        <ReactQueryDevtools initialIsOpen={false} />
-      </QueryClientProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          {children}
+          <ThemedToaster />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }

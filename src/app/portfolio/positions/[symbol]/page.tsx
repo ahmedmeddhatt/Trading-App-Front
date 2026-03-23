@@ -12,6 +12,7 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
 import { formatEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface PositionDetail {
   position: { symbol: string; quantity: string; averagePrice: string; totalInvested: string };
@@ -28,6 +29,7 @@ interface PositionDetail {
 }
 
 export default function PositionDetailPage() {
+  const { t, dir } = useLanguage();
   const { symbol } = useParams<{ symbol: string }>();
 
   const { data, isLoading } = useQuery({
@@ -49,7 +51,7 @@ export default function PositionDetailPage() {
   if (!data) {
     return (
       <AppShell>
-        <div className="max-w-5xl mx-auto px-4 py-8 text-center text-gray-500">Position not found</div>
+        <div className="max-w-5xl mx-auto px-4 py-8 text-center text-gray-500">{t("pos.notFound")}</div>
       </AppShell>
     );
   }
@@ -65,10 +67,10 @@ export default function PositionDetailPage() {
 
   // Chart data: price history + trade markers
   const txByDate = new Map<string, { type: "BUY" | "SELL"; price: number }[]>();
-  allTransactions.forEach((t) => {
-    const d = new Date(t.createdAt).toLocaleDateString();
+  allTransactions.forEach((tx) => {
+    const d = new Date(tx.createdAt).toLocaleDateString();
     if (!txByDate.has(d)) txByDate.set(d, []);
-    txByDate.get(d)!.push({ type: t.type, price: parseFloat(t.price) });
+    txByDate.get(d)!.push({ type: tx.type, price: parseFloat(tx.price) });
   });
 
   const chartData = priceHistory.map((p) => {
@@ -77,8 +79,8 @@ export default function PositionDetailPage() {
     return {
       label: d,
       price: p.price,
-      buyMark: trades?.find((t) => t.type === "BUY")?.price ?? null,
-      sellMark: trades?.find((t) => t.type === "SELL")?.price ?? null,
+      buyMark: trades?.find((tx) => tx.type === "BUY")?.price ?? null,
+      sellMark: trades?.find((tx) => tx.type === "SELL")?.price ?? null,
     };
   });
 
@@ -92,7 +94,7 @@ export default function PositionDetailPage() {
         {/* Header */}
         <div>
           <Link href="/portfolio" className="flex items-center gap-1 text-gray-500 hover:text-white text-sm mb-4">
-            <ArrowLeft size={14} /> Portfolio
+            <ArrowLeft size={14} /> {t("pos.backToPortfolio")}
           </Link>
           <div className="flex items-start justify-between">
             <div>
@@ -105,12 +107,12 @@ export default function PositionDetailPage() {
                   </span>
                 )}
               </div>
-              <p className="text-gray-500 text-sm">Held for {daysHeld} days</p>
+              <p className="text-gray-500 text-sm">{t("pos.heldFor")} {daysHeld} {t("common.days")}</p>
             </div>
             {unrealizedPnL != null && (
               <div className="text-right">
                 <p className={`text-2xl font-bold ${pnlColor(unrealizedPnL)}`}>{formatEGP(unrealizedPnL)}</p>
-                <p className={`text-sm ${pnlColor(unrealizedPct)}`}>{formatPct(unrealizedPct)} unrealized</p>
+                <p className={`text-sm ${pnlColor(unrealizedPct)}`}>{formatPct(unrealizedPct)} {t("pos.unrealizedLabel")}</p>
               </div>
             )}
           </div>
@@ -119,11 +121,11 @@ export default function PositionDetailPage() {
         {/* KPI Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Quantity", value: position.quantity },
-            { label: "Avg Cost", value: formatEGP(position.averagePrice) },
-            { label: "Break-even", value: formatEGP(breakEvenPrice) },
-            { label: "Current Price", value: cp ? formatEGP(cp) : "—" },
-            { label: "Days Held", value: `${daysHeld}d` },
+            { label: t("trade.quantity"), value: position.quantity },
+            { label: t("common.avgCost"), value: formatEGP(position.averagePrice) },
+            { label: t("portfolio.breakEven"), value: formatEGP(breakEvenPrice) },
+            { label: t("common.currentPrice"), value: cp ? formatEGP(cp) : "—" },
+            { label: t("pos.daysHeld"), value: `${daysHeld}d` },
           ].map(({ label, value }) => (
             <div key={label} className="bg-gray-900 rounded-xl p-4">
               <p className="text-gray-500 text-xs mb-1">{label}</p>
@@ -137,7 +139,7 @@ export default function PositionDetailPage() {
           <div className="bg-gray-900 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <Target size={14} className="text-gray-400" />
-              <h2 className="text-sm font-semibold text-gray-400">Break-even Gauge</h2>
+              <h2 className="text-sm font-semibold text-gray-400">{t("pos.breakEvenGauge")}</h2>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-xs text-gray-500 w-24 text-right">{formatEGP(be * 0.8)}</span>
@@ -153,11 +155,11 @@ export default function PositionDetailPage() {
             </div>
             <div className="flex justify-between mt-1 px-28">
               <span className="text-xs text-gray-600">−20%</span>
-              <span className="text-xs text-yellow-400">Break-even: {formatEGP(be)}</span>
+              <span className="text-xs text-yellow-400">{t("portfolio.breakEven")}: {formatEGP(be)}</span>
               <span className="text-xs text-gray-600">+20%</span>
             </div>
             <p className={`text-center text-sm mt-2 font-medium ${pnlColor(gap)}`}>
-              Current: {formatEGP(cp)} — {gap != null ? (gap >= 0 ? `${formatPct(gap)} above break-even` : `${formatPct(gap)} below break-even`) : "—"}
+              {t("pos.current")}: {formatEGP(cp)} — {gap != null ? (gap >= 0 ? `${formatPct(gap)} ${t("pos.aboveBreakEven")}` : `${formatPct(gap)} ${t("pos.belowBreakEven")}`) : "—"}
             </p>
           </div>
         )}
@@ -165,16 +167,17 @@ export default function PositionDetailPage() {
         {/* Price Chart with Trade Markers */}
         {chartData.length > 0 && (
           <div className="bg-gray-900 rounded-xl p-4">
-            <h2 className="text-sm font-semibold text-gray-400 mb-4">Price History + Your Trades</h2>
+            <h2 className="text-sm font-semibold text-gray-400 mb-4">{t("pos.priceHistory")}</h2>
+            <div dir="ltr">
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                 <XAxis dataKey="label" tick={{ fill: "#6b7280", fontSize: 10 }}
                   tickFormatter={(v, i) => (i % Math.ceil(chartData.length / 6) === 0 ? v : "")} />
-                <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} domain={["auto", "auto"]} />
+                <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} domain={["auto", "auto"]} orientation={dir === "rtl" ? "right" : "left"} />
                 <Tooltip
                   contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
-                  formatter={(v: unknown, name: unknown) => [formatEGP(v as number), name === "price" ? "Price" : name === "buyMark" ? "BUY" : "SELL"]}
+                  formatter={(v: unknown, name: unknown) => [formatEGP(v as number), name === "price" ? t("common.price") : name === "buyMark" ? t("common.buy") : t("common.sell")]}
                 />
                 <Area type="monotone" dataKey="price" stroke="#3b82f6" fill="#3b82f610" strokeWidth={2} dot={false} />
                 <Scatter dataKey="buyMark" fill="#10b981" shape={(props: { cx?: number; cy?: number; payload?: { buyMark: unknown } }) => {
@@ -189,13 +192,14 @@ export default function PositionDetailPage() {
                   return <polygon points={pts} fill="#ef4444" />;
                 }} />
                 <ReferenceLine y={be} stroke="#f59e0b" strokeDasharray="4 4"
-                  label={{ value: "Break-even", fill: "#f59e0b", fontSize: 10, position: "right" }} />
+                  label={{ value: t("portfolio.breakEven"), fill: "#f59e0b", fontSize: 10, position: "right" }} />
               </ComposedChart>
             </ResponsiveContainer>
+            </div>
             <div className="flex gap-4 justify-center mt-2 text-xs text-gray-500">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" /> BUY</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> SELL</span>
-              <span className="flex items-center gap-1"><span className="w-6 border-t border-dashed border-yellow-400 inline-block" /> Break-even</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" /> {t("common.buy")}</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> {t("common.sell")}</span>
+              <span className="flex items-center gap-1"><span className="w-6 border-t border-dashed border-yellow-400 inline-block" /> {t("portfolio.breakEven")}</span>
             </div>
           </div>
         )}
@@ -203,18 +207,19 @@ export default function PositionDetailPage() {
         {/* Cost Basis Ladder Chart */}
         {ladder.length > 0 && (
           <div className="bg-gray-900 rounded-xl p-4">
-            <h2 className="text-sm font-semibold text-gray-400 mb-4">Cost Basis Ladder</h2>
+            <h2 className="text-sm font-semibold text-gray-400 mb-4">{t("pos.costLadder")}</h2>
+            <div dir="ltr">
             <ResponsiveContainer width="100%" height={Math.max(120, ladder.length * 40)}>
-              <BarChart data={ladder} layout="vertical" margin={{ left: 60 }}>
+              <BarChart data={ladder} layout="vertical" margin={{ left: dir === "rtl" ? 0 : 60, right: dir === "rtl" ? 60 : 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
                 <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }}
                   tickFormatter={(v) => formatEGP(v)} domain={[0, maxLotValue * 1.1]} />
                 <YAxis type="category" dataKey="buyPrice" tick={{ fill: "#6b7280", fontSize: 10 }}
-                  tickFormatter={(v) => formatEGP(v)} width={60} />
+                  tickFormatter={(v) => formatEGP(v)} width={60} orientation={dir === "rtl" ? "right" : "left"} />
                 <Tooltip
                   contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
-                  formatter={(v: unknown) => [formatEGP(v as number), "Lot Value"]}
-                  labelFormatter={(v) => `Buy @ ${formatEGP(v)}`}
+                  formatter={(v: unknown) => [formatEGP(v as number), t("pos.lotValue")]}
+                  labelFormatter={(v) => `${t("pos.buyAt")} ${formatEGP(v)}`}
                 />
                 <Bar dataKey="lotValue" radius={[0, 4, 4, 0]}>
                   {ladder.map((entry, i) => (
@@ -224,9 +229,10 @@ export default function PositionDetailPage() {
                 {cp && <ReferenceLine x={cp * (maxLotValue / (be > 0 ? be : 1))} stroke="#f59e0b" strokeDasharray="4 4" />}
               </BarChart>
             </ResponsiveContainer>
+            </div>
             <p className="text-xs text-gray-500 mt-2 text-center">
-              <span className="text-emerald-400">Green</span> = bought below current price &nbsp;
-              <span className="text-red-400">Red</span> = bought above current price
+              <span className="text-emerald-400">{t("common.buy")}</span> = {t("pos.boughtBelow")} &nbsp;
+              <span className="text-red-400">{t("common.sell")}</span> = {t("pos.boughtAbove")}
             </p>
           </div>
         )}
@@ -234,34 +240,34 @@ export default function PositionDetailPage() {
         {/* Transaction History */}
         <div className="bg-gray-900 rounded-xl overflow-x-auto">
           <div className="px-4 py-3 border-b border-gray-800">
-            <h2 className="text-sm font-semibold text-gray-400">All Transactions</h2>
+            <h2 className="text-sm font-semibold text-gray-400">{t("pos.allTx")}</h2>
           </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-500 text-xs border-b border-gray-800">
-                {["Date", "Type", "Qty", "Price", "Total", "Fees", "Cum. Qty", "Cum. Avg"].map((h) => (
+                {[t("tx.date"), t("tx.type"), t("common.qty"), t("common.price"), t("common.total"), t("common.fees"), t("pos.cumQty"), t("pos.cumAvg")].map((h) => (
                   <th key={h} className="px-4 py-2 text-left">{h}</th>
                 ))}
-                <th className="px-4 py-2 text-left">Detail</th>
+                <th className="px-4 py-2 text-left">{t("tx.detail")}</th>
               </tr>
             </thead>
             <tbody>
-              {allTransactions.map((t) => (
-                <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                  <td className="px-4 py-2 text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</td>
+              {allTransactions.map((tx) => (
+                <tr key={tx.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                  <td className="px-4 py-2 text-gray-400">{new Date(tx.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-2">
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${t.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-red-900/30 text-red-400"}`}>
-                      {t.type}
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${tx.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-red-900/30 text-red-400"}`}>
+                      {tx.type}
                     </span>
                   </td>
-                  <td className="px-4 py-2">{t.quantity}</td>
-                  <td className="px-4 py-2">{formatEGP(t.price)}</td>
-                  <td className="px-4 py-2 font-medium">{formatEGP(t.total)}</td>
-                  <td className="px-4 py-2 text-gray-400">{formatEGP(t.fees)}</td>
-                  <td className="px-4 py-2 font-mono text-gray-300">{t.cumulativeQty}</td>
-                  <td className="px-4 py-2 font-mono text-gray-300">{formatEGP(t.cumulativeAvgPrice)}</td>
+                  <td className="px-4 py-2">{tx.quantity}</td>
+                  <td className="px-4 py-2">{formatEGP(tx.price)}</td>
+                  <td className="px-4 py-2 font-medium">{formatEGP(tx.total)}</td>
+                  <td className="px-4 py-2 text-gray-400">{formatEGP(tx.fees)}</td>
+                  <td className="px-4 py-2 font-mono text-gray-300">{tx.cumulativeQty}</td>
+                  <td className="px-4 py-2 font-mono text-gray-300">{formatEGP(tx.cumulativeAvgPrice)}</td>
                   <td className="px-4 py-2">
-                    <Link href={`/portfolio/transactions/${t.id}`} className="text-blue-400 hover:text-blue-300 text-xs">View →</Link>
+                    <Link href={`/portfolio/transactions/${tx.id}`} className="text-blue-400 hover:text-blue-300 text-xs">{t("tx.view")}</Link>
                   </td>
                 </tr>
               ))}
@@ -273,12 +279,12 @@ export default function PositionDetailPage() {
         {realizedGains.length > 0 && (
           <div className="bg-gray-900 rounded-xl overflow-x-auto">
             <div className="px-4 py-3 border-b border-gray-800">
-              <h2 className="text-sm font-semibold text-gray-400">Realized Gains</h2>
+              <h2 className="text-sm font-semibold text-gray-400">{t("pos.realizedGains")}</h2>
             </div>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
-                  {["Date", "Qty", "Buy Price", "Sell Price", "Profit", "Return %"].map((h) => (
+                  {[t("tx.date"), t("common.qty"), t("pos.buyPrice"), t("pos.sellPrice"), t("analytics.profit"), t("common.return")].map((h) => (
                     <th key={h} className="px-4 py-2 text-left">{h}</th>
                   ))}
                 </tr>

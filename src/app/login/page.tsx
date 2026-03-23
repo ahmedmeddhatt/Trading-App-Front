@@ -5,11 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Activity, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { apiClient } from "@/lib/apiClient";
+import { useLanguage } from "@/context/LanguageContext";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dashboard";
+  const { t } = useLanguage();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +35,7 @@ function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl p-6 space-y-4">
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">Email</label>
+        <label className="text-gray-500 text-xs">{t("auth.email")}</label>
         <input
           type="email"
           required
@@ -44,7 +46,7 @@ function LoginForm() {
       </div>
 
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">Password</label>
+        <label className="text-gray-500 text-xs">{t("auth.password")}</label>
         <input
           type="password"
           required
@@ -69,21 +71,21 @@ function LoginForm() {
         {isPending ? (
           <>
             <Loader2 className="animate-spin" size={16} />
-            <span>Signing in…</span>
+            <span>{t("auth.signingIn")}</span>
           </>
         ) : (
-          "Sign In"
+          t("auth.signInBtn")
         )}
       </button>
 
       <div className="flex justify-between text-sm text-gray-500">
         <Link href="/forgot-password" className="text-blue-400 hover:text-blue-300">
-          Forgot password?
+          {t("auth.forgotPasswordQ")}
         </Link>
         <span>
-          No account?{" "}
+          {t("auth.noAccountQ")}{" "}
           <Link href="/register" className="text-blue-400 hover:text-blue-300">
-            Create one
+            {t("auth.createOne")}
           </Link>
         </span>
       </div>
@@ -92,13 +94,14 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2">
           <Activity className="text-blue-400" size={28} />
           <h1 className="text-xl font-bold tracking-tight">TradeDesk</h1>
-          <p className="text-gray-500 text-sm">Sign in to your account</p>
+          <p className="text-gray-500 text-sm">{t("auth.signIn")}</p>
         </div>
         <Suspense>
           <LoginForm />
