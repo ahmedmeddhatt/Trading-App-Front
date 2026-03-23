@@ -169,9 +169,16 @@ function StocksPageInner() {
   const stocks = data?.stocks ?? [];
   const total = data?.total ?? stocks.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const displayed = watchlistOnly
+  const filtered = watchlistOnly
     ? stocks.filter((s) => watchlist.has(s.symbol))
-    : stocks;
+    : [...stocks];
+  const displayed = filtered.sort((a, b) => {
+    const aIsAlpha = /^[a-zA-Z]/.test(a.symbol);
+    const bIsAlpha = /^[a-zA-Z]/.test(b.symbol);
+    if (aIsAlpha && !bIsAlpha) return -1;
+    if (!aIsAlpha && bIsAlpha) return 1;
+    return a.symbol.localeCompare(b.symbol);
+  });
 
   // No SSE on the list page — 25 concurrent SSE connections saturate the browser
   // connection pool and block navigation. Static prices from the API are sufficient here.
