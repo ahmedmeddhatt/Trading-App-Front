@@ -35,9 +35,9 @@ function PerformerCard({
   return (
     <Link href={`/stocks/${performer.symbol}`} className="flex-1">
       <div
-        className={`bg-gray-900 rounded-xl p-5 border ${
+        className={`td-hover-card bg-gray-900 rounded-xl p-5 border ${
           positive ? "border-emerald-900/50" : "border-red-900/50"
-        } hover:bg-gray-800 transition-colors`}
+        }`}
       >
         <p className="text-gray-500 text-xs mb-2">{title}</p>
         <div className="flex items-center gap-2 mb-1">
@@ -49,12 +49,12 @@ function PerformerCard({
           <span className="font-bold text-white text-xl">{performer.symbol}</span>
         </div>
         <p className={`text-lg font-bold ${positive ? "text-emerald-400" : "text-red-400"}`}>
-          {pnl >= 0 ? "+" : ""}
-          {fmt.format(pnl)}
+          {pnl >= 0 ? "+" : "−"}
+          {fmt.format(Math.abs(pnl))}
         </p>
         <p className={`text-sm font-medium ${positive ? "text-emerald-400" : "text-red-400"}`}>
-          {performer.returnPercent >= 0 ? "+" : ""}
-          {performer.returnPercent.toFixed(2)}% {t("analytics.returnLabel")}
+          {(performer.returnPercent ?? 0) >= 0 ? "+" : "−"}
+          {Math.abs(performer.returnPercent ?? 0).toFixed(2)}% {t("analytics.returnLabel")}
         </p>
       </div>
     </Link>

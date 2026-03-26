@@ -6,6 +6,7 @@ const en = {
   "nav.transactions":  "Transactions",
   "nav.analytics":     "Analytics",
   "nav.risk":          "Risk",
+  "nav.strategies":    "Strategies",
   "nav.signOut":       "Sign out",
 
   // ── Common UI ───────────────────────────────────────────────────────────────
@@ -79,9 +80,20 @@ const en = {
   "analytics.pnlSub":          "Unrealized + Realized",
   "analytics.returnByPosition":"Return % by Position",
   "analytics.returnSub":       "Sorted best to worst",
-  "analytics.sectorAlloc":     "Sector Allocation",
-  "analytics.symbolAlloc":     "Symbol Allocation",
-  "analytics.allPositions":    "All Positions",
+  "analytics.sectorAlloc":          "Sector Allocation",
+  "analytics.symbolAlloc":          "Symbol Allocation",
+  "analytics.symbolAllocSub":       "Portfolio weight by market value",
+  "analytics.capitalDeployed":      "Capital Deployed vs Current Worth",
+  "analytics.capitalDeployedSub":   "Invested amount vs current market value per position",
+  "analytics.currentValue":         "Current Value",
+  "analytics.priceVsCost":          "Avg Entry Price vs Market Price",
+  "analytics.priceVsCostSub":       "Your cost basis compared to today's price",
+  "analytics.mktPrice":             "Market Price",
+  "analytics.noPriceData":          "No live price data available",
+  "analytics.holdingDuration":      "Holding Duration",
+  "analytics.holdingDurationSub":   "How long each position has been open",
+  "analytics.heldFor":              "Days held",
+  "analytics.allPositions":         "All Positions",
   "analytics.holdings":        "holdings",
   "analytics.bestPerformer":   "Best Performer",
   "analytics.worstPerformer":  "Worst Performer",
@@ -299,6 +311,19 @@ const en = {
   "risk.drawdown":             "Drawdown",
   "risk.peakToTrough":         "peak-to-trough",
 
+  // ── Strategies ───────────────────────────────────────────────────────────────
+  "strategies.title":       "AI Strategy Prompts",
+  "strategies.sub":         "Professional-grade prompts powered by Wall Street frameworks. Fill in your details and copy to use with any AI assistant.",
+  "strategies.copy":        "Copy Prompt",
+  "strategies.copied":      "Copied!",
+  "strategies.expand":      "Use Strategy",
+  "strategies.collapse":    "Close",
+  "strategies.fillIn":      "Fill in your details below, then copy the completed prompt.",
+  "strategies.yourDetails": "Your Details",
+  "strategies.placeholder": "Enter your details here…",
+  "strategies.reset":       "Reset",
+  "strategies.promptLabel": "Full Prompt",
+
   // ── Position detail extras ─────────────────────────────────────────────────
   "pos.aboveBreakEven":  "above break-even",
   "pos.belowBreakEven":  "below break-even",
@@ -307,6 +332,33 @@ const en = {
   "pos.boughtBelow":     "bought below current price",
   "pos.boughtAbove":     "bought above current price",
   "pos.current":         "Current",
+  "pos.closed":          "Closed",
+  "pos.exitedOn":        "Exited on",
+  "pos.totalRealized":   "Total Realized P&L",
+  "pos.totalProceeds":   "Total Proceeds",
+  "pos.totalRealizedPnL":"Realized P&L",
+  "pos.totalFeesPaid":   "Total Fees Paid",
+  "pos.sellTrades":      "Sell Trades",
+  "pos.cumulativePnL":   "Cumulative Realized P&L",
+  "pos.tradePnL":        "Trade P&L",
+  "tx.pnl":              "P&L",
+
+  // ── Closed positions ──────────────────────────────────────────────────────
+  "closed.sectionTitle": "Realized P&L",
+  "closed.sectionSub":   "All stocks you've sold from — fully closed or partial exits",
+  "closed.tableTitle":   "Sold Positions History",
+  "closed.symbols":      "symbols",
+  "closed.invested":     "Invested",
+  "closed.proceeds":     "Proceeds",
+  "closed.fees":         "Fees",
+  "closed.holdDays":     "Hold Days",
+  "closed.winLoss":      "W/L",
+  "closed.openDate":     "Open Date",
+  "closed.closeDate":    "Close Date",
+
+  // ── Realized gains table ───────────────────────────────────────────────────
+  "realized.allTrades":  "All Trades",
+  "realized.trades":     "trades",
 } as const;
 
 export type TranslationKey = keyof typeof en;

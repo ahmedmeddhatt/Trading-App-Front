@@ -6,6 +6,7 @@ const ar: Record<string, string> = {
   "nav.transactions":  "المعاملات",
   "nav.analytics":     "التحليلات",
   "nav.risk":          "المخاطر",
+  "nav.strategies":    "الاستراتيجيات",
   "nav.signOut":       "تسجيل الخروج",
 
   // ── Common UI ───────────────────────────────────────────────────────────────
@@ -79,9 +80,20 @@ const ar: Record<string, string> = {
   "analytics.pnlSub":          "غير محقق + محقق",
   "analytics.returnByPosition":"العائد % حسب المركز",
   "analytics.returnSub":       "مرتبة من الأفضل إلى الأسوأ",
-  "analytics.sectorAlloc":     "توزيع القطاعات",
-  "analytics.symbolAlloc":     "توزيع الأسهم",
-  "analytics.allPositions":    "جميع المراكز",
+  "analytics.sectorAlloc":          "توزيع القطاعات",
+  "analytics.symbolAlloc":          "توزيع الأسهم",
+  "analytics.symbolAllocSub":       "وزن المحفظة حسب القيمة السوقية",
+  "analytics.capitalDeployed":      "رأس المال المنشور مقابل القيمة الحالية",
+  "analytics.capitalDeployedSub":   "المبلغ المستثمر مقابل القيمة السوقية الحالية لكل مركز",
+  "analytics.currentValue":         "القيمة الحالية",
+  "analytics.priceVsCost":          "متوسط سعر الدخول مقابل السعر الحالي",
+  "analytics.priceVsCostSub":       "أساس التكلفة مقارنةً بالسعر اليوم",
+  "analytics.mktPrice":             "السعر الحالي",
+  "analytics.noPriceData":          "لا تتوفر بيانات سعر مباشرة",
+  "analytics.holdingDuration":      "مدة الاحتفاظ",
+  "analytics.holdingDurationSub":   "المدة التي ظل فيها كل مركز مفتوحاً",
+  "analytics.heldFor":              "أيام الاحتفاظ",
+  "analytics.allPositions":         "جميع المراكز",
   "analytics.holdings":        "حيازة",
   "analytics.bestPerformer":   "أفضل أداء",
   "analytics.worstPerformer":  "أضعف أداء",
@@ -299,6 +311,19 @@ const ar: Record<string, string> = {
   "risk.drawdown":             "الانخفاض",
   "risk.peakToTrough":         "من القمة إلى القاع",
 
+  // ── Strategies ───────────────────────────────────────────────────────────────
+  "strategies.title":       "استراتيجيات الذكاء الاصطناعي",
+  "strategies.sub":         "استراتيجيات احترافية مستوحاة من أبرز مؤسسات وول ستريت. أدخل بياناتك وانسخ الاستراتيجية لاستخدامها مع أي مساعد ذكاء اصطناعي.",
+  "strategies.copy":        "نسخ الاستراتيجية",
+  "strategies.copied":      "تم النسخ!",
+  "strategies.expand":      "استخدم الاستراتيجية",
+  "strategies.collapse":    "إغلاق",
+  "strategies.fillIn":      "أدخل بياناتك أدناه ثم انسخ الاستراتيجية الكاملة.",
+  "strategies.yourDetails": "بياناتك",
+  "strategies.placeholder": "أدخل بياناتك هنا…",
+  "strategies.reset":       "إعادة تعيين",
+  "strategies.promptLabel": "النص الكامل",
+
   // ── Position detail extras ─────────────────────────────────────────────────
   "pos.aboveBreakEven":  "فوق نقطة التعادل",
   "pos.belowBreakEven":  "دون نقطة التعادل",
@@ -307,6 +332,33 @@ const ar: Record<string, string> = {
   "pos.boughtBelow":     "تم الشراء دون السعر الحالي",
   "pos.boughtAbove":     "تم الشراء فوق السعر الحالي",
   "pos.current":         "الحالي",
+  "pos.closed":          "مغلق",
+  "pos.exitedOn":        "تم الخروج في",
+  "pos.totalRealized":   "إجمالي الأرباح/الخسائر المحققة",
+  "pos.totalProceeds":   "إجمالي العائدات",
+  "pos.totalRealizedPnL":"الأرباح/الخسائر المحققة",
+  "pos.totalFeesPaid":   "إجمالي الرسوم المدفوعة",
+  "pos.sellTrades":      "صفقات البيع",
+  "pos.cumulativePnL":   "الأرباح/الخسائر المحققة التراكمية",
+  "pos.tradePnL":        "أرباح/خسائر الصفقة",
+  "tx.pnl":              "أر/خس",
+
+  // ── Closed positions ──────────────────────────────────────────────────────
+  "closed.sectionTitle": "الأرباح والخسائر المحققة",
+  "closed.sectionSub":   "جميع الأسهم التي تم بيع جزء منها أو كلها",
+  "closed.tableTitle":   "سجل المراكز المباعة",
+  "closed.symbols":      "رمز",
+  "closed.invested":     "المستثمر",
+  "closed.proceeds":     "العائدات",
+  "closed.fees":         "الرسوم",
+  "closed.holdDays":     "أيام الاحتفاظ",
+  "closed.winLoss":      "ر/خ",
+  "closed.openDate":     "تاريخ الفتح",
+  "closed.closeDate":    "تاريخ الإغلاق",
+
+  // ── Realized gains table ───────────────────────────────────────────────────
+  "realized.allTrades":  "كل الصفقات",
+  "realized.trades":     "صفقة",
 };
 
 export default ar;

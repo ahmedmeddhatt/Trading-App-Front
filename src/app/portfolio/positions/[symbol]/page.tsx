@@ -2,41 +2,75 @@
 
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
 import {
-  ComposedChart, BarChart, Bar, Line, Scatter, XAxis, YAxis,
+  ComposedChart, BarChart, Bar, Scatter, XAxis, YAxis,
   Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine, Cell,
-  Area, LineChart,
+  Area, AreaChart,
 } from "recharts";
-import { Loader2, ArrowLeft, TrendingUp, TrendingDown, Target } from "lucide-react";
+import { Loader2, ArrowLeft, TrendingUp, TrendingDown, Target, XCircle, DollarSign, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
-import { formatEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
+import { formatEGP, formatSignedEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface PositionDetail {
   position: { symbol: string; quantity: string; averagePrice: string; totalInvested: string };
+  isClosed: boolean;
+  closedDate: string | null;
   currentPrice: string | null;
   breakEvenPrice: string;
   gapToBreakEven: string | null;
   unrealizedPnL: string | null;
   unrealizedPct: string | null;
   daysHeld: number;
+  totalFeesPaid: string;
+  totalRealizedPnL: string;
+  totalProceedsFromSells: string;
   costBasisLadder: { date: string; quantity: number; buyPrice: number; lotValue: number; isAboveBreakEven: boolean }[];
   priceHistory: { timestamp: string; price: number }[];
-  allTransactions: { id: string; createdAt: string; type: "BUY" | "SELL"; quantity: string; price: string; total: string; fees: string; cumulativeQty: string; cumulativeAvgPrice: string }[];
-  realizedGains: { id: string; createdAt: string; quantity: string; avgPrice: string; sellPrice: string; profit: string; returnPct?: string }[];
+  allTransactions: {
+    id: string; createdAt: string; type: "BUY" | "SELL";
+    quantity: string; price: string; total: string; fees: string;
+    cumulativeQty: string; cumulativeAvgPrice: string;
+    pnlOnSell: string | null; returnPctOnSell: string | null;
+  }[];
+  realizedGains: { id: string; createdAt: string; quantity: string; avgPrice: string; sellPrice: string; profit: string; returnPct: string | null; fees: string }[];
 }
+
+type GainSortKey = "date" | "qty" | "buyPrice" | "sellPrice" | "profit" | "returnPct";
 
 export default function PositionDetailPage() {
   const { t, dir } = useLanguage();
   const { symbol } = useParams<{ symbol: string }>();
+  const [gainSort, setGainSort] = useState<{ key: GainSortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
 
   const { data, isLoading } = useQuery({
     queryKey: ["position-detail", symbol],
     queryFn: () => apiClient.get<PositionDetail>(`/api/portfolio/positions/${symbol}`),
     enabled: !!symbol,
   });
+
+  const sortedGains = useMemo(() => {
+    const gains = data?.realizedGains ?? [];
+    return [...gains].sort((a, b) => {
+      const sortDir = gainSort.dir === "asc" ? 1 : -1;
+      switch (gainSort.key) {
+        case "date":      return sortDir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        case "qty":       return sortDir * (parseFloat(a.quantity) - parseFloat(b.quantity));
+        case "buyPrice":  return sortDir * (parseFloat(a.avgPrice) - parseFloat(b.avgPrice));
+        case "sellPrice": return sortDir * (parseFloat(a.sellPrice) - parseFloat(b.sellPrice));
+        case "profit":    return sortDir * (parseFloat(a.profit) - parseFloat(b.profit));
+        case "returnPct": {
+          const ra = a.returnPct != null ? parseFloat(a.returnPct) : (parseFloat(a.profit) / (parseFloat(a.quantity) * parseFloat(a.avgPrice))) * 100;
+          const rb = b.returnPct != null ? parseFloat(b.returnPct) : (parseFloat(b.profit) / (parseFloat(b.quantity) * parseFloat(b.avgPrice))) * 100;
+          return sortDir * (ra - rb);
+        }
+        default: return 0;
+      }
+    });
+  }, [data?.realizedGains, gainSort]);
 
   if (isLoading) {
     return (
@@ -56,14 +90,41 @@ export default function PositionDetailPage() {
     );
   }
 
-  const { position, currentPrice, breakEvenPrice, gapToBreakEven, unrealizedPnL, unrealizedPct, daysHeld, costBasisLadder, priceHistory, allTransactions, realizedGains } = data;
+  const {
+    position, isClosed, closedDate,
+    currentPrice, breakEvenPrice, gapToBreakEven, unrealizedPnL, unrealizedPct,
+    daysHeld, totalFeesPaid, totalRealizedPnL, totalProceedsFromSells,
+    costBasisLadder, priceHistory, allTransactions, realizedGains,
+  } = data;
 
   const cp = currentPrice ? parseFloat(currentPrice) : null;
   const be = parseFloat(breakEvenPrice);
   const gap = gapToBreakEven ? parseFloat(gapToBreakEven) : null;
+  const totalRealized = parseFloat(totalRealizedPnL ?? "0");
+  const totalFees = parseFloat(totalFeesPaid ?? "0");
 
-  // Break-even gauge: 0–100% scale where 50 = at break-even
-  const gaugeVal = cp != null && be > 0 ? Math.min(100, Math.max(0, ((cp - be * 0.8) / (be * 0.4)) * 100)) : 50;
+  // Cumulative realized P&L chart (one point per sell)
+  const cumulativePnLData = (() => {
+    let running = 0;
+    return realizedGains.map((g) => {
+      running += parseFloat(g.profit);
+      return {
+        date: new Date(g.createdAt).toLocaleDateString(),
+        cumPnL: running,
+        tradePnL: parseFloat(g.profit),
+      };
+    });
+  })();
+
+  // Break-even gauge: dynamic range so current price is never clamped
+  const gapFraction = cp != null && be > 0 ? (cp - be) / be : 0; // e.g. -0.245 for -24.5%
+  const rangeExtent = Math.max(0.25, Math.abs(gapFraction) * 1.2); // at least ±25%, expand if needed
+  const gaugeMin = be * (1 - rangeExtent);
+  const gaugeMax = be * (1 + rangeExtent);
+  const gaugeVal = cp != null && be > 0
+    ? Math.min(96, Math.max(4, ((cp - gaugeMin) / (gaugeMax - gaugeMin)) * 100))
+    : 50;
+  const gaugeRangePct = Math.round(rangeExtent * 100);
 
   // Chart data: price history + trade markers
   const txByDate = new Map<string, { type: "BUY" | "SELL"; price: number }[]>();
@@ -84,6 +145,14 @@ export default function PositionDetailPage() {
     };
   });
 
+  const toggleGainSort = (key: GainSortKey) =>
+    setGainSort(prev => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" });
+
+  const GainSortIcon = ({ k }: { k: GainSortKey }) =>
+    gainSort.key !== k ? <ChevronUp size={11} className="text-gray-700 opacity-40" /> :
+    gainSort.dir === "asc" ? <ChevronUp size={11} className="text-blue-400" /> :
+    <ChevronDown size={11} className="text-blue-400" />;
+
   // Cost basis ladder: sorted by buy price asc
   const ladder = [...costBasisLadder].sort((a, b) => a.buyPrice - b.buyPrice);
   const maxLotValue = Math.max(...ladder.map((l) => l.lotValue), 1);
@@ -96,36 +165,65 @@ export default function PositionDetailPage() {
           <Link href="/portfolio" className="flex items-center gap-1 text-gray-500 hover:text-white text-sm mb-4">
             <ArrowLeft size={14} /> {t("pos.backToPortfolio")}
           </Link>
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between flex-wrap gap-3">
             <div>
-              <div className="flex items-center gap-3 mb-1">
+              <div className="flex items-center gap-3 mb-1 flex-wrap">
                 <span className="text-3xl font-bold font-mono">{symbol}</span>
-                {gap != null && (
+                {isClosed ? (
+                  <span className="px-2 py-1 rounded-lg text-sm font-bold bg-gray-800 text-gray-400 flex items-center gap-1">
+                    <XCircle size={13} /> {t("pos.closed")}
+                    {closedDate && <span className="text-gray-600 ml-1">· {new Date(closedDate).toLocaleDateString()}</span>}
+                  </span>
+                ) : gap != null && (
                   <span className={`px-2 py-1 rounded-lg text-sm font-bold ${gap >= 0 ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"}`}>
                     {gap >= 0 ? <TrendingUp className="inline mr-1" size={14} /> : <TrendingDown className="inline mr-1" size={14} />}
-                    {formatPct(gap)} vs break-even
+                    {formatPct(gap)} {t("pos.vsBreakEven")}
                   </span>
                 )}
               </div>
-              <p className="text-gray-500 text-sm">{t("pos.heldFor")} {daysHeld} {t("common.days")}</p>
+              <p className="text-gray-500 text-sm">
+                {isClosed
+                  ? `${t("pos.heldFor")} ${daysHeld} ${t("common.days")} · ${t("pos.exitedOn")} ${closedDate ? new Date(closedDate).toLocaleDateString() : "—"}`
+                  : `${t("pos.heldFor")} ${daysHeld} ${t("common.days")}`}
+              </p>
             </div>
-            {unrealizedPnL != null && (
-              <div className="text-right">
-                <p className={`text-2xl font-bold ${pnlColor(unrealizedPnL)}`}>{formatEGP(unrealizedPnL)}</p>
-                <p className={`text-sm ${pnlColor(unrealizedPct)}`}>{formatPct(unrealizedPct)} {t("pos.unrealizedLabel")}</p>
-              </div>
-            )}
+            <div className="text-right">
+              {isClosed ? (
+                <>
+                  <p className={`text-2xl font-bold ${pnlColor(totalRealizedPnL)}`}>{formatSignedEGP(totalRealizedPnL)}</p>
+                  <p className="text-gray-500 text-sm">{t("pos.totalRealized")}</p>
+                </>
+              ) : unrealizedPnL != null && (
+                <>
+                  <p className={`text-2xl font-bold ${pnlColor(unrealizedPnL)}`}>{formatSignedEGP(unrealizedPnL)}</p>
+                  <p className={`text-sm ${pnlColor(unrealizedPct)}`}>{formatPct(unrealizedPct)} {t("pos.unrealizedLabel")}</p>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {[
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {isClosed ? [
+            { label: t("common.invested"), value: formatEGP(position.totalInvested) },
+            { label: t("pos.totalProceeds"), value: formatEGP(totalProceedsFromSells) },
+            { label: t("pos.totalRealizedPnL"), value: formatSignedEGP(totalRealizedPnL), color: pnlColor(totalRealizedPnL) },
+            { label: t("pos.totalFeesPaid"), value: formatEGP(totalFeesPaid) },
+            { label: t("pos.daysHeld"), value: `${daysHeld}d` },
+            { label: t("pos.sellTrades"), value: `${realizedGains.length}` },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-gray-900 rounded-xl p-4">
+              <p className="text-gray-500 text-xs mb-1">{label}</p>
+              <p className={`text-lg font-bold ${color ?? "text-white"}`}>{value}</p>
+            </div>
+          )) : [
             { label: t("trade.quantity"), value: position.quantity },
             { label: t("common.avgCost"), value: formatEGP(position.averagePrice) },
             { label: t("portfolio.breakEven"), value: formatEGP(breakEvenPrice) },
             { label: t("common.currentPrice"), value: cp ? formatEGP(cp) : "—" },
             { label: t("pos.daysHeld"), value: `${daysHeld}d` },
+            { label: t("pos.totalFeesPaid"), value: formatEGP(totalFeesPaid) },
           ].map(({ label, value }) => (
             <div key={label} className="bg-gray-900 rounded-xl p-4">
               <p className="text-gray-500 text-xs mb-1">{label}</p>
@@ -142,21 +240,28 @@ export default function PositionDetailPage() {
               <h2 className="text-sm font-semibold text-gray-400">{t("pos.breakEvenGauge")}</h2>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-xs text-gray-500 w-24 text-right">{formatEGP(be * 0.8)}</span>
-              <div className="relative flex-1 h-4 bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className={`absolute left-0 top-0 h-full rounded-full transition-all ${gap != null && gap >= 0 ? "bg-emerald-500" : "bg-red-500"}`}
-                  style={{ width: `${gaugeVal}%` }}
-                />
-                {/* Break-even marker at 50% */}
-                <div className="absolute top-0 h-full w-0.5 bg-yellow-400" style={{ left: "50%" }} />
+              <span className="text-xs text-gray-500 w-24 text-right">{formatEGP(gaugeMin)}</span>
+              <div className="relative flex-1 h-4 rounded-full overflow-hidden bg-gray-800">
+                {/* Static dim zones */}
+                <div className="absolute left-0 top-0 h-full w-1/2 bg-red-950/60" />
+                <div className="absolute right-0 top-0 h-full w-1/2 bg-emerald-950/40" />
+                {/* Fill: from needle to break-even center — red when below, green when above */}
+                {gaugeVal <= 50 ? (
+                  <div className="absolute top-0 h-full bg-red-500/80 transition-all" style={{ left: `${gaugeVal}%`, width: `${50 - gaugeVal}%` }} />
+                ) : (
+                  <div className="absolute top-0 h-full bg-emerald-500/80 transition-all" style={{ left: "50%", width: `${gaugeVal - 50}%` }} />
+                )}
+                {/* Break-even marker */}
+                <div className="absolute top-0 h-full w-0.5 bg-yellow-400 z-10" style={{ left: "50%" }} />
+                {/* Current price needle */}
+                <div className="absolute top-0 h-full w-1 bg-white z-20 rounded-sm transition-all" style={{ left: `${gaugeVal}%` }} />
               </div>
-              <span className="text-xs text-gray-500 w-24">{formatEGP(be * 1.2)}</span>
+              <span className="text-xs text-gray-500 w-24">{formatEGP(gaugeMax)}</span>
             </div>
             <div className="flex justify-between mt-1 px-28">
-              <span className="text-xs text-gray-600">−20%</span>
+              <span className="text-xs text-gray-600">−{gaugeRangePct}%</span>
               <span className="text-xs text-yellow-400">{t("portfolio.breakEven")}: {formatEGP(be)}</span>
-              <span className="text-xs text-gray-600">+20%</span>
+              <span className="text-xs text-gray-600">+{gaugeRangePct}%</span>
             </div>
             <p className={`text-center text-sm mt-2 font-medium ${pnlColor(gap)}`}>
               {t("pos.current")}: {formatEGP(cp)} — {gap != null ? (gap >= 0 ? `${formatPct(gap)} ${t("pos.aboveBreakEven")}` : `${formatPct(gap)} ${t("pos.belowBreakEven")}`) : "—"}
@@ -169,36 +274,48 @@ export default function PositionDetailPage() {
           <div className="bg-gray-900 rounded-xl p-4">
             <h2 className="text-sm font-semibold text-gray-400 mb-4">{t("pos.priceHistory")}</h2>
             <div dir="ltr">
-            <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+            <ResponsiveContainer width="100%" height={360}>
+              <ComposedChart data={chartData} margin={{ top: 8, right: dir === "rtl" ? 16 : 56, left: dir === "rtl" ? 56 : 4, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="positionPriceGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: "#6b7280", fontSize: 10 }}
-                  tickFormatter={(v, i) => (i % Math.ceil(chartData.length / 6) === 0 ? v : "")} />
-                <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} domain={["auto", "auto"]} orientation={dir === "rtl" ? "right" : "left"} />
+                  axisLine={false} tickLine={false}
+                  tickFormatter={(v, i) => (i % Math.ceil(chartData.length / 7) === 0 ? v : "")} />
+                <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} domain={["auto", "auto"]}
+                  axisLine={false} tickLine={false} width={56}
+                  orientation={dir === "rtl" ? "right" : "left"}
+                  tickFormatter={(v) => formatEGP(v)} />
                 <Tooltip
-                  contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
+                  contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, padding: "8px 12px" }}
                   formatter={(v: unknown, name: unknown) => [formatEGP(v as number), name === "price" ? t("common.price") : name === "buyMark" ? t("common.buy") : t("common.sell")]}
+                  cursor={{ stroke: "#3b82f6", strokeWidth: 1, strokeDasharray: "4 4" }}
                 />
-                <Area type="monotone" dataKey="price" stroke="#3b82f6" fill="#3b82f610" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="price" stroke="#3b82f6" fill="url(#positionPriceGrad)" strokeWidth={2.5} dot={false}
+                  activeDot={{ r: 5, fill: "#3b82f6", stroke: "#111827", strokeWidth: 2 }} />
                 <Scatter dataKey="buyMark" fill="#10b981" shape={(props: { cx?: number; cy?: number; payload?: { buyMark: unknown } }) => {
                   if (!props.payload?.buyMark) return <g />;
                   const cx = props.cx ?? 0, cy = props.cy ?? 0;
-                  return <circle cx={cx} cy={cy} r={5} fill="#10b981" stroke="#065f46" strokeWidth={1.5} />;
+                  return <circle cx={cx} cy={cy} r={6} fill="#10b981" stroke="#065f46" strokeWidth={2} />;
                 }} />
-                <Scatter dataKey="sellMark" fill="#ef4444" shape={(props: { cx?: number; cy?: number; payload?: { sellMark: unknown } }) => {
+                <Scatter dataKey="sellMark" fill="#f97316" shape={(props: { cx?: number; cy?: number; payload?: { sellMark: unknown } }) => {
                   if (!props.payload?.sellMark) return <g />;
                   const cx = props.cx ?? 0, cy = props.cy ?? 0;
-                  const pts = `${cx},${cy - 6} ${cx - 5},${cy + 4} ${cx + 5},${cy + 4}`;
-                  return <polygon points={pts} fill="#ef4444" />;
+                  const pts = `${cx},${cy - 7} ${cx - 6},${cy + 5} ${cx + 6},${cy + 5}`;
+                  return <polygon points={pts} fill="#f97316" stroke="#7c2d12" strokeWidth={1.5} />;
                 }} />
-                <ReferenceLine y={be} stroke="#f59e0b" strokeDasharray="4 4"
-                  label={{ value: t("portfolio.breakEven"), fill: "#f59e0b", fontSize: 10, position: "right" }} />
+                <ReferenceLine y={be} stroke="#f59e0b" strokeDasharray="5 4" strokeWidth={1.5}
+                  label={{ value: t("portfolio.breakEven"), fill: "#f59e0b", fontSize: 10, position: dir === "rtl" ? "left" : "right" }} />
               </ComposedChart>
             </ResponsiveContainer>
             </div>
             <div className="flex gap-4 justify-center mt-2 text-xs text-gray-500">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" /> {t("common.buy")}</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> {t("common.sell")}</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-500 inline-block" /> {t("common.sell")}</span>
               <span className="flex items-center gap-1"><span className="w-6 border-t border-dashed border-yellow-400 inline-block" /> {t("portfolio.breakEven")}</span>
             </div>
           </div>
@@ -209,63 +326,124 @@ export default function PositionDetailPage() {
           <div className="bg-gray-900 rounded-xl p-4">
             <h2 className="text-sm font-semibold text-gray-400 mb-4">{t("pos.costLadder")}</h2>
             <div dir="ltr">
-            <ResponsiveContainer width="100%" height={Math.max(120, ladder.length * 40)}>
-              <BarChart data={ladder} layout="vertical" margin={{ left: dir === "rtl" ? 0 : 60, right: dir === "rtl" ? 60 : 0 }}>
+            <ResponsiveContainer width="100%" height={Math.max(160, ladder.length * 52)}>
+              <BarChart data={ladder} layout="vertical" margin={{ left: dir === "rtl" ? 0 : 72, right: dir === "rtl" ? 72 : 16, top: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
                 <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }}
+                  axisLine={false} tickLine={false}
                   tickFormatter={(v) => formatEGP(v)} domain={[0, maxLotValue * 1.1]} />
-                <YAxis type="category" dataKey="buyPrice" tick={{ fill: "#6b7280", fontSize: 10 }}
-                  tickFormatter={(v) => formatEGP(v)} width={60} orientation={dir === "rtl" ? "right" : "left"} />
+                <YAxis type="category" dataKey="buyPrice" tick={{ fill: "#6b7280", fontSize: 11 }}
+                  tickFormatter={(v) => formatEGP(v)} width={72} orientation={dir === "rtl" ? "right" : "left"}
+                  axisLine={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
+                  contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, padding: "8px 12px" }}
                   formatter={(v: unknown) => [formatEGP(v as number), t("pos.lotValue")]}
                   labelFormatter={(v) => `${t("pos.buyAt")} ${formatEGP(v)}`}
+                  cursor={{ fill: "#ffffff08" }}
                 />
-                <Bar dataKey="lotValue" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="lotValue" radius={[0, 6, 6, 0]} barSize={28}>
                   {ladder.map((entry, i) => (
-                    <Cell key={i} fill={entry.isAboveBreakEven ? "#10b981" : "#ef4444"} opacity={0.8} />
+                    <Cell key={i} fill={cp != null && entry.buyPrice <= cp ? "#10b981" : "#ef4444"} opacity={0.85} />
                   ))}
                 </Bar>
-                {cp && <ReferenceLine x={cp * (maxLotValue / (be > 0 ? be : 1))} stroke="#f59e0b" strokeDasharray="4 4" />}
               </BarChart>
             </ResponsiveContainer>
             </div>
             <p className="text-xs text-gray-500 mt-2 text-center">
-              <span className="text-emerald-400">{t("common.buy")}</span> = {t("pos.boughtBelow")} &nbsp;
-              <span className="text-red-400">{t("common.sell")}</span> = {t("pos.boughtAbove")}
+              <span className="text-emerald-400">●</span> {t("pos.boughtBelow")} &nbsp;·&nbsp;
+              <span className="text-red-400">●</span> {t("pos.boughtAbove")}
             </p>
+          </div>
+        )}
+
+        {/* Cumulative Realized P&L Chart */}
+        {cumulativePnLData.length > 0 && (
+          <div className="bg-gray-900 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <DollarSign size={14} className="text-gray-400" />
+              <h2 className="text-sm font-semibold text-gray-400">{t("pos.cumulativePnL")}</h2>
+            </div>
+            <div dir="ltr">
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={cumulativePnLData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="cumPnLGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={totalRealized >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={totalRealized >= 0 ? "#10b981" : "#ef4444"} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} width={64}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`} />
+                  <Tooltip
+                    contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: unknown, name: unknown) => [
+                      formatEGP(v as number),
+                      name === "cumPnL" ? t("pos.cumulativePnL") : t("pos.tradePnL"),
+                    ]}
+                  />
+                  <ReferenceLine y={0} stroke="#4b5563" strokeDasharray="3 3" />
+                  <Area type="monotone" dataKey="cumPnL" stroke={totalRealized >= 0 ? "#10b981" : "#ef4444"}
+                    fill="url(#cumPnLGrad)" strokeWidth={2} dot={{ r: 4, fill: totalRealized >= 0 ? "#10b981" : "#ef4444", stroke: "#111827", strokeWidth: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
 
         {/* Transaction History */}
         <div className="bg-gray-900 rounded-xl overflow-x-auto">
-          <div className="px-4 py-3 border-b border-gray-800">
+          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-400">{t("pos.allTx")}</h2>
+            <div className="flex gap-4 text-xs text-gray-500">
+              <span className="text-emerald-400">{allTransactions.filter(tx => tx.type === "BUY").length} {t("common.buy")}</span>
+              <span className="text-orange-400">{allTransactions.filter(tx => tx.type === "SELL").length} {t("common.sell")}</span>
+              {totalFees > 0 && <span className="text-amber-400">{t("pos.totalFeesPaid")}: {formatEGP(totalFees)}</span>}
+            </div>
           </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-500 text-xs border-b border-gray-800">
-                {[t("tx.date"), t("tx.type"), t("common.qty"), t("common.price"), t("common.total"), t("common.fees"), t("pos.cumQty"), t("pos.cumAvg")].map((h) => (
-                  <th key={h} className="px-4 py-2 text-left">{h}</th>
-                ))}
+                <th className="px-4 py-2 text-left">{t("tx.date")}</th>
+                <th className="px-4 py-2 text-left">{t("tx.type")}</th>
+                <th className="px-4 py-2 text-left">{t("common.qty")}</th>
+                <th className="px-4 py-2 text-left">{t("common.price")}</th>
+                <th className="px-4 py2 text-left">{t("common.total")}</th>
+                <th className="px-4 py-2 text-left">{t("common.fees")}</th>
+                <th className="px-4 py-2 text-left">{t("pos.cumQty")}</th>
+                <th className="px-4 py-2 text-left">{t("pos.cumAvg")}</th>
+                <th className="px-4 py-2 text-left">{t("tx.pnl")}</th>
                 <th className="px-4 py-2 text-left">{t("tx.detail")}</th>
               </tr>
             </thead>
             <tbody>
               {allTransactions.map((tx) => (
-                <tr key={tx.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                <tr key={tx.id} className="td-row border-b border-gray-800/50">
                   <td className="px-4 py-2 text-gray-400">{new Date(tx.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-2">
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${tx.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-red-900/30 text-red-400"}`}>
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${tx.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-orange-900/30 text-orange-400"}`}>
                       {tx.type}
                     </span>
                   </td>
                   <td className="px-4 py-2">{tx.quantity}</td>
                   <td className="px-4 py-2">{formatEGP(tx.price)}</td>
                   <td className="px-4 py-2 font-medium">{formatEGP(tx.total)}</td>
-                  <td className="px-4 py-2 text-gray-400">{formatEGP(tx.fees)}</td>
+                  <td className="px-4 py-2 text-amber-400/80 text-xs">{formatEGP(tx.fees)}</td>
                   <td className="px-4 py-2 font-mono text-gray-300">{tx.cumulativeQty}</td>
                   <td className="px-4 py-2 font-mono text-gray-300">{formatEGP(tx.cumulativeAvgPrice)}</td>
+                  <td className="px-4 py-2">
+                    {tx.pnlOnSell != null ? (
+                      <span className={`font-medium text-xs ${parseFloat(tx.pnlOnSell) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {formatSignedEGP(tx.pnlOnSell)}
+                        {tx.returnPctOnSell != null && (
+                          <span className="text-gray-500 ml-1">({parseFloat(tx.returnPctOnSell) >= 0 ? "+" : "−"}{Math.abs(parseFloat(tx.returnPctOnSell)).toFixed(1)}%)</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-gray-700 text-xs">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     <Link href={`/portfolio/transactions/${tx.id}`} className="text-blue-400 hover:text-blue-300 text-xs">{t("tx.view")}</Link>
                   </td>
@@ -275,42 +453,71 @@ export default function PositionDetailPage() {
           </table>
         </div>
 
-        {/* Realized Gains */}
+        {/* Realized Gains (Sold Positions History) */}
         {realizedGains.length > 0 && (
           <div className="bg-gray-900 rounded-xl overflow-x-auto">
-            <div className="px-4 py-3 border-b border-gray-800">
+            <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-400">{t("pos.realizedGains")}</h2>
+              <span className="text-xs text-gray-600">{realizedGains.length} {t("tx.trades")}</span>
             </div>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
-                  {[t("tx.date"), t("common.qty"), t("pos.buyPrice"), t("pos.sellPrice"), t("analytics.profit"), t("common.return")].map((h) => (
-                    <th key={h} className="px-4 py-2 text-left">{h}</th>
+                  <th className="px-4 py-2 text-left w-12"></th>
+                  {([
+                    { key: "date",      label: t("tx.date") },
+                    { key: "qty",       label: t("common.qty") },
+                    { key: "buyPrice",  label: t("pos.buyPrice") },
+                    { key: "sellPrice", label: t("pos.sellPrice") },
+                    { key: "profit",    label: t("analytics.profit") },
+                    { key: "returnPct", label: t("common.return") },
+                  ] as { key: GainSortKey; label: string }[]).map(({ key, label }) => (
+                    <th
+                      key={key}
+                      onClick={() => toggleGainSort(key)}
+                      className="px-4 py-2 text-left cursor-pointer hover:text-white select-none transition-colors duration-150"
+                    >
+                      <span className="flex items-center gap-1">
+                        {label} <GainSortIcon k={key} />
+                      </span>
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {realizedGains.map((g, i) => (
-                  <tr key={g.id ?? i} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                    <td className="px-4 py-2 text-gray-400">{new Date(g.createdAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">{g.quantity}</td>
-                    <td className="px-4 py-2">{formatEGP(g.avgPrice)}</td>
-                    <td className="px-4 py-2">{formatEGP(g.sellPrice)}</td>
-                    <td className={`px-4 py-2 font-medium ${pnlColor(g.profit)}`}>{formatEGP(g.profit)}</td>
-                    <td className={`px-4 py-2 font-medium ${pnlColor(g.returnPct ?? 0)}`}>
-                      {g.returnPct != null
-                        ? formatPct(g.returnPct)
-                        : (() => {
-                            const qty = parseFloat(g.quantity);
-                            const avg = parseFloat(g.avgPrice);
-                            const pft = parseFloat(g.profit);
-                            const base = qty * avg;
-                            return base > 0 ? formatPct(((pft / base) * 100).toFixed(2)) : "—";
-                          })()
-                      }
-                    </td>
-                  </tr>
-                ))}
+                {sortedGains.map((g, i) => {
+                  const retPct = g.returnPct != null
+                    ? parseFloat(g.returnPct)
+                    : (() => {
+                        const base = parseFloat(g.quantity) * parseFloat(g.avgPrice);
+                        return base > 0 ? (parseFloat(g.profit) / base) * 100 : 0;
+                      })();
+                  return (
+                    <tr key={g.id ?? i} className="td-row border-b border-gray-800/50">
+                      <td className="px-4 py-2.5">
+                        {parseFloat(g.profit) >= 0 ? (
+                          <span className="text-xs font-bold tracking-tight">
+                            <span className="text-emerald-400">W</span>
+                            <span className="text-gray-600"> / L</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold tracking-tight">
+                            <span className="text-gray-600">W / </span>
+                            <span className="text-red-400">L</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-400">{new Date(g.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-2.5">{g.quantity}</td>
+                      <td className="px-4 py-2.5 text-gray-300">{formatEGP(g.avgPrice)}</td>
+                      <td className="px-4 py-2.5 text-gray-300">{formatEGP(g.sellPrice)}</td>
+                      <td className={`px-4 py-2.5 font-semibold ${pnlColor(g.profit)}`}>{formatSignedEGP(g.profit)}</td>
+                      <td className={`px-4 py-2.5 font-semibold ${pnlColor(retPct)}`}>
+                        {retPct >= 0 ? "+" : "−"}{retPct.toFixed(2)}%
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

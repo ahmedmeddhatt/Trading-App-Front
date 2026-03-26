@@ -127,7 +127,7 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
                     className={`px-2 py-0.5 rounded text-xs font-bold ${
                       isBuy
                         ? "bg-emerald-900/60 text-emerald-400"
-                        : "bg-red-900/60 text-red-400"
+                        : "bg-orange-900/60 text-orange-400"
                     }`}
                   >
                     {tx.type}
@@ -151,7 +151,7 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
                   </span>
                   <span
                     className={`font-bold ${
-                      isBuy ? "text-red-400" : "text-emerald-400"
+                      isBuy ? "text-orange-400" : "text-emerald-400"
                     }`}
                   >
                     {isBuy ? "−" : "+"}
@@ -168,7 +168,7 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
           <div className="border-t border-gray-800 p-5 shrink-0 space-y-2">
             <div className="flex justify-between text-xs text-gray-500">
               <span>Total bought</span>
-              <span className="text-red-400">{fmt.format(totalBought)}</span>
+              <span className="text-orange-400">{fmt.format(totalBought)}</span>
             </div>
             <div className="flex justify-between text-xs text-gray-500">
               <span>Total sold</span>
@@ -186,8 +186,8 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
                 ) : (
                   <TrendingDown size={13} />
                 )}
-                {netFlow >= 0 ? "+" : ""}
-                {fmt.format(netFlow)}
+                {netFlow >= 0 ? "+" : "−"}
+                {fmt.format(Math.abs(netFlow))}
               </span>
             </div>
           </div>

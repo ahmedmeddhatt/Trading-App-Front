@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity, LayoutDashboard, BarChart2, Briefcase, LineChart, LogOut,
-  Receipt, ShieldAlert, Sun, Moon,
+  Receipt, ShieldAlert, Sun, Moon, Lightbulb,
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { useTheme } from "@/context/ThemeContext";
@@ -17,6 +17,7 @@ const NAV_KEYS = [
   { href: "/portfolio/transactions", key: "nav.transactions", icon: Receipt },
   { href: "/analytics",              key: "nav.analytics",    icon: LineChart },
   { href: "/analytics/risk",         key: "nav.risk",         icon: ShieldAlert },
+  { href: "/strategies",             key: "nav.strategies",   icon: Lightbulb },
 ] as const;
 
 function isActive(href: string, pathname: string) {
@@ -26,9 +27,9 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-const btnBase = "rounded-lg transition-colors";
-const darkBtn = "text-gray-400 hover:text-white hover:bg-gray-800";
-const lightBtn = "text-slate-500 hover:text-slate-900 hover:bg-slate-100";
+const btnBase = "rounded-lg transition-all duration-150";
+const darkBtn = "text-gray-400 hover:text-white hover:bg-gray-800 active:scale-95";
+const lightBtn = "text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:scale-95";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname           = usePathname();
@@ -104,11 +105,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={href}
                   href={href}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-150 active:scale-95 ${
                     active
-                      ? isDark ? "bg-gray-800 text-white" : "bg-blue-50 text-blue-700 font-semibold"
-                      : isDark ? "text-gray-400 hover:text-white hover:bg-gray-800/60"
-                              : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                      ? isDark ? "bg-gray-800 text-white shadow-sm" : "bg-blue-50 text-blue-700 font-semibold shadow-sm"
+                      : isDark ? "text-gray-400 hover:text-white hover:bg-gray-800/70 hover:shadow-sm"
+                              : "text-slate-500 hover:text-slate-900 hover:bg-slate-100 hover:shadow-sm"
                   }`}
                 >
                   {t(key)}
@@ -169,10 +170,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 className={`flex flex-col items-center justify-center gap-0.5 py-2 font-medium transition-colors ${
                   active ? "text-blue-500" : isDark ? "text-gray-500" : "text-slate-400"
                 }`}
-                style={{ minWidth: 56, flex: "1 0 56px" }}
+                style={{ minWidth: 44, flex: "1 0 44px" }}
               >
-                <Icon size={20} strokeWidth={active ? 2.5 : 1.5} />
-                <span style={{ fontSize: 9, lineHeight: 1.2, textAlign: "center" }}>{t(key)}</span>
+                <Icon size={18} strokeWidth={active ? 2.5 : 1.5} />
+                <span style={{ fontSize: 8, lineHeight: 1.2, textAlign: "center" }}>{t(key)}</span>
               </Link>
             );
           })}

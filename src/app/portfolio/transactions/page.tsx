@@ -6,7 +6,7 @@ import { ArrowUpDown, Download, Loader2, ChevronUp, ChevronDown } from "lucide-r
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
-import { formatEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
+import { formatEGP, formatSignedEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
 import { exportToCSV } from "@/lib/csvExport";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -96,13 +96,13 @@ export default function TransactionsPage() {
 
         {/* Summary */}
         {summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
               { label: t("tx.totalTrades"), value: summary.totalTrades },
               { label: t("tx.buys"), value: summary.totalBuys, cls: "text-emerald-400" },
-              { label: t("tx.sells"), value: summary.totalSells, cls: "text-red-400" },
+              { label: t("tx.sells"), value: summary.totalSells, cls: "text-orange-400" },
               { label: t("tx.totalFees"), value: formatEGP(summary.totalFees) },
-              { label: t("tx.realizedPnl"), value: formatEGP(summary.totalRealizedPnL), cls: pnlColor(summary.totalRealizedPnL) },
+              { label: t("tx.realizedPnl"), value: formatSignedEGP(summary.totalRealizedPnL), cls: pnlColor(summary.totalRealizedPnL) },
             ].map(({ label, value, cls }) => (
               <div key={label} className="bg-gray-900 rounded-xl p-3 text-center">
                 <p className="text-gray-500 text-xs mb-1">{label}</p>
@@ -164,7 +164,7 @@ export default function TransactionsPage() {
                     { key: "pnlOnSell", label: t("common.profit") },
                   ].map(({ key, label }) => (
                     <th key={key} onClick={() => toggleSort(key as SortKey)}
-                      className="px-4 py-3 text-left cursor-pointer hover:text-white">
+                      className="px-4 py-3 text-left cursor-pointer hover:text-white transition-colors duration-150">
                       <span className="flex items-center gap-1">{label} <SortIcon k={key as SortKey} /></span>
                     </th>
                   ))}
@@ -173,13 +173,13 @@ export default function TransactionsPage() {
               </thead>
               <tbody>
                 {sorted.map((row) => (
-                  <tr key={row.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                  <tr key={row.id} className="td-row border-b border-gray-800/50">
                     <td className="px-4 py-3 text-gray-400">{new Date(row.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3 font-mono font-bold">
                       <Link href={`/portfolio/positions/${row.symbol}`} className="hover:text-blue-400">{row.symbol}</Link>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${row.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-red-900/30 text-red-400"}`}>
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${row.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-orange-900/30 text-orange-400"}`}>
                         {row.type}
                       </span>
                     </td>
@@ -190,7 +190,7 @@ export default function TransactionsPage() {
                     <td className="px-4 py-3 text-gray-400">{formatEGP(row.feesCumulative)}</td>
                     <td className={`px-4 py-3 font-medium ${pnlColor(row.runningBalance)}`}>{formatEGP(row.runningBalance)}</td>
                     <td className={`px-4 py-3 font-medium ${row.pnlOnSell ? pnlColor(row.pnlOnSell) : "text-gray-600"}`}>
-                      {row.pnlOnSell ? formatEGP(row.pnlOnSell) : "—"}
+                      {row.pnlOnSell ? formatSignedEGP(row.pnlOnSell) : "—"}
                     </td>
                     <td className="px-4 py-3">
                       <Link href={`/portfolio/transactions/${row.id}`} className="text-blue-400 hover:text-blue-300 text-xs">{t("tx.view")}</Link>

@@ -10,7 +10,7 @@ export const FRESHNESS_COLORS: Record<FreshnessStatus, string> = {
   missing: "text-gray-500",
   fresh:   "text-emerald-400",
   stale:   "text-amber-400",
-  dead:    "text-red-400",
+  dead:    "text-amber-400",
 };
 
 /**

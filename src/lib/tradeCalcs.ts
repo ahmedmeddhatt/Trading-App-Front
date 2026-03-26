@@ -61,14 +61,14 @@ export const GRADE_COLOR: Record<string, string> = {
   A: 'text-emerald-400',
   B: 'text-blue-400',
   C: 'text-amber-400',
-  D: 'text-red-400',
+  D: 'text-orange-400',
 };
 
 export const GRADE_BG: Record<string, string> = {
   A: 'bg-emerald-900/30 text-emerald-400',
   B: 'bg-blue-900/30 text-blue-400',
   C: 'bg-amber-900/30 text-amber-400',
-  D: 'bg-red-900/30 text-red-400',
+  D: 'bg-orange-900/30 text-orange-400',
 };
 
 export function formatEGP(value: number | string | null | undefined): string {
@@ -76,6 +76,17 @@ export function formatEGP(value: number | string | null | undefined): string {
   const n = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(n)) return '—';
   return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 }).format(n);
+}
+
+/** Like formatEGP but always prepends + for gains, − for losses — use for PnL fields. */
+export function formatSignedEGP(value: number | string | null | undefined): string {
+  if (value == null) return '—';
+  const n = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(n)) return '—';
+  const abs = new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', minimumFractionDigits: 2 }).format(Math.abs(n));
+  if (n > 0) return `+${abs}`;
+  if (n < 0) return `−${abs}`;
+  return abs;
 }
 
 export function formatPct(value: number | string | null | undefined, signed = true): string {

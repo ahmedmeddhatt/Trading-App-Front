@@ -16,7 +16,7 @@ export default function PortfolioSummary() {
 
   if (isError || !data) {
     return (
-      <div className="flex items-center justify-center h-48 bg-gray-900 rounded-xl text-red-400 text-sm">
+      <div className="flex items-center justify-center h-48 bg-gray-900 rounded-xl text-amber-400 text-sm">
         Failed to load portfolio
       </div>
     );
@@ -37,11 +37,11 @@ export default function PortfolioSummary() {
         <div className={`flex items-center gap-1 mt-1 text-sm font-medium ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
           {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
           <span>
-            {isPositive ? "+" : ""}
-            {data.totalPnlPercent.toFixed(2)}%
+            {isPositive ? "+" : "−"}
+            {Math.abs(data.totalPnlPercent).toFixed(2)}%
           </span>
           <span className="text-gray-500 font-normal">
-            ({isPositive ? "+" : ""}${data.totalPnl.toLocaleString("en-US", { minimumFractionDigits: 2 })})
+            ({isPositive ? "+" : "−"}${Math.abs(data.totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })})
           </span>
         </div>
       </div>
@@ -58,7 +58,7 @@ export default function PortfolioSummary() {
                 ${(pos.currentPrice * pos.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </p>
               <p className={`text-xs ${pos.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                {pos.pnl >= 0 ? "+" : ""}{pos.pnlPercent.toFixed(2)}%
+                {pos.pnl >= 0 ? "+" : "−"}{Math.abs(pos.pnlPercent).toFixed(2)}%
               </p>
             </div>
           </div>
