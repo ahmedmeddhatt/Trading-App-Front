@@ -10,12 +10,15 @@ import {
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie, Legend,
+  ResponsiveContainer, CartesianGrid, Cell, Legend, ReferenceLine,
+  PieChart, Pie,
 } from "recharts";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
 import { useLanguage } from "@/context/LanguageContext";
+
+type ExtendedRange = DateRange | "ALL";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +32,7 @@ interface AnalyticsPosition {
   realizedPnL: string | number;
   returnPercent?: string | number;
   daysSinceFirstBuy?: number;
+  graphData?: Array<{ price: string; timestamp: string }>;
 }
 
 interface Analytics {
@@ -41,7 +45,7 @@ interface Analytics {
   };
   bestPerformer?: { symbol: string; unrealizedPnL: string; returnPercent: number } | null;
   worstPerformer?: { symbol: string; unrealizedPnL: string; returnPercent: number } | null;
-  winRate?: number;
+  winRate?: string | number | null;
   totalFeesPaid?: string;
   netPnL?: string;
   avgHoldingDays?: number;
@@ -49,8 +53,6 @@ interface Analytics {
 }
 
 interface TimelinePoint { timestamp: string; totalValue: number; }
-interface AllocationSlice { name: string; value: number; percentage: number; }
-interface AllocationData { bySector: AllocationSlice[]; bySymbol: AllocationSlice[]; }
 
 interface StockTransaction {
   type: "BUY" | "SELL";
@@ -75,29 +77,25 @@ function useAnalytics() {
   });
 }
 
-function useTimeline(range: DateRange) {
+function useTimeline(range: ExtendedRange) {
   const { from, to } = useMemo(() => {
     const t = new Date();
+    const to = t.toISOString().slice(0, 10);
+    if (range === "ALL") return { from: "2000-01-01", to };
     const f = new Date(t);
     const days: Record<DateRange, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
     f.setDate(f.getDate() - days[range]);
-    return { from: f.toISOString().slice(0, 10), to: t.toISOString().slice(0, 10) };
+    return { from: f.toISOString().slice(0, 10), to };
   }, [range]);
 
   return useQuery<TimelinePoint[]>({
     queryKey: ["portfolio", "timeline", range],
     queryFn: async () => {
       const r = await apiClient.get<unknown>(`/api/portfolio/timeline?from=${from}&to=${to}`);
-      return Array.isArray(r) ? (r as TimelinePoint[]) : [];
+      if (Array.isArray(r)) return r as TimelinePoint[];
+      const tl = (r as { timeline?: TimelinePoint[] })?.timeline;
+      return Array.isArray(tl) ? tl : [];
     },
-    retry: 1,
-  });
-}
-
-function useAllocation() {
-  return useQuery<AllocationData>({
-    queryKey: ["portfolio", "allocation"],
-    queryFn: () => apiClient.get<AllocationData>("/api/portfolio/allocation"),
     retry: 1,
   });
 }
@@ -117,9 +115,14 @@ function useStockHistory(symbol: string | null) {
 const fmtEGP = (v: number) =>
   new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", minimumFractionDigits: 2 }).format(v);
 
-const pct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+const fmtSignedEGP = (v: number) => {
+  const abs = new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", minimumFractionDigits: 2 }).format(Math.abs(v));
+  return v > 0 ? `+${abs}` : v < 0 ? `−${abs}` : abs;
+};
 
-const RANGES: DateRange[] = ["1W", "1M", "3M", "6M", "1Y"];
+const pct = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}%`;
+
+const RANGES: ExtendedRange[] = ["1W", "1M", "3M", "6M", "1Y", "ALL"];
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16"];
 
@@ -135,7 +138,7 @@ function HistoryRow({ tx }: { tx: StockTransaction }) {
   return (
     <div className="flex items-center justify-between text-xs py-2 border-b border-gray-800 last:border-0">
       <div className="flex items-center gap-2">
-        <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${isBuy ? "bg-emerald-900/50 text-emerald-400" : "bg-red-900/50 text-red-400"}`}>
+        <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${isBuy ? "bg-emerald-900/50 text-emerald-400" : "bg-orange-900/50 text-orange-400"}`}>
           {tx.type}
         </span>
         <span className="text-gray-400">{tx.quantity} {t("trade.sharesUnit")}</span>
@@ -218,17 +221,16 @@ function EmptyState({ message }: { message: string }) {
 
 export default function AnalyticsPage() {
   const { t, dir } = useLanguage();
-  const [range, setRange] = useState<DateRange>("1M");
+  const [range, setRange] = useState<ExtendedRange>("1M");
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
   const { data: timeline = [], isLoading: timelineLoading } = useTimeline(range);
-  const { data: allocation } = useAllocation();
 
   const pv = analytics?.portfolioValue;
   const totalInvested = pv ? parseFloat(String(pv.totalInvested)) : 0;
   const totalUnrealized = pv ? parseFloat(String(pv.totalUnrealized)) : 0;
-  const totalRealized = pv ? parseFloat(String(pv.totalRealized)) : 0;
+  const totalRealized = pv && pv.totalRealized != null ? parseFloat(String(pv.totalRealized)) : 0;
   const totalPnL = pv ? parseFloat(String(pv.totalPnL)) : 0;
   const netPnL = analytics?.netPnL ? parseFloat(analytics.netPnL) : null;
   const fees = analytics?.totalFeesPaid ? parseFloat(analytics.totalFeesPaid) : 0;
@@ -262,26 +264,58 @@ export default function AnalyticsPage() {
     return Math.round(total / ps.length);
   }, [analytics]);
 
-  // Chart data
+  // Fallback: build timeline from positions' graphData when the timeline API returns < 2 points
+  const effectiveTimeline = useMemo(() => {
+    if (timeline.length >= 2) return timeline;
+    if (!analytics?.positions?.length) return timeline;
+    const days: Record<DateRange, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+    const cutoffMs = range === "ALL" ? 0 : Date.now() - (days[range as DateRange] ?? 30) * 86400000;
+    const byTs = new Map<string, number>();
+    for (const pos of analytics.positions) {
+      const qty = Number(pos.totalQuantity);
+      if (qty === 0) continue;
+      for (const g of pos.graphData ?? []) {
+        const ms = new Date(g.timestamp).getTime();
+        if (isNaN(ms) || ms < cutoffMs) continue;
+        byTs.set(g.timestamp, (byTs.get(g.timestamp) ?? 0) + Number(g.price) * qty);
+      }
+    }
+    // Always add current prices as the "now" data point so the chart has ≥ 2 points
+    const nowKey = new Date().toISOString();
+    if (!byTs.has(nowKey)) {
+      const currentTotal = analytics.positions.reduce((sum, pos) => {
+        const qty = Number(pos.totalQuantity);
+        if (qty === 0 || pos.currentPrice == null) return sum;
+        return sum + pos.currentPrice * qty;
+      }, 0);
+      if (currentTotal > 0) byTs.set(nowKey, currentTotal);
+    }
+    const pts = Array.from(byTs.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([timestamp, totalValue]) => ({ timestamp, totalValue }));
+    return pts.length >= 2 ? pts : timeline;
+  }, [timeline, analytics, range]);
+
+  // Chart data — API returns totalValue as decimal string; convert explicitly
   const timelineChartData = useMemo(() =>
-    timeline.map((p) => ({
+    effectiveTimeline.map((p) => ({
       date: new Date(p.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      value: p.totalValue,
+      value: Number(p.totalValue),
     })),
-    [timeline]
+    [effectiveTimeline]
   );
 
   const timelineColor = useMemo(() => {
-    if (timeline.length < 2) return "#3b82f6";
-    return timeline[timeline.length - 1].totalValue >= timeline[0].totalValue ? "#10b981" : "#ef4444";
-  }, [timeline]);
+    if (effectiveTimeline.length < 2) return "#3b82f6";
+    return Number(effectiveTimeline[effectiveTimeline.length - 1].totalValue) >= Number(effectiveTimeline[0].totalValue) ? "#10b981" : "#ef4444";
+  }, [effectiveTimeline]);
 
   const timelineChange = useMemo(() => {
-    if (timeline.length < 2) return null;
-    const first = timeline[0].totalValue;
-    const last = timeline[timeline.length - 1].totalValue;
+    if (effectiveTimeline.length < 2) return null;
+    const first = Number(effectiveTimeline[0].totalValue);
+    const last = Number(effectiveTimeline[effectiveTimeline.length - 1].totalValue);
     return { abs: last - first, pct: first > 0 ? ((last - first) / first) * 100 : 0 };
-  }, [timeline]);
+  }, [effectiveTimeline]);
 
   // PnL bar chart per position
   const pnlBarData = useMemo(() =>
@@ -300,6 +334,40 @@ export default function AnalyticsPage() {
       return: p.returnPct,
       invested: p.investedNum,
     })),
+    [positions]
+  );
+
+  // Capital: invested vs current market value per symbol
+  const capitalData = useMemo(() =>
+    positions.map((p) => ({
+      symbol: p.symbol,
+      invested: p.investedNum,
+      currentValue: p.investedNum + p.unrealizedNum,
+    })),
+    [positions]
+  );
+
+  // Price: avg cost basis vs current price per symbol
+  const priceVsCostData = useMemo(() =>
+    positions
+      .filter((p) => p.currentPrice != null && p.currentPrice > 0)
+      .map((p) => ({
+        symbol: p.symbol,
+        avgCost: parseFloat(String(p.averagePrice)),
+        currentPrice: p.currentPrice ?? 0,
+      })),
+    [positions]
+  );
+
+  // Holding duration per symbol
+  const holdingData = useMemo(() =>
+    positions
+      .filter((p) => (p.daysSinceFirstBuy ?? 0) > 0)
+      .map((p) => ({
+        symbol: p.symbol,
+        days: p.daysSinceFirstBuy ?? 0,
+      }))
+      .sort((a, b) => b.days - a.days),
     [positions]
   );
 
@@ -340,22 +408,22 @@ export default function AnalyticsPage() {
             icon={DollarSign} label={t("portfolio.totalInvested")} value={fmtEGP(totalInvested)} color="blue"
           />
           <KpiCard
-            icon={TrendingUp} label={t("portfolio.unrealizedPnl")} value={fmtEGP(totalUnrealized)}
+            icon={TrendingUp} label={t("portfolio.unrealizedPnl")} value={fmtSignedEGP(totalUnrealized)}
             sub={totalInvested > 0 ? pct((totalUnrealized / totalInvested) * 100) : undefined}
             positive={totalUnrealized >= 0} color={totalUnrealized >= 0 ? "green" : "red"}
           />
           <KpiCard
-            icon={Award} label={t("portfolio.realizedPnl")} value={fmtEGP(totalRealized)}
+            icon={Award} label={t("portfolio.realizedPnl")} value={fmtSignedEGP(totalRealized)}
             positive={totalRealized >= 0} color={totalRealized >= 0 ? "green" : "red"}
           />
           <KpiCard
-            icon={Activity} label={t("analytics.netPnl")} value={netPnL !== null ? fmtEGP(netPnL) : fmtEGP(totalPnL)}
+            icon={Activity} label={t("analytics.netPnl")} value={netPnL !== null ? fmtSignedEGP(netPnL) : fmtSignedEGP(totalPnL)}
             sub={fees > 0 ? `${fmtEGP(fees)} ${t("analytics.fees")}` : undefined}
             positive={(netPnL ?? totalPnL) >= 0} color={(netPnL ?? totalPnL) >= 0 ? "green" : "red"}
           />
           <KpiCard
             icon={Target} label={t("analytics.winRate")}
-            value={analytics.winRate !== undefined ? `${parseFloat(String(analytics.winRate)).toFixed(1)}%` : "—"}
+            value={analytics.winRate != null ? `${parseFloat(String(analytics.winRate)).toFixed(1)}%` : "—"}
             sub={`${analytics.symbolsTraded ?? positions.length} ${t("analytics.symbols")}`}
             color="purple"
           />
@@ -378,8 +446,8 @@ export default function AnalyticsPage() {
                 <button
                   key={r}
                   onClick={() => setRange(r)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                    range === r ? "bg-blue-600 text-white" : "text-gray-500 hover:text-white hover:bg-gray-800"
+                  className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+                    range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
                   }`}
                 >
                   {r}
@@ -482,47 +550,108 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* ── Allocation ───────────────────────────────── */}
-        {allocation && (allocation.bySector.length > 0 || allocation.bySymbol.length > 0) && (
+        {/* ── Capital Deployed vs Current Worth ────────── */}
+        {capitalData.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {[
-              { title: t("analytics.sectorAlloc"), data: allocation.bySector },
-              { title: t("analytics.symbolAlloc"), data: allocation.bySymbol },
-            ].map(({ title, data }) => (
-              <div key={title} className="bg-gray-900 rounded-xl p-4 space-y-3">
-                <SectionHeader title={title} />
-                {data.length === 0 ? <EmptyState message={t("common.noData")} /> : (
-                  <div className="flex items-center gap-4">
-                    <div style={{ width: "50%" }} dir="ltr">
-                  <ResponsiveContainer width="100%" height={160}>
-                      <PieChart>
-                        <Pie
-                          data={data} dataKey="value" nameKey="name"
-                          cx="50%" cy="50%" innerRadius={40} outerRadius={70}
-                          strokeWidth={0}
-                        >
-                          {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                          formatter={(v: unknown, name: unknown) => [fmtEGP(v as number), name as string]}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                    <div className="flex-1 space-y-1.5 text-xs min-w-0">
-                      {data.slice(0, 6).map((s, i) => (
-                        <div key={s.name} className="flex items-center gap-2 min-w-0">
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                          <span className="text-gray-400 truncate">{s.name}</span>
-                          <span className="ml-auto text-gray-300 tabular-nums shrink-0">{s.percentage.toFixed(1)}%</span>
-                        </div>
+
+            {/* Invested vs Market Value */}
+            <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+              <SectionHeader title={t("analytics.capitalDeployed")} sub={t("analytics.capitalDeployedSub")} />
+              <div dir="ltr">
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={capitalData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                    <XAxis dataKey="symbol" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={64}
+                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: unknown, name: unknown) => [
+                        fmtEGP(v as number),
+                        name === "invested" ? t("common.invested") : t("analytics.currentValue"),
+                      ]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11, color: "#6b7280" }}
+                      formatter={(v) => v === "invested" ? t("common.invested") : t("analytics.currentValue")} />
+                    <Bar dataKey="invested" fill="#3b82f6" fillOpacity={0.7} radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="currentValue" radius={[3, 3, 0, 0]}>
+                      {capitalData.map((entry, i) => (
+                        <Cell key={i} fill={entry.currentValue >= entry.invested ? "#10b981" : "#ef4444"} fillOpacity={0.85} />
                       ))}
-                    </div>
-                  </div>
-                )}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            ))}
+            </div>
+
+            {/* Avg Cost Basis vs Current Price */}
+            <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+              <SectionHeader title={t("analytics.priceVsCost")} sub={t("analytics.priceVsCostSub")} />
+              {priceVsCostData.length === 0 ? <EmptyState message={t("analytics.noPriceData")} /> : (
+                <div dir="ltr">
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={priceVsCostData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                      <XAxis dataKey="symbol" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={64}
+                        tickFormatter={(v) => `${v.toFixed(0)}`} />
+                      <Tooltip
+                        contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
+                        formatter={(v: unknown, name: unknown) => [
+                          fmtEGP(v as number),
+                          name === "avgCost" ? t("common.avgCost") : t("analytics.mktPrice"),
+                        ]}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11, color: "#6b7280" }}
+                        formatter={(v) => v === "avgCost" ? t("common.avgCost") : t("analytics.mktPrice")} />
+                      <Bar dataKey="avgCost" fill="#6b7280" fillOpacity={0.8} radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="currentPrice" radius={[3, 3, 0, 0]}>
+                        {priceVsCostData.map((entry, i) => (
+                          <Cell key={i} fill={entry.currentPrice >= entry.avgCost ? "#10b981" : "#ef4444"} fillOpacity={0.85} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Holding Duration ─────────────────────────── */}
+        {holdingData.length > 0 && (
+          <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+            <SectionHeader title={t("analytics.holdingDuration")} sub={t("analytics.holdingDurationSub")} />
+            <div dir="ltr">
+              <ResponsiveContainer width="100%" height={Math.max(140, holdingData.length * 36)}>
+                <BarChart data={holdingData} layout="vertical" margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                    tickFormatter={(v) => `${v}d`} />
+                  <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11 }} tickLine={false} axisLine={false} width={52} />
+                  <Tooltip
+                    contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: unknown) => [`${v as number} ${t("common.days")}`, t("analytics.heldFor")]}
+                  />
+                  <ReferenceLine x={30} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: "30d", fill: "#f59e0b", fontSize: 10 }} />
+                  <ReferenceLine x={90} stroke="#8b5cf6" strokeDasharray="3 3" label={{ value: "90d", fill: "#8b5cf6", fontSize: 10 }} />
+                  <Bar dataKey="days" radius={[0, 3, 3, 0]}>
+                    {holdingData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.days < 30 ? "#f59e0b" : entry.days < 90 ? "#3b82f6" : "#8b5cf6"}
+                        fillOpacity={0.85}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex gap-4 mt-2 text-xs text-gray-500 justify-center">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> &lt;30d</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> 30–90d</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" /> &gt;90d</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -535,13 +664,13 @@ export default function AnalyticsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
-                  <th className="text-left px-4 py-3">{t("common.symbol")}</th>
-                  <th className="text-right px-4 py-3">{t("common.qty")}</th>
-                  <th className="text-right px-4 py-3">{t("common.avgCost")}</th>
-                  <th className="text-right px-4 py-3">{t("common.invested")}</th>
-                  <th className="text-right px-4 py-3">{t("common.unrealized")}</th>
-                  <th className="text-right px-4 py-3">{t("common.realized")}</th>
-                  <th className="text-right px-4 py-3">{t("common.return")}</th>
+                  <th className="text-left px-3 sm:px-4 py-3">{t("common.symbol")}</th>
+                  <th className="text-right px-3 sm:px-4 py-3 hidden sm:table-cell">{t("common.qty")}</th>
+                  <th className="text-right px-3 sm:px-4 py-3 hidden md:table-cell">{t("common.avgCost")}</th>
+                  <th className="text-right px-3 sm:px-4 py-3 hidden md:table-cell">{t("common.invested")}</th>
+                  <th className="text-right px-3 sm:px-4 py-3">{t("common.unrealized")}</th>
+                  <th className="text-right px-3 sm:px-4 py-3 hidden sm:table-cell">{t("common.realized")}</th>
+                  <th className="text-right px-3 sm:px-4 py-3">{t("common.return")}</th>
                   <th className="w-8" />
                 </tr>
               </thead>
@@ -552,30 +681,30 @@ export default function AnalyticsPage() {
                   return (
                     <React.Fragment key={p.symbol}>
                       <tr
-                        className="border-b border-gray-800/60 hover:bg-gray-800/40 transition-colors cursor-pointer"
+                        className="td-row border-b border-gray-800/60 hover:bg-gray-800/40 cursor-pointer"
                         onClick={() => setExpandedSymbol(isExpanded ? null : p.symbol)}
                       >
-                        <td className="px-4 py-3">
+                        <td className="px-3 sm:px-4 py-3">
                           <Link href={`/stocks/${p.symbol}`} className="font-bold text-white hover:text-blue-400 transition-colors" onClick={(e) => e.stopPropagation()}>
                             {p.symbol}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-right text-gray-400">{parseFloat(String(p.totalQuantity)).toFixed(0)}</td>
-                        <td className="px-4 py-3 text-right text-gray-400">{fmtEGP(parseFloat(String(p.averagePrice)))}</td>
-                        <td className="px-4 py-3 text-right text-gray-300">{fmtEGP(p.investedNum)}</td>
-                        <td className={`px-4 py-3 text-right font-medium ${p.unrealizedNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          {p.unrealizedNum >= 0 ? "+" : ""}{fmtEGP(p.unrealizedNum)}
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-400 hidden sm:table-cell">{parseFloat(String(p.totalQuantity)).toFixed(0)}</td>
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-400 hidden md:table-cell">{fmtEGP(parseFloat(String(p.averagePrice)))}</td>
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-300 hidden md:table-cell">{fmtEGP(p.investedNum)}</td>
+                        <td className={`px-3 sm:px-4 py-3 text-right font-medium ${p.unrealizedNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {fmtSignedEGP(p.unrealizedNum)}
                         </td>
-                        <td className={`px-4 py-3 text-right font-medium ${p.realizedNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                          {p.realizedNum >= 0 ? "+" : ""}{fmtEGP(p.realizedNum)}
+                        <td className={`px-3 sm:px-4 py-3 text-right font-medium hidden sm:table-cell ${p.realizedNum >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {fmtSignedEGP(p.realizedNum)}
                         </td>
-                        <td className={`px-4 py-3 text-right font-bold ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                        <td className={`px-3 sm:px-4 py-3 text-right font-bold ${isPos ? "text-emerald-400" : "text-red-400"}`}>
                           <span className="flex items-center justify-end gap-1">
                             {isPos ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                             {pct(p.returnPct)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right text-gray-600">
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-600">
                           {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                         </td>
                       </tr>
@@ -609,7 +738,7 @@ export default function AnalyticsPage() {
                   <p className="text-gray-500 text-xs">{t("analytics.bestPerformer")}</p>
                   <p className="text-white font-bold text-lg">{analytics.bestPerformer.symbol}</p>
                   <p className="text-emerald-400 text-sm font-medium">
-                    +{parseFloat(String(analytics.bestPerformer.returnPercent)).toFixed(2)}% · {fmtEGP(parseFloat(analytics.bestPerformer.unrealizedPnL))}
+                    +{parseFloat(String(analytics.bestPerformer.returnPercent)).toFixed(2)}% · {fmtSignedEGP(parseFloat(analytics.bestPerformer.unrealizedPnL))}
                   </p>
                 </div>
               </div>
@@ -623,7 +752,7 @@ export default function AnalyticsPage() {
                   <p className="text-gray-500 text-xs">{t("analytics.worstPerformer")}</p>
                   <p className="text-white font-bold text-lg">{analytics.worstPerformer.symbol}</p>
                   <p className="text-red-400 text-sm font-medium">
-                    {parseFloat(String(analytics.worstPerformer.returnPercent)).toFixed(2)}% · {fmtEGP(parseFloat(analytics.worstPerformer.unrealizedPnL))}
+                    {parseFloat(String(analytics.worstPerformer.returnPercent)).toFixed(2)}% · {fmtSignedEGP(parseFloat(analytics.worstPerformer.unrealizedPnL))}
                   </p>
                 </div>
               </div>
@@ -638,7 +767,7 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <div className="text-center">
                 <p className="text-gray-500 text-xs mb-1">{t("analytics.grossPnlLabel")}</p>
-                <p className={`text-xl font-bold ${totalPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtEGP(totalPnL)}</p>
+                <p className={`text-xl font-bold ${totalPnL >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtSignedEGP(totalPnL)}</p>
               </div>
               <div className="text-center">
                 <p className="text-gray-500 text-xs mb-1">{t("analytics.totalFees")}</p>
@@ -647,7 +776,7 @@ export default function AnalyticsPage() {
               <div className="text-center">
                 <p className="text-gray-500 text-xs mb-1">{t("analytics.netPnl")}</p>
                 <p className={`text-xl font-bold ${(netPnL ?? totalPnL) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {fmtEGP(netPnL ?? totalPnL - fees)}
+                  {fmtSignedEGP(netPnL ?? totalPnL - fees)}
                 </p>
               </div>
             </div>
@@ -777,7 +906,7 @@ function PnLCalendar() {
     const key = d.toISOString().slice(0, 10);
     const entry = dailyMap.get(key);
     if (!entry) return key;
-    return `${key}: ${entry.realizedPnL >= 0 ? "+" : ""}${fmtEGP(entry.realizedPnL)} (${entry.tradeCount} trades)`;
+    return `${key}: ${entry.realizedPnL >= 0 ? "+" : "−"}${fmtEGP(Math.abs(entry.realizedPnL))} (${entry.tradeCount} trades)`;
   }
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -793,7 +922,7 @@ function PnLCalendar() {
         <div className="flex gap-1">
           {[currentYear - 1, currentYear].map((y) => (
             <button key={y} onClick={() => setYear(y)}
-              className={`px-2.5 py-1 rounded text-xs font-medium ${year === y ? "bg-blue-600 text-white" : "text-gray-500 hover:text-white hover:bg-gray-800"}`}>
+              className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${year === y ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"}`}>
               {y}
             </button>
           ))}
@@ -864,12 +993,12 @@ interface ClosedTradesSummary {
   gradeDistribution: { A: number; B: number; C: number; D: number };
 }
 
-const GRADE_COLORS = { A: "#10b981", B: "#3b82f6", C: "#f59e0b", D: "#ef4444" };
+const GRADE_COLORS = { A: "#10b981", B: "#3b82f6", C: "#f59e0b", D: "#f97316" };
 const GRADE_BG: Record<string, string> = {
   A: "bg-emerald-900/30 text-emerald-400",
   B: "bg-blue-900/30 text-blue-400",
   C: "bg-amber-900/30 text-amber-400",
-  D: "bg-red-900/30 text-red-400",
+  D: "bg-orange-900/30 text-orange-400",
 };
 
 function ClosedTradeScoring() {
@@ -977,20 +1106,20 @@ function ClosedTradeScoring() {
           </thead>
           <tbody>
             {trades.map((trade) => (
-              <tr key={trade.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+              <tr key={trade.id} className="td-row border-b border-gray-800/50">
                 <td className="px-3 py-2 font-mono font-bold">{trade.symbol}</td>
                 <td className="px-3 py-2">{trade.quantity}</td>
                 <td className="px-3 py-2">{fmtEGP(parseFloat(trade.entryPrice))}</td>
                 <td className="px-3 py-2">{fmtEGP(parseFloat(trade.exitPrice))}</td>
                 <td className={`px-3 py-2 font-medium ${parseFloat(trade.profit) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {fmtEGP(parseFloat(trade.profit))}
+                  {fmtSignedEGP(parseFloat(trade.profit))}
                 </td>
                 <td className={`px-3 py-2 font-medium ${parseFloat(trade.returnPct) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {parseFloat(trade.returnPct) >= 0 ? "+" : ""}{parseFloat(trade.returnPct).toFixed(2)}%
+                  {parseFloat(trade.returnPct) >= 0 ? "+" : "−"}{Math.abs(parseFloat(trade.returnPct)).toFixed(2)}%
                 </td>
                 <td className="px-3 py-2 text-gray-400">{trade.holdDays}d</td>
                 <td className={`px-3 py-2 ${trade.annualizedReturn != null && trade.annualizedReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {trade.annualizedReturn != null ? `${parseFloat(String(trade.annualizedReturn)).toFixed(1)}%` : "—"}
+                  {trade.annualizedReturn != null ? `${parseFloat(String(trade.annualizedReturn)) >= 0 ? "+" : "−"}${Math.abs(parseFloat(String(trade.annualizedReturn))).toFixed(1)}%` : "—"}
                 </td>
                 <td className="px-3 py-2">
                   <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${GRADE_BG[trade.grade]}`}>{trade.grade}</span>

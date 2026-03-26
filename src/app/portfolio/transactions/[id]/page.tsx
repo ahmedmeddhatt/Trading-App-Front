@@ -10,7 +10,7 @@ import { Loader2, ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
-import { formatEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
+import { formatEGP, formatSignedEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
 
 interface PricePoint { timestamp: string; price: number }
 interface CostBasis { beforeTrade: { avgPrice: string; quantity: string } | null; afterTrade: { avgPrice: string; quantity: string } | null }
@@ -85,7 +85,7 @@ export default function TransactionDetailPage() {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <span className="text-2xl font-bold font-mono">{tx.symbol}</span>
-                <span className={`px-2 py-0.5 rounded text-sm font-bold ${isBuy ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"}`}>
+                <span className={`px-2 py-0.5 rounded text-sm font-bold ${isBuy ? "bg-emerald-900/40 text-emerald-400" : "bg-orange-900/40 text-orange-400"}`}>
                   {tx.type}
                 </span>
               </div>
@@ -187,7 +187,7 @@ export default function TransactionDetailPage() {
                 <p className="text-gray-500 text-xs mb-1">Profit / Loss</p>
                 <p className={`text-2xl font-bold ${pnlColor(realizedImpact.profit)}`}>
                   {parseFloat(realizedImpact.profit) >= 0 ? <TrendingUp className="inline mr-1" size={18} /> : <TrendingDown className="inline mr-1" size={18} />}
-                  {formatEGP(realizedImpact.profit)}
+                  {formatSignedEGP(realizedImpact.profit)}
                 </p>
               </div>
               <div>
@@ -217,11 +217,11 @@ export default function TransactionDetailPage() {
                   <div className={`absolute left-0 top-1 w-3 h-3 rounded-full border-2 ${
                     entry.isCurrentTrade
                       ? "bg-blue-500 border-blue-400"
-                      : entry.type === "BUY" ? "bg-emerald-900 border-emerald-500" : "bg-red-900 border-red-500"
+                      : entry.type === "BUY" ? "bg-emerald-900 border-emerald-500" : "bg-orange-950 border-orange-500"
                   }`} />
                   <div className={`flex items-center gap-3 ${entry.isCurrentTrade ? "text-white" : "text-gray-400"}`}>
                     <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
-                      entry.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-red-900/30 text-red-400"
+                      entry.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-orange-900/30 text-orange-400"
                     }`}>{entry.type}</span>
                     <span className="text-sm">{new Date(entry.createdAt).toLocaleDateString()}</span>
                     <span className="text-sm">{entry.quantity} @ {formatEGP(entry.price)}</span>

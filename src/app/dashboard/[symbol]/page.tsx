@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
             {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
             <span>
-              {isPositive ? "+" : ""}{priceData.change.toFixed(2)} ({isPositive ? "+" : ""}{priceData.changePercent.toFixed(2)}%)
+              {isPositive ? "+" : "−"}{Math.abs(priceData.change).toFixed(2)} ({isPositive ? "+" : "−"}{Math.abs(priceData.changePercent).toFixed(2)}%)
             </span>
           </div>
         )}

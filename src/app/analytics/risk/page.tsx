@@ -47,7 +47,7 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 function riskLevel(hhi: number): { labelKey: "risk.lowRisk" | "risk.moderateRisk" | "risk.highRisk"; color: string } {
   if (hhi < 1000) return { labelKey: "risk.lowRisk", color: "text-emerald-400" };
   if (hhi < 2500) return { labelKey: "risk.moderateRisk", color: "text-amber-400" };
-  return { labelKey: "risk.highRisk", color: "text-red-400" };
+  return { labelKey: "risk.highRisk", color: "text-amber-500" };
 }
 
 export default function RiskPage() {
@@ -151,10 +151,10 @@ export default function RiskPage() {
 
           <div className="bg-gray-900 rounded-xl p-5">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingDown size={16} className="text-red-400" />
+              <TrendingDown size={16} className="text-amber-400" />
               <p className="text-gray-400 text-sm">{t("risk.maxDrawdown")}</p>
             </div>
-            <p className="text-3xl font-bold text-red-400">{isNaN(drawdownPct) ? "0.00%" : `${drawdownPct.toFixed(2)}%`}</p>
+            <p className="text-3xl font-bold text-red-400">{isNaN(drawdownPct) ? "−0.00%" : `−${Math.abs(drawdownPct).toFixed(2)}%`}</p>
             <p className="text-sm text-gray-500 mt-1">{formatEGP(drawdownAbs)} {t("risk.peakToTrough")}</p>
             {data.drawdown.drawdownPeriod && (
               <p className="text-xs text-gray-600 mt-1">
@@ -220,7 +220,7 @@ export default function RiskPage() {
               </thead>
               <tbody>
                 {positionRisk.sort((a, b) => b.portfolioPct - a.portfolioPct).map((p) => (
-                  <tr key={p.symbol} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                  <tr key={p.symbol} className="td-row border-b border-gray-800/50">
                     <td className="px-4 py-2 font-mono font-bold">{p.symbol}</td>
                     <td className="px-4 py-2">{formatEGP(p.marketValue)}</td>
                     <td className="px-4 py-2">{p.portfolioPct.toFixed(1)}%</td>
@@ -253,7 +253,7 @@ export default function RiskPage() {
                   contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
                   formatter={(v: unknown, name: unknown) => {
                     const n = v as number;
-                    return [name === "drawdown" ? `${n.toFixed(2)}%` : formatEGP(n), name === "drawdown" ? t("risk.drawdown") : t("dashboard.portfolioVal")];
+                    return [name === "drawdown" ? `−${Math.abs(n).toFixed(2)}%` : formatEGP(n), name === "drawdown" ? t("risk.drawdown") : t("dashboard.portfolioVal")];
                   }}
                 />
                 <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="#3b82f620" strokeWidth={2} dot={false} />
@@ -281,7 +281,7 @@ export default function RiskPage() {
               </thead>
               <tbody>
                 {sectorRisk.sort((a, b) => b.weight - a.weight).map((s) => (
-                  <tr key={s.sector} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                  <tr key={s.sector} className="td-row border-b border-gray-800/50">
                     <td className="px-4 py-2 text-white">{s.sector}</td>
                     <td className="px-4 py-2">{s.weight.toFixed(1)}%</td>
                     <td className="px-4 py-2 text-gray-400">{s.hhiContribution.toFixed(0)}</td>

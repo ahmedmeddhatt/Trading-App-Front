@@ -114,7 +114,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
         </div>
 
         <div className="space-y-2 bg-gray-800 rounded-lg p-4 text-sm">
-          <Row label={t("trade.action")} value={<span className={side === "buy" ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>{side.toUpperCase()}</span>} />
+          <Row label={t("trade.action")} value={<span className={side === "buy" ? "text-emerald-400 font-bold" : "text-orange-400 font-bold"}>{side.toUpperCase()}</span>} />
           <Row label={t("common.symbol")} value={symbol} />
           <Row label={t("trade.quantity")} value={qty.toString()} />
           <Row label={t("common.price")} value={fmtEGP(parsedPrice)} />
@@ -125,7 +125,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
         </div>
 
         {isError && (
-          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/20 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-900/20 rounded-lg p-3">
             <AlertCircle size={16} />
             <span>{error?.message ?? "Something went wrong"}</span>
           </div>
@@ -134,11 +134,11 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
         <button
           onClick={handleConfirm}
           disabled={isPending}
-          className={`w-full py-3 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2
-            ${side === "buy"
-              ? "bg-emerald-500 hover:bg-emerald-400 text-white"
-              : "bg-red-500 hover:bg-red-400 text-white"}
-            disabled:opacity-50 disabled:cursor-not-allowed`}
+          className={`w-full py-3 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+          side === "buy"
+            ? "bg-emerald-500 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/30 text-white"
+            : "bg-orange-500 hover:bg-orange-400 hover:shadow-lg hover:shadow-orange-500/30 text-white"
+        }`}
         >
           {isPending ? (
             <>
@@ -170,7 +170,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
               ${side === s
                 ? s === "buy"
                   ? "bg-emerald-500 text-white"
-                  : "bg-red-500 text-white"
+                  : "bg-orange-500 text-white"
                 : "bg-transparent text-gray-400 hover:text-white"}`}
           >
             {s === "buy" ? t("trade.buy") : t("trade.sell")}
@@ -250,7 +250,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
 
       {/* Sell validation error */}
       {sellError && (
-        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/20 rounded-lg p-3">
+        <div className="flex items-center gap-2 text-amber-400 text-sm bg-amber-900/20 rounded-lg p-3">
           <AlertCircle size={16} />
           <span>{sellError}</span>
         </div>
@@ -267,7 +267,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
       <button
         onClick={handleReview}
         disabled={!canReview}
-        className="w-full py-3 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full py-3 rounded-lg font-semibold text-sm bg-blue-600 hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/30 active:scale-95 text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {t("trade.reviewOrder")}
       </button>

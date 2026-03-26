@@ -58,14 +58,14 @@ function DonutChart({
     <div className="flex-1">
       <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-3">{title}</p>
       <div dir="ltr">
-      <ResponsiveContainer width="100%" height={200}>
+      <ResponsiveContainer width="100%" height={280}>
         <PieChart>
           <Pie
             data={data}
             cx="50%"
             cy="50%"
-            outerRadius={80}
-            innerRadius={50}
+            outerRadius={105}
+            innerRadius={64}
             dataKey="value"
             nameKey="name"
             onClick={(entry: unknown) =>
@@ -84,16 +84,28 @@ function DonutChart({
             ))}
           </Pie>
           <Tooltip
-            contentStyle={{
-              backgroundColor: "#111827",
-              border: "1px solid #374151",
-              borderRadius: "8px",
-              fontSize: 12,
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const entry = payload[0];
+              const slice = data.find((d) => d.name === entry.name);
+              return (
+                <div style={{
+                  background: "#1e293b",
+                  border: "1px solid #334155",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  fontSize: 12,
+                  color: "#f1f5f9",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+                }}>
+                  <p style={{ color: "#94a3b8", marginBottom: 4 }}>{entry.name}</p>
+                  <p style={{ color: entry.color ?? "#f1f5f9", fontWeight: 600 }}>
+                    {fmt.format((entry.value as number) ?? 0)}
+                    {slice ? ` (${slice.percentage.toFixed(1)}%)` : ""}
+                  </p>
+                </div>
+              );
             }}
-            formatter={(val: unknown, name: unknown) => [
-              `${fmt.format((val as number) ?? 0)} (${data.find((d) => d.name === name)?.percentage.toFixed(1)}%)`,
-              (name as string) ?? "",
-            ]}
           />
           <Legend
             wrapperStyle={{ fontSize: 11, color: "#6b7280" }}

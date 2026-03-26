@@ -62,8 +62,8 @@ const SIGNAL_STYLES: Record<string, string> = {
   "Strong Buy": "bg-emerald-900 text-emerald-300",
   "Buy": "bg-green-900 text-green-300",
   "Neutral": "bg-gray-800 text-gray-400",
-  "Sell": "bg-red-900 text-red-400",
-  "Strong Sell": "bg-red-950 text-red-500",
+  "Sell": "bg-amber-900 text-amber-400",
+  "Strong Sell": "bg-amber-950 text-amber-500",
 };
 
 function SignalBadge({ signal }: { signal?: string }) {
@@ -242,10 +242,10 @@ function StocksPageInner() {
 
           <button
             onClick={() => setShowFilters((v) => !v)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors border ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border active:scale-95 transition-all duration-150 ${
               showFilters
-                ? "bg-blue-600 border-blue-600 text-white"
-                : "bg-gray-900 border-gray-800 text-gray-400 hover:text-white"
+                ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-500"
+                : "bg-gray-900 border-gray-800 text-gray-400 hover:text-white hover:border-gray-700"
             }`}
           >
             <SlidersHorizontal size={14} />
@@ -259,10 +259,10 @@ function StocksPageInner() {
 
           <button
             onClick={() => setWatchlistOnly((v) => !v)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors border ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border active:scale-95 transition-all duration-150 ${
               watchlistOnly
-                ? "bg-amber-600 border-amber-600 text-white"
-                : "bg-gray-900 border-gray-800 text-gray-400 hover:text-white"
+                ? "bg-amber-600 border-amber-600 text-white hover:bg-amber-500"
+                : "bg-gray-900 border-gray-800 text-gray-400 hover:text-white hover:border-gray-700"
             }`}
           >
             <Star size={14} />
@@ -323,7 +323,7 @@ function StocksPageInner() {
             <div className="flex items-end">
               <button
                 onClick={clearFilters}
-                className="w-full bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+                className="w-full bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150"
               >
                 {t("stocks.resetFilters")}
               </button>
@@ -367,7 +367,7 @@ function StocksPageInner() {
                   <tr>
                     <td colSpan={9} className="py-12">
                       <div className="flex flex-col items-center gap-2">
-                        <span className="text-red-400 text-sm font-medium">{t("stocks.failed")}</span>
+                        <span className="text-amber-400 text-sm font-medium">{t("stocks.failed")}</span>
                         <button onClick={() => refetch()} className="text-xs text-blue-400 hover:text-blue-300 underline">
                           {t("common.retry")}
                         </button>
@@ -400,16 +400,16 @@ function StocksPageInner() {
                   return (
                     <tr
                       key={stock.symbol}
-                      className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors cursor-pointer"
+                      className="td-row border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer"
                       onClick={() => router.push(`/stocks/${stock.symbol}`)}
                     >
                       <td className="px-4 py-3">
                         <button
                           onClick={(e) => toggleWatchlist(stock.symbol, e)}
-                          className={`transition-colors ${
+                          className={`hover:scale-125 active:scale-90 transition-transform duration-150 ${
                             inWatchlist
                               ? "text-amber-400"
-                              : "text-gray-700 hover:text-gray-400"
+                              : "text-gray-600 hover:text-amber-400"
                           }`}
                           title={
                             inWatchlist
@@ -455,8 +455,8 @@ function StocksPageInner() {
                             ) : (
                               <TrendingDown size={12} />
                             )}
-                            {isPos ? "+" : ""}
-                            {changePct.toFixed(2)}%
+                            {isPos ? "+" : "−"}
+                            {Math.abs(changePct).toFixed(2)}%
                           </span>
                         ) : (
                           "—"
@@ -475,7 +475,7 @@ function StocksPageInner() {
                         <Link
                           href={`/stocks/${stock.symbol}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded text-xs text-gray-300 hover:text-white transition-colors"
+                          className="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded text-xs text-gray-300 hover:text-white active:scale-95 transition-all duration-150"
                         >
                           {t("stocks.view")}
                         </Link>
@@ -497,7 +497,7 @@ function StocksPageInner() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft size={14} />
                   {t("stocks.prev")}
@@ -505,7 +505,7 @@ function StocksPageInner() {
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {t("stocks.next")}
                   <ChevronRight size={14} />

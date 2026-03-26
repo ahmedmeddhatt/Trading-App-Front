@@ -77,20 +77,20 @@ export default function DashboardOverview() {
             />
             <StatCard
               label={t("dashboard.totalPnl")}
-              value={`${portfolio.totalPnl >= 0 ? "+" : ""}$${Math.abs(portfolio.totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+              value={`${portfolio.totalPnl >= 0 ? "+" : "−"}$${Math.abs(portfolio.totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
               positive={portfolio.totalPnl >= 0}
             />
             <StatCard
               label={t("dashboard.pnlPct")}
-              value={`${portfolio.totalPnlPercent >= 0 ? "+" : ""}${portfolio.totalPnlPercent.toFixed(2)}%`}
+              value={`${portfolio.totalPnlPercent >= 0 ? "+" : "−"}${Math.abs(portfolio.totalPnlPercent).toFixed(2)}%`}
               positive={portfolio.totalPnlPercent >= 0}
             />
           </div>
         )}
 
         {dashError ? (
-          <div className="flex flex-col items-center gap-2 py-10 bg-gray-900/60 border border-red-900/40 rounded-xl">
-            <span className="text-red-400 text-sm font-medium">{t("dashboard.failed")}</span>
+          <div className="flex flex-col items-center gap-2 py-10 bg-gray-900/60 border border-amber-900/40 rounded-xl">
+            <span className="text-amber-400 text-sm font-medium">{t("dashboard.failed")}</span>
             <span className="text-gray-600 text-xs">{t("dashboard.checkConn")}</span>
           </div>
         ) : (
@@ -113,7 +113,7 @@ export default function DashboardOverview() {
                   placeholder={t("dashboard.filter")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="bg-gray-800 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500 w-40"
+                  className="bg-gray-800 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500 w-28 sm:w-40"
                 />
               </div>
             </div>
@@ -130,17 +130,17 @@ export default function DashboardOverview() {
                   const isPos = pnl >= 0;
                   return (
                     <Link key={ms.symbol} href={`/stocks/${ms.symbol}`}>
-                      <div className="bg-gray-900 rounded-xl p-4 hover:bg-gray-800 transition-colors space-y-2">
-                        <div className="flex justify-between">
-                          <span className="font-bold text-white">{ms.symbol}</span>
+                      <div className="td-hover-card bg-gray-900 rounded-xl p-3 sm:p-4 space-y-1.5 sm:space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-white text-sm sm:text-base">{ms.symbol}</span>
                           <span className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
-                            {isPos ? "+" : ""}{pnlPct.toFixed(2)}%
+                            {isPos ? "+" : "−"}{Math.abs(pnlPct).toFixed(2)}%
                           </span>
                         </div>
-                        <p className="text-2xl font-bold">${currentPrice.toFixed(2)}</p>
-                        <p className="text-gray-500 text-xs">{qty} {t("dashboard.shares")} · {t("dashboard.avg")} ${avgPrice.toFixed(2)}</p>
+                        <p className="text-lg sm:text-2xl font-bold">${currentPrice.toFixed(2)}</p>
+                        <p className="text-gray-500 text-xs truncate">{qty} {t("dashboard.shares")} · {t("dashboard.avg")} ${avgPrice.toFixed(2)}</p>
                         <p className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
-                          {isPos ? "+" : ""}${pnl.toFixed(2)} {t("dashboard.unrealizedLabel")}
+                          {isPos ? "+" : "−"}${Math.abs(pnl).toFixed(2)} {t("dashboard.unrealizedLabel")}
                         </p>
                         {live && <p className="text-gray-600 text-xs">{new Date(live.timestamp).toLocaleTimeString()}</p>}
                       </div>
@@ -170,9 +170,9 @@ export default function DashboardOverview() {
 
 function StatCard({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
   return (
-    <div className="bg-gray-900 rounded-xl p-4">
-      <p className="text-gray-500 text-xs mb-1">{label}</p>
-      <p className={`text-2xl font-bold ${positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"}`}>
+    <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
+      <p className="text-gray-500 text-[10px] sm:text-xs mb-0.5 sm:mb-1 truncate">{label}</p>
+      <p className={`text-base sm:text-2xl font-bold truncate ${positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"}`}>
         {value}
       </p>
     </div>
@@ -217,13 +217,13 @@ function Section({
 
           return (
             <Link key={stock.symbol} href={`/stocks/${stock.symbol}`}>
-              <div className="bg-gray-900 rounded-xl p-4 hover:bg-gray-800 transition-colors space-y-1">
+              <div className="td-hover-card bg-gray-900 rounded-xl p-4 space-y-1">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-white text-sm">{stock.symbol}</span>
                   {change != null && (
                     <span className={`text-xs font-medium flex items-center gap-0.5 ${isPos ? "text-emerald-400" : "text-red-400"}`}>
                       {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                      {isPos ? "+" : ""}{change.toFixed(2)}%
+                      {isPos ? "+" : "−"}{Math.abs(change).toFixed(2)}%
                     </span>
                   )}
                 </div>

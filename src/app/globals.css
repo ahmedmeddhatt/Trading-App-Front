@@ -114,6 +114,20 @@ body {
   ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
 }
 
+/* ── Interaction base — transitions defined here, overrides come at EOF ── */
+.td-hover-card {
+  cursor: pointer;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s cubic-bezier(0.4,0,0.2,1), outline-color 0.18s ease;
+  outline: 1.5px solid transparent;
+}
+.td-row {
+  transition: background-color 0.14s ease;
+}
+.td-row td:first-child {
+  box-shadow: inset 3px 0 0 transparent;
+  transition: box-shadow 0.14s ease;
+}
+
 /* ── Theme transition (fires only during the 300ms switch animation) ───────── */
 html.theme-transition,
 html.theme-transition *,
@@ -179,16 +193,18 @@ html:not(.dark) .bg-gray-900.rounded-xl,
 html:not(.dark) .bg-gray-900.rounded-2xl {
   box-shadow: 0 1px 4px rgba(14,30,60,0.07), 0 1px 2px rgba(14,30,60,0.05) !important;
 }
-html:not(.dark) .bg-gray-900.rounded-xl:hover {
-  box-shadow: 0 4px 16px rgba(14,30,60,0.10), 0 1px 4px rgba(14,30,60,0.06) !important;
+html:not(.dark) .bg-gray-900.rounded-xl:hover,
+html:not(.dark) .bg-gray-900.rounded-2xl:hover {
+  box-shadow: 0 8px 28px rgba(14,30,60,0.16), 0 2px 8px rgba(14,30,60,0.1) !important;
 }
 
 /* ── Hover surfaces ── */
-html:not(.dark) .hover\:bg-gray-800:hover        { background-color: #DDE6F5 !important; }
-html:not(.dark) .hover\:bg-gray-800\/40:hover    { background-color: rgba(216,228,244,0.55) !important; }
-html:not(.dark) .hover\:bg-gray-800\/50:hover    { background-color: rgba(216,228,244,0.65) !important; }
-html:not(.dark) .hover\:bg-gray-800\/60:hover    { background-color: rgba(216,228,244,0.75) !important; }
-html:not(.dark) .hover\:bg-gray-700:hover        { background-color: #D0DCF0 !important; }
+html:not(.dark) .hover\:bg-gray-800:hover        { background-color: #A8C4E0 !important; }
+html:not(.dark) .hover\:bg-gray-800\/40:hover    { background-color: rgba(120,170,220,0.40) !important; }
+html:not(.dark) .hover\:bg-gray-800\/50:hover    { background-color: rgba(120,170,220,0.50) !important; }
+html:not(.dark) .hover\:bg-gray-800\/60:hover    { background-color: rgba(120,170,220,0.60) !important; }
+html:not(.dark) .hover\:bg-gray-800\/30:hover    { background-color: rgba(120,170,220,0.30) !important; }
+html:not(.dark) .hover\:bg-gray-700:hover        { background-color: #8AAED4 !important; }
 
 /* ── Borders ── */
 html:not(.dark) .border-gray-800      { border-color: #D0DAF2 !important; }
@@ -208,9 +224,9 @@ html:not(.dark) .text-gray-600 { color: #A0B8D0 !important; }
 html:not(.dark) .text-gray-700 { color: #C0D4E8 !important; }
 
 /* Hover text */
-html:not(.dark) .hover\:text-white:hover  { color: #0C1A2E !important; }
-html:not(.dark) .hover\:text-gray-300:hover { color: #334155 !important; }
-html:not(.dark) .hover\:text-gray-400:hover { color: #556B88 !important; }
+html:not(.dark) .hover\:text-white:hover    { color: #0C1A2E !important; }
+html:not(.dark) .hover\:text-gray-300:hover { color: #1E3A5F !important; }
+html:not(.dark) .hover\:text-gray-400:hover { color: #334155 !important; }
 
 /* ── Accent colors — shift -400 to -600 for WCAG contrast on white ── */
 html:not(.dark) .text-blue-400   { color: #2563EB !important; }
@@ -285,17 +301,106 @@ html:not(.dark) .recharts-cartesian-axis-tick-value,
 html:not(.dark) .recharts-layer text { fill: #7A95B2 !important; }
 
 html:not(.dark) .recharts-default-tooltip {
-  background-color: #FFFFFF !important;
-  border: 1px solid #D0DAF2 !important;
+  background-color: #1e293b !important;
+  border: 1px solid #334155 !important;
   border-radius: 10px !important;
-  box-shadow: 0 4px 16px rgba(14,30,60,0.10) !important;
-  color: #0C1A2E !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35) !important;
+  color: #f1f5f9 !important;
 }
-html:not(.dark) .recharts-tooltip-label  { color: #556B88 !important; }
-html:not(.dark) .recharts-tooltip-item   { color: #0C1A2E !important; }
+html:not(.dark) .recharts-tooltip-label  { color: #94a3b8 !important; }
+html:not(.dark) .recharts-tooltip-item   { color: #f1f5f9 !important; }
 
 html:not(.dark) .recharts-area-dot circle,
 html:not(.dark) .recharts-dot circle { stroke: #FFFFFF !important; }
 
 /* ── Overflow tables — ensure they get card bg ── */
 html:not(.dark) .bg-gray-900.overflow-hidden { background-color: #FFFFFF !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRO HOVER SYSTEM — must stay at EOF so it wins every !important cascade
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Clickable cards ───────────────────────────────────────────────────────
+   Dark mode: blue-dark tint + strong glow ring + lift                       */
+.td-hover-card:hover {
+  background-color: #162338 !important;
+  outline-color: rgba(59,130,246,0.5) !important;
+  box-shadow:
+    0 0 0 1px rgba(59,130,246,0.35),
+    0 8px 24px -4px rgba(59,130,246,0.25),
+    0 4px 8px -2px rgba(0,0,0,0.4) !important;
+  transform: translateY(-3px);
+}
+
+/* Light mode cards: steel-blue tint — clearly NOT white */
+html:not(.dark) .td-hover-card:hover {
+  background-color: #97bde0 !important;
+  outline-color: rgba(37,99,235,0.5) !important;
+  box-shadow:
+    0 0 0 1px rgba(37,99,235,0.3),
+    0 8px 24px -4px rgba(37,99,235,0.18),
+    0 2px 6px -1px rgba(14,30,60,0.15) !important;
+  transform: translateY(-3px);
+}
+
+/* ── Table rows ─────────────────────────────────────────────────────────── */
+.td-row:hover {
+  background-color: rgba(59,130,246,0.09) !important;
+}
+.td-row:hover td:first-child {
+  box-shadow: inset 3px 0 0 #3b82f6 !important;
+}
+html:not(.dark) .td-row:hover {
+  background-color: rgba(37,99,235,0.08) !important;
+}
+html:not(.dark) .td-row:hover td:first-child {
+  box-shadow: inset 3px 0 0 #2563eb !important;
+}
+
+/* ── Buttons — active press scale (global fallback) ─────────────────────── */
+button:not([disabled]):active,
+a[role="button"]:not([disabled]):active {
+  transform: scale(0.96) !important;
+  transition: transform 0.08s ease !important;
+}
+
+/* ── Primary blue button glow ────────────────────────────────────────────── */
+.bg-blue-600:not([disabled]):hover,
+.bg-blue-500:not([disabled]):hover {
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.25), 0 4px 14px rgba(59,130,246,0.35) !important;
+}
+
+/* ── Emerald / green button glow ────────────────────────────────────────── */
+.bg-emerald-500:not([disabled]):hover,
+.bg-green-600:not([disabled]):hover {
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.2), 0 4px 14px rgba(16,185,129,0.3) !important;
+}
+
+/* ── Orange / sell button glow ───────────────────────────────────────────── */
+.bg-orange-500:not([disabled]):hover,
+.bg-orange-600:not([disabled]):hover {
+  box-shadow: 0 0 0 3px rgba(249,115,22,0.25), 0 4px 14px rgba(249,115,22,0.35) !important;
+}
+
+/* ── Recharts tooltips — dark on both modes, EOF wins cascade ───────────── */
+.recharts-tooltip-wrapper .recharts-default-tooltip,
+.recharts-default-tooltip {
+  background-color: #111827 !important;
+  border: 1px solid #374151 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+  color: #f9fafb !important;
+}
+html:not(.dark) .recharts-tooltip-wrapper .recharts-default-tooltip,
+html:not(.dark) .recharts-default-tooltip {
+  background-color: #1e293b !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+  color: #f1f5f9 !important;
+}
+.recharts-tooltip-label { color: #9ca3af !important; }
+html:not(.dark) .recharts-tooltip-label { color: #94a3b8 !important; }
+.recharts-tooltip-item-name,
+.recharts-tooltip-item { color: #f9fafb !important; }
+html:not(.dark) .recharts-tooltip-item-name,
+html:not(.dark) .recharts-tooltip-item { color: #f1f5f9 !important; }
