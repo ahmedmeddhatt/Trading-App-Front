@@ -3,7 +3,7 @@ import { fetchBackend, getBackendUserId } from "@/lib/proxy";
 
 export async function POST(req: NextRequest) {
   const cookieHeader = req.headers.get("cookie") ?? "";
-  const { symbol, side, quantity, price, fees, clientMutationId } = await req.json();
+  const { symbol, side, quantity, price, fees, clientMutationId, date } = await req.json();
 
   const userId = await getBackendUserId(cookieHeader);
   if (!userId) {
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
         quantity,
         price,
         fees,
+        ...(date ? { date } : {}),
       }),
     },
     cookieHeader

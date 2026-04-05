@@ -1,7 +1,7 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Activity, LogOut, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import AppShell from "@/components/AppShell";
 import { useQuery } from "@tanstack/react-query";
 import {
   AreaChart,
@@ -35,16 +35,10 @@ function useStockHistory(symbol: string) {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { symbol, setSymbol } = useActiveStock();
   const { prices } = usePriceStream([symbol]);
   const priceData = prices[symbol] ?? null;
   const { data: history = [], isLoading: histLoading } = useStockHistory(symbol);
-
-  const handleLogout = async () => {
-    await apiClient.post("/api/auth/logout", {}).catch(() => {});
-    router.push("/login");
-  };
 
   const isPositive = priceData ? priceData.change >= 0 : null;
 
@@ -63,42 +57,21 @@ export default function DashboardPage() {
     : "#f87171";
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="text-blue-400" size={20} />
-          <span className="font-bold text-lg tracking-tight">TradeDesk</span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* Symbol selector */}
-          <div className="flex gap-2">
-            {SYMBOLS.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSymbol(s)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors
-                  ${symbol === s
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-
-          {/* Logout */}
+    <AppShell>
+      {/* Symbol selector sub-header */}
+      <div className="border-b border-gray-800 px-4 py-2 flex items-center gap-2 overflow-x-auto">
+        {SYMBOLS.map((s) => (
           <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-            title="Sign out"
+            key={s}
+            onClick={() => setSymbol(s)}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+              symbol === s ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"
+            }`}
           >
-            <LogOut size={15} />
-            <span>Sign out</span>
+            {s}
           </button>
-        </div>
-      </header>
+        ))}
+      </div>
 
       {/* Price ticker */}
       <div className="border-b border-gray-800 px-6 py-3 flex items-center gap-4">
@@ -180,7 +153,7 @@ export default function DashboardPage() {
           <TradeForm symbol={symbol} currentPrice={priceData?.price ?? null} />
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }
 

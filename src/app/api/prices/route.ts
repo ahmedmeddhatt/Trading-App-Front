@@ -53,7 +53,13 @@ export async function GET(req: NextRequest) {
           const isAbort =
             err instanceof Error &&
             (err.name === "AbortError" || err.message.includes("aborted"));
-          if (!isAbort) {
+          const isConnRefused =
+            err instanceof Error &&
+            (err.message.includes("ECONNREFUSED") ||
+              err.message.includes("fetch failed") ||
+              err.message.includes("ENOTFOUND") ||
+              err.message.includes("ECONNRESET"));
+          if (!isAbort && !isConnRefused) {
             try { controller.error(err); } catch {}
             return;
           }
