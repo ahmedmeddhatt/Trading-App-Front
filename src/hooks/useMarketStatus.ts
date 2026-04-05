@@ -9,14 +9,21 @@ export interface MarketStatusResult extends MarketStatus {
   countdown: string;
 }
 
-export function useMarketStatus(): MarketStatusResult {
-  const [localStatus, setLocalStatus] = useState<MarketStatus>(() => getMarketStatus());
+const CLOSED_DEFAULT: MarketStatus = {
+  label: "Closed",
+  isOpen: false,
+  nextOpenMs: 0,
+  closesInMs: 0,
+};
 
-  // Live countdown — updates every second client-side
+export function useMarketStatus(): MarketStatusResult {
+  // Null on server to avoid SSR/hydration mismatch (Date.now() differs)
+  const [localStatus, setLocalStatus] = useState<MarketStatus | null>(null);
+
+  // Set status client-side only, update every second
   useEffect(() => {
-    const id = setInterval(() => {
-      setLocalStatus(getMarketStatus());
-    }, 1000);
+    setLocalStatus(getMarketStatus());
+    const id = setInterval(() => setLocalStatus(getMarketStatus()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -27,9 +34,10 @@ export function useMarketStatus(): MarketStatusResult {
     refetchInterval: 60_000,
   });
 
-  const countdown = localStatus.isOpen
-    ? formatCountdown(localStatus.closesInMs)
-    : formatCountdown(localStatus.nextOpenMs);
+  const status = localStatus ?? CLOSED_DEFAULT;
+  const countdown = status.isOpen
+    ? formatCountdown(status.closesInMs)
+    : formatCountdown(status.nextOpenMs);
 
-  return { ...localStatus, countdown };
+  return { ...status, countdown };
 }

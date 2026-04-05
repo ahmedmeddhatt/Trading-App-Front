@@ -2,12 +2,11 @@
 
 import { use, useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
-  TrendingUp, TrendingDown, Activity, LogOut, ChevronLeft, History, Calendar, BarChart2,
+  TrendingUp, TrendingDown, ChevronLeft, History, Calendar, BarChart2, Activity,
 } from "lucide-react";
-import MobileNav from "@/components/MobileNav";
+import AppShell from "@/components/AppShell";
 import {
   LineChart, Line, AreaChart, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   ComposedChart, Bar, Area, ReferenceLine, Legend, Cell,
@@ -122,7 +121,11 @@ function useStockHistory(symbol: string, range: DateRange) {
       const result = await apiClient.get<unknown>(
         `/api/prices/history/${symbol}?from=${from}&to=${to}`
       );
-      return Array.isArray(result) ? (result as HistoryPoint[]) : [];
+      if (!Array.isArray(result)) return [];
+      return (result as Array<{ price: unknown; timestamp: unknown }>).map((h) => ({
+        price: parseFloat(String(h.price)),
+        timestamp: new Date(h.timestamp as string).getTime(),
+      }));
     },
     retry: 1,
     staleTime: 5 * 60 * 1000,
@@ -142,8 +145,6 @@ const RANGES: DateRange[] = ["1W", "1M", "3M", "6M", "1Y"];
 export default function StockPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol: rawSymbol } = use(params);
   const symbol = rawSymbol.toUpperCase();
-  const router = useRouter();
-
   const [historyOpen, setHistoryOpen] = useState(false);
   const [range, setRange] = useState<DateRange>("1M");
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -158,7 +159,9 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
   const marketStatus = useMarketStatus();
 
   const position = portfolio?.positions.find((p) => p.symbol === symbol);
-  const isPositive = priceData ? priceData.changePercent >= 0 : null;
+  const displayPrice = priceData?.price ?? stock?.price ?? null;
+  const displayChange = priceData?.changePercent ?? stock?.changePercent ?? null;
+  const isPositive = displayChange !== null ? displayChange >= 0 : null;
 
   // Chart data
   const chartData = useMemo(() =>
@@ -192,43 +195,24 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const handleLogout = async () => {
-    await apiClient.post("/api/auth/logout", {}).catch(() => {});
-    router.push("/login");
-  };
-
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-gray-800/80 bg-gray-950/95 backdrop-blur-sm px-4 sm:px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/stocks" className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors p-1 -ml-1 rounded-lg hover:bg-gray-800">
-            <ChevronLeft size={18} />
-          </Link>
-          <div className="flex items-center gap-2">
-            <Activity className="text-blue-400" size={18} />
-            <span className="font-bold text-base tracking-tight">TradeDesk</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {position && (
-            <button
-              onClick={() => setHistoryOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
-            >
-              <History size={14} />
-              <span className="hidden sm:inline">History</span>
-            </button>
-          )}
+    <AppShell>
+      {/* Back navigation sub-header */}
+      <div className="border-b border-gray-800 px-4 py-2 flex items-center justify-between">
+        <Link href="/stocks" className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors p-1 -ml-1 rounded-lg hover:bg-gray-800">
+          <ChevronLeft size={18} />
+          <span className="text-sm">Stocks</span>
+        </Link>
+        {position && (
           <button
-            onClick={handleLogout}
+            onClick={() => setHistoryOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
           >
-            <LogOut size={14} />
-            <span className="hidden sm:inline">Sign out</span>
+            <History size={14} />
+            <span>History</span>
           </button>
-        </div>
-      </header>
+        )}
+      </div>
 
       {/* Stock header */}
       <div className="border-b border-gray-800 px-4 sm:px-6 py-4 sm:py-5">
@@ -271,12 +255,12 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
               </div>
               <div className="text-right">
                 <p className={`text-2xl sm:text-3xl font-bold ${isPositive === true ? "text-emerald-400" : isPositive === false ? "text-red-400" : "text-white"}`}>
-                  {priceData ? fmtEGP(priceData.price) : "—"}
+                  {displayPrice !== null ? fmtEGP(displayPrice) : "—"}
                 </p>
-                {priceData && isPositive !== null && (
+                {displayChange !== null && isPositive !== null && (
                   <div className={`flex items-center justify-end gap-1 text-sm font-medium mt-0.5 ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
                     {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                    {isPositive ? "+" : "−"}{Math.abs(priceData.changePercent).toFixed(2)}%
+                    {isPositive ? "+" : "−"}{Math.abs(displayChange).toFixed(2)}%
                   </div>
                 )}
                 {priceData && (
@@ -381,7 +365,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
             <div className="h-48 sm:h-72">
               {histLoading ? (
                 <div className="h-full bg-gray-800 rounded animate-pulse" />
-              ) : chartData.length < 2 ? (
+              ) : chartData.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-gray-700 text-sm border border-dashed border-gray-800 rounded-lg">
                   No price history available
                 </div>
@@ -509,8 +493,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
         onClose={() => setHistoryOpen(false)}
       />
 
-      <MobileNav active="/stocks" />
-    </div>
+    </AppShell>
   );
 }
 

@@ -2,13 +2,14 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, Download, Loader2, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowUpDown, Download, Loader2, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
 import { formatEGP, formatSignedEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
 import { exportToCSV } from "@/lib/csvExport";
 import { useLanguage } from "@/context/LanguageContext";
+import AddTransactionModal from "@/features/trade/components/AddTransactionModal";
 
 interface TxRow {
   id: string; symbol: string; type: "BUY" | "SELL";
@@ -31,6 +32,7 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -79,6 +81,7 @@ export default function TransactionsPage() {
   const summary = data?.summary;
 
   return (
+    <>
     <AppShell>
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -86,12 +89,20 @@ export default function TransactionsPage() {
             <h1 className="text-xl font-bold">{t("tx.title")}</h1>
             <p className="text-gray-500 text-sm">{t("tx.sub")}</p>
           </div>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm"
-          >
-            <Download size={14} /> {t("tx.exportCsv")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Plus size={14} /> Add Transaction
+            </button>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm"
+            >
+              <Download size={14} /> {t("tx.exportCsv")}
+            </button>
+          </div>
         </div>
 
         {/* Summary */}
@@ -206,5 +217,10 @@ export default function TransactionsPage() {
         </div>
       </div>
     </AppShell>
+
+    {showAddModal && (
+      <AddTransactionModal onClose={() => setShowAddModal(false)} />
+    )}
+    </>
   );
 }

@@ -94,16 +94,49 @@ function SkeletonRow() {
 
 const PAGE_SIZE = 25;
 
+const STOCKS_FILTER_KEY = "tradedesk_stocks_filter";
+
+function saveFilters(q: string, sector: string, minPE: string, maxPE: string, page: number) {
+  try { sessionStorage.setItem(STOCKS_FILTER_KEY, JSON.stringify({ q, sector, minPE, maxPE, page })); } catch {}
+}
+
+function loadFilters() {
+  try {
+    const raw = sessionStorage.getItem(STOCKS_FILTER_KEY);
+    return raw ? JSON.parse(raw) as { q: string; sector: string; minPE: string; maxPE: string; page: number } : null;
+  } catch { return null; }
+}
+
 function StocksPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // State from URL
-  const [search, setSearch] = useState(searchParams.get("q") ?? "");
-  const [sector, setSector] = useState(searchParams.get("sector") ?? "");
-  const [minPE, setMinPE] = useState(searchParams.get("minPE") ?? "");
-  const [maxPE, setMaxPE] = useState(searchParams.get("maxPE") ?? "");
-  const [page, setPage] = useState(parseInt(searchParams.get("page") ?? "1", 10));
+  // Initialise from URL first, then sessionStorage fallback
+  const [search, setSearch] = useState(() => {
+    const fromUrl = searchParams.get("q");
+    if (fromUrl !== null) return fromUrl;
+    return loadFilters()?.q ?? "";
+  });
+  const [sector, setSector] = useState(() => {
+    const fromUrl = searchParams.get("sector");
+    if (fromUrl !== null) return fromUrl;
+    return loadFilters()?.sector ?? "";
+  });
+  const [minPE, setMinPE] = useState(() => {
+    const fromUrl = searchParams.get("minPE");
+    if (fromUrl !== null) return fromUrl;
+    return loadFilters()?.minPE ?? "";
+  });
+  const [maxPE, setMaxPE] = useState(() => {
+    const fromUrl = searchParams.get("maxPE");
+    if (fromUrl !== null) return fromUrl;
+    return loadFilters()?.maxPE ?? "";
+  });
+  const [page, setPage] = useState(() => {
+    const fromUrl = searchParams.get("page");
+    if (fromUrl !== null) return parseInt(fromUrl, 10);
+    return loadFilters()?.page ?? 1;
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
   const [watchlistOnly, setWatchlistOnly] = useState(false);
@@ -116,7 +149,7 @@ function StocksPageInner() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1); // reset page on new search
+      setPage(1);
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -128,7 +161,7 @@ function StocksPageInner() {
     setWatchlist(loadWatchlist());
   }, []);
 
-  // Sync filters to URL
+  // Sync filters to URL + sessionStorage
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
@@ -138,6 +171,7 @@ function StocksPageInner() {
     if (page > 1) params.set("page", String(page));
     const qs = params.toString();
     router.replace(qs ? `/stocks?${qs}` : "/stocks", { scroll: false });
+    saveFilters(debouncedSearch, sector, minPE, maxPE, page);
   }, [debouncedSearch, sector, minPE, maxPE, page, router]);
 
   // Build query string for API

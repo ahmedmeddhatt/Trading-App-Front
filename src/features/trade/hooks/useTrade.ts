@@ -12,6 +12,7 @@ export interface TradePayload {
   quantity: number;
   price: number;
   fees?: number;
+  date?: string;
 }
 
 export interface TradeResponse {

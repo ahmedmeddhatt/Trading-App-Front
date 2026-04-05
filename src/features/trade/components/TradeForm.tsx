@@ -166,12 +166,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
           <button
             key={s}
             onClick={() => setSide(s)}
-            className={`flex-1 py-2 text-sm font-semibold transition-colors
-              ${side === s
-                ? s === "buy"
-                  ? "bg-emerald-500 text-white"
-                  : "bg-orange-500 text-white"
-                : "bg-transparent text-gray-400 hover:text-white"}`}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${side === s ? (s === "buy" ? "bg-emerald-500 text-white" : "bg-orange-500 text-white") : "bg-transparent text-gray-400 hover:text-white"}`}
           >
             {s === "buy" ? t("trade.buy") : t("trade.sell")}
           </button>
