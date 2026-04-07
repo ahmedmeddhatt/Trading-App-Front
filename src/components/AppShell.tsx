@@ -22,7 +22,10 @@ const NAV_KEYS = [
 ] as const;
 
 const MOBILE_NAV_KEYS = [
-  ...NAV_KEYS.slice(0, 4),
+  NAV_KEYS.find((n) => n.href === "/dashboard")!,
+  NAV_KEYS.find((n) => n.href === "/stocks")!,
+  NAV_KEYS.find((n) => n.href === "/portfolio")!,
+  NAV_KEYS.find((n) => n.href === "/analytics")!,
   NAV_KEYS.find((n) => n.href === "/profile")!,
 ];
 

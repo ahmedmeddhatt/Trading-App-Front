@@ -17,7 +17,7 @@ import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePriceStream } from "@/hooks/usePriceStream";
-import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from "recharts";
+import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, LabelList } from "recharts";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
 
 const TimelineChart = dynamic(
@@ -845,38 +845,61 @@ export default function PortfolioPage() {
           loading={timelineLoading}
         />
 
-        {/* Portfolio Weight by Symbol */}
+        {/* Portfolio Weight by Symbol — Donut + Legend */}
         {allocation && allocation.bySymbol.length > 0 && (
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
             <div>
               <h2 className="text-white font-semibold text-sm">{t("analytics.symbolAlloc")}</h2>
               <p className="text-gray-500 text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
             </div>
-            <div dir="ltr">
-              <ResponsiveContainer width="100%" height={Math.max(140, allocation.bySymbol.length * 36)}>
-                <BarChart
-                  data={allocation.bySymbol}
-                  layout="vertical"
-                  margin={{ top: 4, right: 56, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
-                    tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, 100]} />
-                  <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} tickLine={false} axisLine={false} width={52} />
-                  <Tooltip
-                    contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown, _: unknown, props: { payload?: { value?: number; percentage?: number } }) => [
-                      `${(props.payload?.percentage ?? (v as number)).toFixed(1)}%  ·  EGP ${((props.payload?.value ?? 0) / 1000).toFixed(1)}k`,
-                      t("analytics.symbolAlloc"),
-                    ]}
-                  />
-                  <Bar dataKey="percentage" radius={[0, 3, 3, 0]}>
-                    {allocation.bySymbol.map((_, i) => (
-                      <Cell key={i} fill={["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316","#84cc16","#ec4899","#a78bfa"][i % 10]} fillOpacity={0.85} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div dir="ltr" className="flex flex-col sm:flex-row items-center gap-4">
+              {/* Donut chart */}
+              <div className="relative" style={{ width: 200, height: 200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={allocation.bySymbol}
+                      dataKey="percentage"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      stroke="none"
+                    >
+                      {allocation.bySymbol.map((_, i) => (
+                        <Cell key={i} fill={["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316","#84cc16","#ec4899","#a78bfa"][i % 10]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                      formatter={(v: unknown, _: unknown, props: { payload?: { payload?: { value?: number } } }) => [
+                        `${(v as number).toFixed(1)}%  ·  EGP ${(((props.payload?.payload as { value?: number })?.value ?? 0)).toLocaleString()}`,
+                        t("analytics.symbolAlloc"),
+                      ]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center label */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-gray-500 text-[10px]">{t("common.total")}</span>
+                  <span className="text-white text-sm font-bold">{allocation.bySymbol.length} {t("analytics.symbols")}</span>
+                </div>
+              </div>
+              {/* Legend */}
+              <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2">
+                {allocation.bySymbol.map((item, i) => {
+                  const color = ["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316","#84cc16","#ec4899","#a78bfa"][i % 10];
+                  return (
+                    <div key={item.name} className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-gray-300 text-xs font-medium truncate">{item.name}</span>
+                      <span className="text-gray-500 text-xs ml-auto">{item.percentage.toFixed(1)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

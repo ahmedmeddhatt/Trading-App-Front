@@ -11,7 +11,8 @@ import {
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Cell, Legend, ReferenceLine,
-  PieChart, Pie, ScatterChart, Scatter, ZAxis,
+  PieChart, Pie, ScatterChart, Scatter, ZAxis, Area, AreaChart,
+  LabelList,
 } from "recharts";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
@@ -494,9 +495,15 @@ export default function AnalyticsPage() {
             <EmptyState message={t("analytics.noTimeline")} />
           ) : (
             <div dir="ltr">
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={timelineChartData} margin={{ top: 4, right: dir === "rtl" ? 60 : 4, left: dir === "rtl" ? 0 : 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={timelineChartData} margin={{ top: 8, right: dir === "rtl" ? 60 : 12, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="tlFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={timelineColor} stopOpacity={0.2} />
+                    <stop offset="100%" stopColor={timelineColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
                 <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
                 <YAxis
                   orientation={dir === "rtl" ? "right" : "left"}
@@ -504,133 +511,239 @@ export default function AnalyticsPage() {
                   tickFormatter={(v: number) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}
                 />
                 <Tooltip
-                  contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: "#9ca3af" }}
+                  contentStyle={{ background: "#0f172a", border: `1px solid ${timelineColor}44`, borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                  labelStyle={{ color: "#9ca3af", fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const }}
                   formatter={(v: unknown) => [fmtEGP(v as number), t("analytics.value")]}
+                  cursor={{ stroke: timelineColor, strokeWidth: 1.5, strokeOpacity: 0.4, strokeDasharray: "5 4" }}
                 />
-                <Line
+                <Area
                   type="monotone" dataKey="value" stroke={timelineColor}
-                  strokeWidth={2} dot={false} activeDot={{ r: 4, fill: timelineColor }}
+                  strokeWidth={2.5} fill="url(#tlFill)"
+                  dot={false} activeDot={{ r: 6, fill: timelineColor, stroke: "#0f172a", strokeWidth: 2 }}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
             </div>
           )}
         </div>
 
-        {/* ── 1. P&L Breakdown — sorted by net, stacked unrealized + realized ── */}
+        {/* ── 1. P&L Breakdown — enhanced with net labels & gradient fills ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
             <SectionHeader title={t("analytics.pnlByPosition")} sub={t("analytics.pnlSub")} />
             {pnlBarData.length === 0 ? (
               <EmptyState message={t("analytics.noPositions2")} />
             ) : (
-              <div dir="ltr">
-              <ResponsiveContainer width="100%" height={Math.max(180, pnlBarData.length * 38)}>
-                <BarChart data={pnlBarData} layout="vertical" margin={{ top: 4, right: 80, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
-                    tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(1)}k` : (v as number).toFixed(0)} />
-                  <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11, fontWeight: 700 }} tickLine={false} axisLine={false} width={52} />
-                  <Tooltip
-                    contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: "#9ca3af", fontWeight: 700 }}
-                    formatter={(v: unknown, name: unknown) => [
-                      fmtSignedEGP(v as number),
-                      name === "unrealized" ? t("common.unrealized") : name === "realized" ? t("common.realized") : "Net",
-                    ]}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 10, color: "#6b7280" }}
-                    formatter={(v) => v === "unrealized" ? t("common.unrealized") : t("common.realized")} />
-                  <ReferenceLine x={0} stroke="#374151" />
-                  <Bar dataKey="unrealized" name="unrealized" stackId="pnl" radius={[0, 0, 0, 0]}>
-                    {pnlBarData.map((entry, i) => (
-                      <Cell key={i} fill={entry.unrealized >= 0 ? "#10b981" : "#ef4444"} fillOpacity={0.85} />
-                    ))}
-                  </Bar>
-                  <Bar dataKey="realized" name="realized" stackId="pnl" radius={[0, 3, 3, 0]} fill="#3b82f6" fillOpacity={0.6} />
-                </BarChart>
-              </ResponsiveContainer>
-              </div>
+              <>
+                {/* Summary row */}
+                <div className="flex gap-3 text-xs">
+                  {(() => {
+                    const totalNet = pnlBarData.reduce((s, d) => s + d.net, 0);
+                    const winners = pnlBarData.filter(d => d.net > 0).length;
+                    const losers = pnlBarData.filter(d => d.net < 0).length;
+                    return (
+                      <>
+                        <span className={`font-bold ${totalNet >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          Net: {fmtSignedEGP(totalNet)}
+                        </span>
+                        <span className="text-gray-500">|</span>
+                        <span className="text-emerald-400">{winners}W</span>
+                        <span className="text-gray-600">/</span>
+                        <span className="text-red-400">{losers}L</span>
+                      </>
+                    );
+                  })()}
+                </div>
+                <div dir="ltr">
+                <ResponsiveContainer width="100%" height={Math.max(200, pnlBarData.length * 44)}>
+                  <BarChart data={pnlBarData} layout="vertical" margin={{ top: 4, right: 90, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="pnlGreen" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#059669" stopOpacity={0.6} />
+                        <stop offset="100%" stopColor="#34d399" stopOpacity={0.95} />
+                      </linearGradient>
+                      <linearGradient id="pnlRed" x1="1" y1="0" x2="0" y2="0">
+                        <stop offset="0%" stopColor="#dc2626" stopOpacity={0.6} />
+                        <stop offset="100%" stopColor="#f87171" stopOpacity={0.95} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                      tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(1)}k` : (v as number).toFixed(0)} />
+                    <YAxis type="category" dataKey="symbol" tick={{ fill: "#e2e8f0", fontSize: 11, fontWeight: 700 }} tickLine={false} axisLine={false} width={56} />
+                    <Tooltip
+                      contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                      labelStyle={{ color: "#f1f5f9", fontWeight: 700, marginBottom: 4 }}
+                      formatter={(v: unknown, name: unknown) => [
+                        fmtSignedEGP(v as number),
+                        name === "unrealized" ? t("common.unrealized") : name === "realized" ? t("common.realized") : "Net",
+                      ]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 10, color: "#6b7280", paddingTop: 8 }}
+                      formatter={(v) => v === "unrealized" ? t("common.unrealized") : t("common.realized")} />
+                    <ReferenceLine x={0} stroke="#475569" strokeWidth={1.5} />
+                    <Bar dataKey="unrealized" name="unrealized" stackId="pnl" radius={[0, 0, 0, 0]}>
+                      {pnlBarData.map((entry, i) => (
+                        <Cell key={i} fill={entry.unrealized >= 0 ? "url(#pnlGreen)" : "url(#pnlRed)"} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="realized" name="realized" stackId="pnl" radius={[0, 4, 4, 0]} fill="#3b82f6" fillOpacity={0.65}>
+                      <LabelList
+                        dataKey="net"
+                        position="right"
+                        formatter={(v) => fmtSignedEGP(Number(v))}
+                        style={{ fill: "#94a3b8", fontSize: 10, fontWeight: 600 }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                </div>
+              </>
             )}
           </div>
 
-          {/* ── 2. Risk-Return Scatter — invested vs return%, bubble = market value ── */}
+          {/* ── 2. Risk-Return Scatter — with quadrant labels & symbol annotations ── */}
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
             <SectionHeader title={t("analytics.riskReturn")} sub={t("analytics.riskReturnSub")} />
             {riskReturnData.length === 0 ? (
               <EmptyState message={t("analytics.noPositions2")} />
             ) : (
-              <div dir="ltr">
-              <ResponsiveContainer width="100%" height={Math.max(180, pnlBarData.length * 38)}>
-                <ScatterChart margin={{ top: 8, right: 24, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis type="number" dataKey="invested" name={t("common.invested")}
-                    tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
-                    tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(0)}k` : (v as number).toFixed(0)}
-                    label={{ value: t("common.invested"), fill: "#4b5563", fontSize: 10, position: "insideBottom", offset: -2 }}
-                  />
-                  <YAxis type="number" dataKey="returnPct" name={t("common.return")}
-                    tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
-                    tickFormatter={(v) => `${(v as number).toFixed(0)}%`}
-                    label={{ value: t("common.return"), fill: "#4b5563", fontSize: 10, angle: -90, position: "insideLeft", offset: 10 }}
-                  />
-                  <ZAxis type="number" dataKey="marketValue" range={[60, 400]} />
-                  <ReferenceLine y={0} stroke="#374151" strokeDasharray="3 3" />
-                  <Tooltip
-                    contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v, name) =>
-                      String(name) === t("common.return") ? [`${(v as number).toFixed(2)}%`, name] : [fmtEGP(v as number), name]
-                    }
-                    labelFormatter={(_, payload) => {
-                      const p = payload?.[0]?.payload as { symbol?: string } | undefined;
-                      return p?.symbol ?? "";
-                    }}
-                  />
-                  <Scatter data={riskReturnData.filter((d) => d.isPositive)} fill="#10b981" fillOpacity={0.8} />
-                  <Scatter data={riskReturnData.filter((d) => !d.isPositive)} fill="#ef4444" fillOpacity={0.8} />
-                </ScatterChart>
-              </ResponsiveContainer>
-              </div>
+              <>
+                <div dir="ltr" className="relative">
+                <ResponsiveContainer width="100%" height={Math.max(240, pnlBarData.length * 38)}>
+                  <ScatterChart margin={{ top: 20, right: 28, left: 0, bottom: 8 }}>
+                    <defs>
+                      <radialGradient id="dotGreen" cx="30%" cy="30%">
+                        <stop offset="0%" stopColor="#6ee7b7" />
+                        <stop offset="100%" stopColor="#059669" />
+                      </radialGradient>
+                      <radialGradient id="dotRed" cx="30%" cy="30%">
+                        <stop offset="0%" stopColor="#fca5a5" />
+                        <stop offset="100%" stopColor="#dc2626" />
+                      </radialGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                    <XAxis type="number" dataKey="invested" name={t("common.invested")}
+                      tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                      tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(0)}k` : (v as number).toFixed(0)}
+                      label={{ value: `← ${t("common.invested")} →`, fill: "#4b5563", fontSize: 10, position: "insideBottom", offset: -4 }}
+                    />
+                    <YAxis type="number" dataKey="returnPct" name={t("common.return")}
+                      tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                      tickFormatter={(v) => `${(v as number).toFixed(0)}%`}
+                      label={{ value: `↑ ${t("common.return")}`, fill: "#4b5563", fontSize: 10, angle: -90, position: "insideLeft", offset: 10 }}
+                    />
+                    <ZAxis type="number" dataKey="marketValue" range={[80, 500]} />
+                    <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" strokeWidth={1.5} />
+                    <Tooltip
+                      contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                      formatter={(v, name) =>
+                        String(name) === t("common.return") ? [`${(v as number).toFixed(2)}%`, name] : [fmtEGP(v as number), name]
+                      }
+                      labelFormatter={(_, payload) => {
+                        const p = payload?.[0]?.payload as { symbol?: string; returnPct?: number } | undefined;
+                        return p ? `${p.symbol} · ${(p.returnPct ?? 0) >= 0 ? "✓" : "✗"} ${Math.abs(p.returnPct ?? 0).toFixed(1)}%` : "";
+                      }}
+                    />
+                    <Scatter data={riskReturnData.filter((d) => d.isPositive)} fill="url(#dotGreen)" fillOpacity={0.9}>
+                      <LabelList dataKey="symbol" position="top" style={{ fill: "#6ee7b7", fontSize: 9, fontWeight: 700 }} />
+                    </Scatter>
+                    <Scatter data={riskReturnData.filter((d) => !d.isPositive)} fill="url(#dotRed)" fillOpacity={0.9}>
+                      <LabelList dataKey="symbol" position="top" style={{ fill: "#fca5a5", fontSize: 9, fontWeight: 700 }} />
+                    </Scatter>
+                  </ScatterChart>
+                </ResponsiveContainer>
+                </div>
+                <div className="flex gap-4 text-xs text-gray-500 justify-center">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" /> {t("analytics.profitable")}</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> {t("analytics.atLoss")}</span>
+                  <span className="text-gray-600">({t("analytics.bubbleSize")})</span>
+                </div>
+              </>
             )}
           </div>
         </div>
 
-        {/* ── 3. Portfolio Value Waterfall ────────────────── */}
+        {/* ── 3. Portfolio Value Waterfall — enhanced with value labels & gradients ── */}
         {waterfallData.length > 2 && (
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
             <SectionHeader title={t("analytics.valueWaterfall")} sub={t("analytics.valueWaterfallSub")} />
+            {/* Visual summary */}
+            <div className="flex items-center gap-3 text-xs flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-blue-500 inline-block" />
+                <span className="text-gray-400">{t("common.invested")}: <span className="text-white font-semibold">{fmtEGP(totalInvested)}</span></span>
+              </div>
+              <span className="text-gray-700">→</span>
+              {(() => {
+                const netVal = totalInvested + totalUnrealized + totalRealized;
+                const diff = netVal - totalInvested;
+                return (
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-3 h-3 rounded inline-block ${diff >= 0 ? "bg-emerald-500" : "bg-red-500"}`} />
+                    <span className="text-gray-400">{t("analytics.netValue")}: <span className={`font-semibold ${diff >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtEGP(netVal)}</span></span>
+                    <span className={`font-bold ${diff >= 0 ? "text-emerald-400" : "text-red-400"}`}>({fmtSignedEGP(diff)})</span>
+                  </div>
+                );
+              })()}
+            </div>
             <div dir="ltr">
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={(() => {
                   let running = 0;
                   return waterfallData.map((d) => {
                     if (d.isTotal) {
-                      const result = { name: d.name, value: d.value, base: 0, fill: d.fill };
+                      const result = { name: d.name, value: d.value, base: 0, fill: d.fill, isTotal: true, raw: d.value };
                       running = d.value;
                       return result;
                     }
                     const base = running;
                     running += d.value;
-                    return { name: d.name, value: Math.abs(d.value), base: d.value >= 0 ? base : base + d.value, fill: d.fill };
+                    return { name: d.name, value: Math.abs(d.value), base: d.value >= 0 ? base : base + d.value, fill: d.fill, isTotal: false, raw: d.value };
                   });
-                })()} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+                })()} margin={{ top: 24, right: 8, left: 0, bottom: 4 }}>
+                  <defs>
+                    <linearGradient id="wfBlue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.95} />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0.8} />
+                    </linearGradient>
+                    <linearGradient id="wfGreen" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#059669" stopOpacity={0.75} />
+                    </linearGradient>
+                    <linearGradient id="wfRed" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#dc2626" stopOpacity={0.75} />
+                    </linearGradient>
+                    <linearGradient id="wfAmber" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fcd34d" stopOpacity={0.9} />
+                      <stop offset="100%" stopColor="#d97706" stopOpacity={0.75} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 600 }} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="name" tick={{ fill: "#e2e8f0", fontSize: 10, fontWeight: 600 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
                     tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(0)}k` : (v as number).toFixed(0)} />
                   <Tooltip
-                    contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown, name: unknown) => {
+                    contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                    formatter={(v: unknown, name: unknown, props: { payload?: { raw?: number; isTotal?: boolean } }) => {
                       if (name === "base") return [null, null];
-                      return [fmtEGP(v as number), t("analytics.value")];
+                      const raw = props.payload?.raw ?? (v as number);
+                      return [fmtSignedEGP(raw), props.payload?.isTotal ? t("analytics.total") : t("analytics.contribution")];
                     }}
                   />
                   <Bar dataKey="base" stackId="w" fill="transparent" />
-                  <Bar dataKey="value" stackId="w" radius={[3, 3, 0, 0]}>
-                    {waterfallData.map((d, i) => (
-                      <Cell key={i} fill={d.fill} fillOpacity={d.isTotal ? 0.9 : 0.75} />
-                    ))}
+                  <Bar dataKey="value" stackId="w" radius={[4, 4, 0, 0]}>
+                    {waterfallData.map((d, i) => {
+                      const gradId = d.fill === "#3b82f6" ? "url(#wfBlue)" : d.fill === "#10b981" ? "url(#wfGreen)" : d.fill === "#ef4444" ? "url(#wfRed)" : "url(#wfAmber)";
+                      return <Cell key={i} fill={gradId} />;
+                    })}
+                    <LabelList
+                      dataKey="raw"
+                      position="top"
+                      formatter={(v) => { const n = Number(v); return Math.abs(n) >= 1000 ? `${(n / 1000).toFixed(1)}k` : n.toFixed(0); }}
+                      style={{ fill: "#94a3b8", fontSize: 9, fontWeight: 700 }}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -707,43 +820,70 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* ── 5. Return vs Holding Duration Scatter ───────── */}
+        {/* ── 5. Return vs Holding Duration Scatter — enhanced with labels ── */}
         {returnVsDurationData.length > 0 && (
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
             <SectionHeader title={t("analytics.returnVsDuration")} sub={t("analytics.returnVsDurationSub")} />
+            {/* Quick insight */}
+            <div className="flex gap-4 text-xs flex-wrap">
+              {(() => {
+                const avgDays = returnVsDurationData.reduce((s, d) => s + d.days, 0) / returnVsDurationData.length;
+                const avgReturn = returnVsDurationData.reduce((s, d) => s + d.returnPct, 0) / returnVsDurationData.length;
+                return (
+                  <>
+                    <span className="text-gray-500">Avg hold: <span className="text-white font-semibold">{Math.round(avgDays)}d</span></span>
+                    <span className="text-gray-500">Avg return: <span className={`font-semibold ${avgReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>{pct(avgReturn)}</span></span>
+                  </>
+                );
+              })()}
+            </div>
             <div dir="ltr">
-              <ResponsiveContainer width="100%" height={240}>
-                <ScatterChart margin={{ top: 8, right: 24, left: 0, bottom: 4 }}>
+              <ResponsiveContainer width="100%" height={280}>
+                <ScatterChart margin={{ top: 20, right: 28, left: 0, bottom: 8 }}>
+                  <defs>
+                    <radialGradient id="durGreen" cx="30%" cy="30%">
+                      <stop offset="0%" stopColor="#6ee7b7" />
+                      <stop offset="100%" stopColor="#059669" />
+                    </radialGradient>
+                    <radialGradient id="durRed" cx="30%" cy="30%">
+                      <stop offset="0%" stopColor="#fca5a5" />
+                      <stop offset="100%" stopColor="#dc2626" />
+                    </radialGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                   <XAxis type="number" dataKey="days" name={t("analytics.heldFor")}
                     tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
                     tickFormatter={(v) => `${v}d`}
-                    label={{ value: t("analytics.heldFor"), fill: "#4b5563", fontSize: 10, position: "insideBottom", offset: -2 }}
+                    label={{ value: `← ${t("analytics.heldFor")} →`, fill: "#4b5563", fontSize: 10, position: "insideBottom", offset: -4 }}
                   />
                   <YAxis type="number" dataKey="returnPct" name={t("common.return")}
                     tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
                     tickFormatter={(v) => `${(v as number).toFixed(0)}%`}
-                    label={{ value: t("common.return"), fill: "#4b5563", fontSize: 10, angle: -90, position: "insideLeft", offset: 10 }}
+                    label={{ value: `↑ ${t("common.return")}`, fill: "#4b5563", fontSize: 10, angle: -90, position: "insideLeft", offset: 10 }}
                   />
-                  <ZAxis type="number" dataKey="invested" range={[60, 300]} />
-                  <ReferenceLine y={0} stroke="#374151" strokeDasharray="3 3" />
+                  <ZAxis type="number" dataKey="invested" range={[80, 400]} />
+                  <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" strokeWidth={1.5} />
                   <Tooltip
-                    contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
                     formatter={(v, name) =>
                       String(name) === t("common.return") ? [`${(v as number).toFixed(2)}%`, name] : [`${v} ${t("common.days")}`, name]
                     }
                     labelFormatter={(_, payload) => {
-                      const p = payload?.[0]?.payload as { symbol?: string } | undefined;
-                      return p?.symbol ?? "";
+                      const p = payload?.[0]?.payload as { symbol?: string; returnPct?: number } | undefined;
+                      return p ? `${p.symbol} · ${(p.returnPct ?? 0) >= 0 ? "+" : ""}${(p.returnPct ?? 0).toFixed(1)}%` : "";
                     }}
                   />
-                  <Scatter data={returnVsDurationData.filter((d) => d.isPositive)} fill="#10b981" fillOpacity={0.85} />
-                  <Scatter data={returnVsDurationData.filter((d) => !d.isPositive)} fill="#ef4444" fillOpacity={0.85} />
+                  <Scatter data={returnVsDurationData.filter((d) => d.isPositive)} fill="url(#durGreen)" fillOpacity={0.9}>
+                    <LabelList dataKey="symbol" position="top" style={{ fill: "#6ee7b7", fontSize: 9, fontWeight: 700 }} />
+                  </Scatter>
+                  <Scatter data={returnVsDurationData.filter((d) => !d.isPositive)} fill="url(#durRed)" fillOpacity={0.9}>
+                    <LabelList dataKey="symbol" position="top" style={{ fill: "#fca5a5", fontSize: 9, fontWeight: 700 }} />
+                  </Scatter>
                 </ScatterChart>
               </ResponsiveContainer>
               <div className="flex gap-4 mt-2 text-xs text-gray-500 justify-center">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> {t("analytics.profitable")}</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> {t("analytics.atLoss")}</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block" /> {t("analytics.profitable")}</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> {t("analytics.atLoss")}</span>
                 <span className="text-gray-600">({t("analytics.bubbleSize")})</span>
               </div>
             </div>

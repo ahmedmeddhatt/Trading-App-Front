@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
@@ -39,10 +39,28 @@ interface DashboardData {
   myStocks?: MyStockItem[];
 }
 
+interface RecentTransaction {
+  id: string;
+  symbol: string;
+  type: "BUY" | "SELL";
+  quantity: number;
+  price: number;
+  total?: number;
+  createdAt: string;
+}
+
 function useDashboardStocks() {
   return useQuery<DashboardData>({
     queryKey: ["stocks", "dashboard"],
     queryFn: () => apiClient.get<DashboardData>("/api/stocks/dashboard"),
+    retry: 1,
+  });
+}
+
+function useRecentTransactions() {
+  return useQuery<{ transactions: RecentTransaction[] }>({
+    queryKey: ["portfolio", "transactions", "recent"],
+    queryFn: () => apiClient.get<{ transactions: RecentTransaction[] }>("/api/portfolio/transactions?limit=5&sort=desc"),
     retry: 1,
   });
 }
@@ -53,6 +71,7 @@ export default function DashboardOverview() {
 
   const { data: dashData, isLoading: dashLoading, isError: dashError } = useDashboardStocks();
   const { data: portfolio } = usePortfolio();
+  const { data: recentTxData } = useRecentTransactions();
 
   // Stream only owned symbols — streaming all dashboard stocks (20-30+) saturates
   // the browser HTTP connection pool and blocks navigation clicks.
@@ -109,6 +128,46 @@ export default function DashboardOverview() {
             </div>
           </Link>
         </div>
+
+        {/* Recent Transactions */}
+        {recentTxData?.transactions && recentTxData.transactions.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{t("dashboard.recentTx") ?? "Recent Transactions"}</h2>
+              <Link href="/portfolio/transactions" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
+                {t("common.viewAll") ?? "View All"}
+              </Link>
+            </div>
+            <div className="bg-gray-900 rounded-xl divide-y divide-gray-800">
+              {recentTxData.transactions.map((tx) => {
+                const isBuy = tx.type === "BUY";
+                const total = tx.total ?? tx.price * tx.quantity;
+                return (
+                  <div key={tx.id} className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-1.5 rounded-lg ${isBuy ? "bg-emerald-900/40" : "bg-orange-900/40"}`}>
+                        {isBuy ? <ArrowDownRight size={14} className="text-emerald-400" /> : <ArrowUpRight size={14} className="text-orange-400" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/stocks/${tx.symbol}`} className="text-white font-bold text-sm hover:text-blue-400 transition-colors">{tx.symbol}</Link>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBuy ? "bg-emerald-900/50 text-emerald-400" : "bg-orange-900/50 text-orange-400"}`}>
+                            {tx.type}
+                          </span>
+                        </div>
+                        <p className="text-gray-500 text-xs">{tx.quantity} shares @ ${tx.price.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white text-sm font-medium">${total.toFixed(2)}</p>
+                      <p className="text-gray-600 text-xs">{new Date(tx.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {dashError ? (
           <div className="flex flex-col items-center gap-2 py-10 bg-gray-900/60 border border-amber-900/40 rounded-xl">
