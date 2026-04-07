@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity, LayoutDashboard, BarChart2, Briefcase, LineChart, LogOut,
-  Receipt, ShieldAlert, Sun, Moon, Lightbulb,
+  Receipt, ShieldAlert, Sun, Moon, Lightbulb, UserCircle,
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { useTheme } from "@/context/ThemeContext";
@@ -18,6 +18,7 @@ const NAV_KEYS = [
   { href: "/analytics",              key: "nav.analytics",    icon: LineChart },
   { href: "/analytics/risk",         key: "nav.risk",         icon: ShieldAlert },
   { href: "/strategies",             key: "nav.strategies",   icon: Lightbulb },
+  { href: "/profile",                key: "nav.profile",      icon: UserCircle },
 ] as const;
 
 const MOBILE_NAV_KEYS = NAV_KEYS.slice(0, 4);

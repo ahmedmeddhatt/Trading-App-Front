@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
+import SignalBadge from "@/components/SignalBadge";
 import { useLanguage } from "@/context/LanguageContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -54,26 +55,6 @@ function loadWatchlist(): Set<string> {
 
 function saveWatchlist(set: Set<string>) {
   localStorage.setItem(WATCHLIST_KEY, JSON.stringify([...set]));
-}
-
-// ─── Signal Badge ─────────────────────────────────────────────────────────────
-
-const SIGNAL_STYLES: Record<string, string> = {
-  "Strong Buy": "bg-emerald-900 text-emerald-300",
-  "Buy": "bg-green-900 text-green-300",
-  "Neutral": "bg-gray-800 text-gray-400",
-  "Sell": "bg-amber-900 text-amber-400",
-  "Strong Sell": "bg-amber-950 text-amber-500",
-};
-
-function SignalBadge({ signal }: { signal?: string }) {
-  if (!signal) return <span className="text-gray-700">—</span>;
-  const cls = SIGNAL_STYLES[signal] ?? "bg-gray-800 text-gray-400";
-  return (
-    <span className={`px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap ${cls}`}>
-      {signal}
-    </span>
-  );
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────

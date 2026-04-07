@@ -7,6 +7,7 @@ const ar: Record<string, string> = {
   "nav.analytics":     "التحليلات",
   "nav.risk":          "المخاطر",
   "nav.strategies":    "الاستراتيجيات",
+  "nav.profile":       "الملف الشخصي",
   "nav.signOut":       "تسجيل الخروج",
 
   // ── Common UI ───────────────────────────────────────────────────────────────

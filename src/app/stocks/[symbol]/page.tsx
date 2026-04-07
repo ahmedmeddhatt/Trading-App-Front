@@ -12,6 +12,7 @@ import {
   ComposedChart, Bar, Area, ReferenceLine, Legend, Cell,
 } from "recharts";
 import { apiClient } from "@/lib/apiClient";
+import SignalBadge from "@/components/SignalBadge";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import TradeForm from "@/features/trade/components/TradeForm";
@@ -74,24 +75,18 @@ interface TechnicalData {
   }>;
 }
 
-// ─── Signal Badge ─────────────────────────────────────────────────────────────
+// ─── AI Signal Types ──────────────────────────────────────────────────────────
 
-const SIGNAL_STYLES: Record<string, string> = {
-  "Strong Buy": "bg-emerald-900 text-emerald-300",
-  "Buy": "bg-green-900 text-green-300",
-  "Neutral": "bg-gray-800 text-gray-400",
-  "Sell": "bg-amber-900 text-amber-400",
-  "Strong Sell": "bg-amber-950 text-amber-500",
-};
-
-function SignalBadge({ signal }: { signal?: string | null }) {
-  if (!signal) return <span className="text-gray-600 text-sm">N/A</span>;
-  const cls = SIGNAL_STYLES[signal] ?? "bg-gray-800 text-gray-400";
-  return (
-    <span className={`px-2 py-1 rounded text-sm font-semibold ${cls}`}>
-      {signal}
-    </span>
-  );
+interface AISignalData {
+  signal: string;
+  confidence: string;
+  score: number;
+  reasons: string[];
+  summary: string;
+  risks: string[];
+  targetAction: string;
+  horizon: string;
+  source: string;
 }
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -100,6 +95,25 @@ function useStockDetail(symbol: string) {
   return useQuery<StockDetail>({
     queryKey: ["stock", symbol],
     queryFn: () => apiClient.get<StockDetail>(`/api/stocks/${symbol}`),
+    retry: 1,
+  });
+}
+
+function useUserHorizon() {
+  const { data } = useQuery<{ investmentHorizon?: string }>({
+    queryKey: ["auth", "me"],
+    queryFn: () => apiClient.get<{ investmentHorizon?: string }>("/api/auth/me"),
+    staleTime: 30 * 60 * 1000,
+    retry: false,
+  });
+  return data?.investmentHorizon ?? "MID_TERM";
+}
+
+function useAISignal(symbol: string, horizon = "MID_TERM") {
+  return useQuery<AISignalData>({
+    queryKey: ["ai-signal", symbol, horizon],
+    queryFn: () => apiClient.get<AISignalData>(`/api/stocks/${symbol}/signal?horizon=${horizon}`),
+    staleTime: 10 * 60 * 1000,
     retry: 1,
   });
 }
@@ -153,6 +167,8 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
   const { data: stock, isLoading: stockLoading, isError: stockError, refetch: refetchStock } = useStockDetail(symbol);
   const { data: history = [], isLoading: histLoading } = useStockHistory(symbol, range);
   const { data: techData, isLoading: techLoading } = useTechnicalAnalysis(symbol);
+  const userHorizon = useUserHorizon();
+  const { data: aiSignal, isLoading: aiSignalLoading } = useAISignal(symbol, userHorizon);
   const { data: portfolio } = usePortfolio();
   const { prices } = usePriceStream([symbol]);
   const priceData = prices[symbol] ?? null;
@@ -300,7 +316,64 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
         {/* Left 2 cols */}
         <div className="lg:col-span-2 space-y-4">
 
-          {/* Signal cards */}
+          {/* AI Signal Analysis */}
+          {aiSignal && (
+            <div className="bg-gray-900 rounded-xl p-4 sm:p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">AI Analysis</h3>
+                <span className="text-[10px] text-gray-600">
+                  {aiSignal.source === "ai" ? "Powered by Gemini" : "Technical Analysis"}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <SignalBadge
+                  signal={aiSignal.signal}
+                  reasons={aiSignal.reasons}
+                  summary={aiSignal.summary}
+                  confidence={aiSignal.confidence}
+                  size="md"
+                />
+                <span className="text-gray-500 text-sm">{aiSignal.summary}</span>
+              </div>
+              {aiSignal.reasons.length > 0 && (
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs text-gray-400">
+                  {aiSignal.reasons.map((r, i) => (
+                    <li key={i} className="flex gap-1.5">
+                      <span className="text-emerald-500 shrink-0">✓</span>
+                      <span>{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {aiSignal.risks.length > 0 && (
+                <div className="border-t border-gray-800 pt-2">
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Risks</p>
+                  <ul className="text-xs text-amber-400/80 space-y-0.5">
+                    {aiSignal.risks.map((r, i) => (
+                      <li key={i}>⚠ {r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {aiSignal.targetAction && (
+                <div className="bg-gray-800/50 rounded-lg px-3 py-2 text-xs text-gray-300">
+                  <span className="text-gray-500">Action: </span>{aiSignal.targetAction}
+                </div>
+              )}
+            </div>
+          )}
+          {aiSignalLoading && (
+            <div className="bg-gray-900 rounded-xl p-5 animate-pulse">
+              <div className="h-4 bg-gray-800 rounded w-24 mb-3" />
+              <div className="h-6 bg-gray-800 rounded w-32 mb-2" />
+              <div className="space-y-1">
+                <div className="h-3 bg-gray-800 rounded w-full" />
+                <div className="h-3 bg-gray-800 rounded w-3/4" />
+              </div>
+            </div>
+          )}
+
+          {/* EgxPilot Signal cards */}
           {stock && (stock.signals?.daily || stock.signals?.weekly || stock.signals?.monthly || stock.recommendation) && (
             <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-3">
               {[

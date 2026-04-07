@@ -7,6 +7,7 @@ const en = {
   "nav.analytics":     "Analytics",
   "nav.risk":          "Risk",
   "nav.strategies":    "Strategies",
+  "nav.profile":       "Profile",
   "nav.signOut":       "Sign out",
 
   // ── Common UI ───────────────────────────────────────────────────────────────
