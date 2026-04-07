@@ -6,7 +6,10 @@ import {
   ComposedChart, Line, ReferenceLine, XAxis, YAxis, Tooltip,
   CartesianGrid, ResponsiveContainer, Area,
 } from "recharts";
-import { Loader2, ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { Loader2, ArrowLeft, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
@@ -31,6 +34,24 @@ interface TxDetail {
 
 export default function TransactionDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [deleting, setDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await apiClient.delete(`/api/portfolio/transactions/${id}`);
+      queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions-master"] });
+      queryClient.invalidateQueries({ queryKey: ["position-detail"] });
+      router.push("/portfolio/transactions");
+    } catch (e) {
+      alert((e as Error).message ?? "Failed to delete");
+      setDeleting(false);
+    }
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["tx-detail", id],
@@ -91,9 +112,37 @@ export default function TransactionDetailPage() {
               </div>
               <p className="text-gray-500 text-sm">{tradeDate}</p>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold">{formatEGP(tx.total)}</p>
-              <p className="text-gray-500 text-sm">Total Value</p>
+            <div className="flex items-start gap-3">
+              <div className="text-right">
+                <p className="text-2xl font-bold">{formatEGP(tx.total)}</p>
+                <p className="text-gray-500 text-sm">Total Value</p>
+              </div>
+              {!showConfirm ? (
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                  title="Delete transaction"
+                >
+                  <Trash2 size={18} />
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 bg-red-900/20 border border-red-800 rounded-lg px-3 py-2">
+                  <span className="text-red-400 text-xs">Delete?</span>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="px-2 py-1 rounded text-xs font-bold bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
+                  >
+                    {deleting ? "..." : "Yes"}
+                  </button>
+                  <button
+                    onClick={() => setShowConfirm(false)}
+                    className="px-2 py-1 rounded text-xs font-bold bg-gray-700 hover:bg-gray-600 text-gray-300"
+                  >
+                    No
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, Download, Loader2, ChevronUp, ChevronDown, Plus } from "lucide-react";
+import { ArrowUpDown, Download, Loader2, ChevronUp, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
@@ -36,6 +37,8 @@ export default function TransactionsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const queryClient = useQueryClient();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { data: portfolio } = usePortfolio();
   const ownedPositions = (portfolio?.positions ?? []).map((p) => ({ symbol: p.symbol, quantity: p.quantity }));
 
@@ -70,6 +73,21 @@ export default function TransactionsPage() {
     sortKey === k
       ? sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />
       : <ArrowUpDown size={12} className="text-gray-600" />;
+
+  const handleDeleteTx = async (txId: string) => {
+    if (!confirm("Delete this transaction? The position will be recalculated.")) return;
+    setDeletingId(txId);
+    try {
+      await apiClient.delete(`/api/portfolio/transactions/${txId}`);
+      queryClient.invalidateQueries({ queryKey: ["transactions-master"] });
+      queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      queryClient.invalidateQueries({ queryKey: ["position-detail"] });
+    } catch (e) {
+      alert((e as Error).message ?? "Failed to delete");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleExport = () => {
     if (!sorted.length) return;
@@ -208,6 +226,16 @@ export default function TransactionsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Link href={`/portfolio/transactions/${row.id}`} className="text-blue-400 hover:text-blue-300 text-xs">{t("tx.view")}</Link>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleDeleteTx(row.id)}
+                        disabled={deletingId === row.id}
+                        className="text-gray-600 hover:text-red-400 transition-colors disabled:opacity-50"
+                        title="Delete transaction"
+                      >
+                        {deletingId === row.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                      </button>
                     </td>
                   </tr>
                 ))}

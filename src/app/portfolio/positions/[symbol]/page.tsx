@@ -16,7 +16,7 @@ import { formatEGP, formatSignedEGP, formatPct, pnlColor } from "@/lib/tradeCalc
 import { useLanguage } from "@/context/LanguageContext";
 
 interface PositionDetail {
-  position: { symbol: string; quantity: string; averagePrice: string; totalInvested: string };
+  position: { symbol: string; totalQuantity: string; averagePrice: string; totalInvested: string };
   isClosed: boolean;
   closedDate: string | null;
   currentPrice: string | null;
@@ -223,7 +223,7 @@ export default function PositionDetailPage() {
               <p className={`text-lg font-bold ${color ?? "text-white"}`}>{value}</p>
             </div>
           )) : [
-            { label: t("trade.quantity"), value: position.quantity },
+            { label: t("trade.quantity"), value: position.totalQuantity },
             { label: t("common.avgCost"), value: formatEGP(position.averagePrice) },
             { label: t("portfolio.breakEven"), value: formatEGP(breakEvenPrice) },
             { label: t("common.currentPrice"), value: cp ? formatEGP(cp) : "—" },
@@ -298,7 +298,7 @@ export default function PositionDetailPage() {
             </div>
 
             {/* Scenario analysis */}
-            {!isClosed && parseFloat(position.quantity) > 0 && (
+            {!isClosed && parseFloat(position.totalQuantity) > 0 && (
               <div className="mt-4 pt-4 border-t border-gray-800">
                 <p className="text-xs text-gray-500 mb-2">To break even, price needs to move:</p>
                 <div className="flex items-center gap-2">
@@ -425,7 +425,7 @@ export default function PositionDetailPage() {
                     cursor={{ fill: "#ffffff08" }}
                   />
                   {cp != null && (
-                    <ReferenceLine x={cp * parseFloat(position.quantity) / ladder.length} stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1} />
+                    <ReferenceLine x={cp * parseFloat(position.totalQuantity) / ladder.length} stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1} />
                   )}
                   <Bar dataKey="lotValue" radius={[0, 6, 6, 0]} barSize={30}>
                     {ladder.map((entry, i) => (
