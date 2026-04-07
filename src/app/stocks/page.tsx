@@ -27,7 +27,7 @@ interface StockItem {
   price?: number;
   change?: number;
   changePercent?: number;
-
+  sector?: string;
   marketCap?: number;
   pe?: number;
   signal?: string;
