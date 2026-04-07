@@ -19,7 +19,7 @@ interface DashboardStock {
   change?: number;
   changePercent?: number;
   lastUpdate?: string;
-  sector?: string;
+
   marketCap?: number;
   pe?: number;
 }

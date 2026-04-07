@@ -78,7 +78,6 @@ interface TimelinePoint {
 
 interface AllocationSlice { name: string; value: number; percentage: number; }
 interface AllocationData {
-  bySector: AllocationSlice[];
   bySymbol: AllocationSlice[];
 }
 

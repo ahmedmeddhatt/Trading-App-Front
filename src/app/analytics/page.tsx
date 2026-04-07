@@ -470,7 +470,7 @@ export default function AnalyticsPage() {
                 <YAxis
                   orientation={dir === "rtl" ? "right" : "left"}
                   tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
-                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                  tickFormatter={(v: number) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}
                 />
                 <Tooltip
                   contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
@@ -563,7 +563,7 @@ export default function AnalyticsPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                     <XAxis dataKey="symbol" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={64}
-                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                      tickFormatter={(v: number) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)} />
                     <Tooltip
                       contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
                       formatter={(v: unknown, name: unknown) => [

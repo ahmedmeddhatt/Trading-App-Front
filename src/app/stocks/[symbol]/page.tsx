@@ -31,7 +31,7 @@ interface StockSignals {
 interface StockDetail {
   symbol: string;
   name?: string;
-  sector?: string;
+
   marketCap?: number;
   pe?: number;
   price: number | null;
@@ -237,11 +237,6 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                   {stock?.name && (
                     <h1 className="text-lg sm:text-2xl font-bold">{stock.name}</h1>
                   )}
-                  {stock?.sector && (
-                    <span className="bg-gray-800 text-gray-400 px-2 py-0.5 rounded text-xs">
-                      {stock.sector}
-                    </span>
-                  )}
                   <span
                     className={`px-2 py-0.5 rounded text-xs font-medium ${
                       marketStatus.isOpen
@@ -324,7 +319,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
           {/* Fundamentals */}
           {stock && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {stock.sector && <InfoCard label="Sector" value={stock.sector} />}
+
               {stock.marketCap && (
                 <InfoCard
                   label="Market Cap"

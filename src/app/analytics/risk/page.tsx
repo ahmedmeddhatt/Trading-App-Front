@@ -263,39 +263,6 @@ export default function RiskPage() {
             </div>
           </div>
         )}
-
-        {/* Sector Risk */}
-        {sectorRisk.length > 0 && (
-          <div className="bg-gray-900 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-800">
-              <h2 className="text-sm font-semibold text-gray-400">{t("risk.sectorRisk")}</h2>
-            </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-500 text-xs border-b border-gray-800">
-                  <th className="px-4 py-2 text-left">{t("common.sector")}</th>
-                  <th className="px-4 py-2 text-left">{t("risk.weight")}</th>
-                  <th className="px-4 py-2 text-left">{t("risk.hhiContribution")}</th>
-                  <th className="px-4 py-2 text-left">{t("risk.exposureBar")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sectorRisk.sort((a, b) => b.weight - a.weight).map((s) => (
-                  <tr key={s.sector} className="td-row border-b border-gray-800/50">
-                    <td className="px-4 py-2 text-white">{s.sector}</td>
-                    <td className="px-4 py-2">{s.weight.toFixed(1)}%</td>
-                    <td className="px-4 py-2 text-gray-400">{s.hhiContribution.toFixed(0)}</td>
-                    <td className="px-4 py-3">
-                      <div className="bg-gray-800 rounded-full h-1.5 w-32">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, s.weight)}%` }} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </AppShell>
   );

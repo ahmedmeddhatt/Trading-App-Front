@@ -26,7 +26,7 @@ interface StockItem {
   price?: number;
   change?: number;
   changePercent?: number;
-  sector?: string;
+
   marketCap?: number;
   pe?: number;
   signal?: string;
@@ -96,14 +96,14 @@ const PAGE_SIZE = 25;
 
 const STOCKS_FILTER_KEY = "tradedesk_stocks_filter";
 
-function saveFilters(q: string, sector: string, minPE: string, maxPE: string, page: number) {
-  try { sessionStorage.setItem(STOCKS_FILTER_KEY, JSON.stringify({ q, sector, minPE, maxPE, page })); } catch {}
+function saveFilters(q: string, minPE: string, maxPE: string, page: number) {
+  try { sessionStorage.setItem(STOCKS_FILTER_KEY, JSON.stringify({ q, minPE, maxPE, page })); } catch {}
 }
 
 function loadFilters() {
   try {
     const raw = sessionStorage.getItem(STOCKS_FILTER_KEY);
-    return raw ? JSON.parse(raw) as { q: string; sector: string; minPE: string; maxPE: string; page: number } : null;
+    return raw ? JSON.parse(raw) as { q: string; minPE: string; maxPE: string; page: number } : null;
   } catch { return null; }
 }
 
@@ -116,11 +116,6 @@ function StocksPageInner() {
     const fromUrl = searchParams.get("q");
     if (fromUrl !== null) return fromUrl;
     return loadFilters()?.q ?? "";
-  });
-  const [sector, setSector] = useState(() => {
-    const fromUrl = searchParams.get("sector");
-    if (fromUrl !== null) return fromUrl;
-    return loadFilters()?.sector ?? "";
   });
   const [minPE, setMinPE] = useState(() => {
     const fromUrl = searchParams.get("minPE");
@@ -165,19 +160,17 @@ function StocksPageInner() {
   useEffect(() => {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
-    if (sector) params.set("sector", sector);
     if (minPE) params.set("minPE", minPE);
     if (maxPE) params.set("maxPE", maxPE);
     if (page > 1) params.set("page", String(page));
     const qs = params.toString();
     router.replace(qs ? `/stocks?${qs}` : "/stocks", { scroll: false });
-    saveFilters(debouncedSearch, sector, minPE, maxPE, page);
-  }, [debouncedSearch, sector, minPE, maxPE, page, router]);
+    saveFilters(debouncedSearch, minPE, maxPE, page);
+  }, [debouncedSearch, minPE, maxPE, page, router]);
 
   // Build query string for API
   const apiQuery = new URLSearchParams();
   if (debouncedSearch) apiQuery.set("search", debouncedSearch);
-  if (sector) apiQuery.set("sector", sector);
   if (minPE) apiQuery.set("minPE", minPE);
   if (maxPE) apiQuery.set("maxPE", maxPE);
   apiQuery.set("page", String(page));
@@ -237,15 +230,11 @@ function StocksPageInner() {
 
   const clearFilters = () => {
     setSearch("");
-    setSector("");
     setMinPE("");
     setMaxPE("");
     setPage(1);
   };
-  const hasFilters = !!(search || sector || minPE || maxPE);
-
-  // Unique sectors from data
-  const sectors = [...new Set(stocks.map((s) => s.sector).filter(Boolean))];
+  const hasFilters = !!(search || minPE || maxPE);
 
   return (
     <AppShell>
@@ -318,22 +307,7 @@ function StocksPageInner() {
 
         {/* Filter panel */}
         {showFilters && (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="text-gray-500 text-xs block mb-1">{t("common.sector")}</label>
-              <select
-                value={sector}
-                onChange={(e) => { setSector(e.target.value); setPage(1); }}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white outline-none"
-              >
-                <option value="">{t("common.allSectors")}</option>
-                {sectors.map((s) => (
-                  <option key={s} value={s as string}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 grid grid-cols-2 gap-4">
             <div>
               <label className="text-gray-500 text-xs block mb-1">{t("stocks.minPe")}</label>
               <input

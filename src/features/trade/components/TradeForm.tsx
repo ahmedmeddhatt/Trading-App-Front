@@ -185,7 +185,18 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
 
       {/* Quantity */}
       <div className="space-y-1">
-        <label className="text-gray-500 text-xs">{t("trade.quantity")}</label>
+        <label className="text-gray-500 text-xs flex justify-between">
+          <span>{t("trade.quantity")}</span>
+          {side === "sell" && ownedQuantity > 0 && (
+            <button
+              type="button"
+              onClick={() => setQuantity(String(ownedQuantity))}
+              className="text-orange-400 hover:text-orange-300 text-xs font-semibold"
+            >
+              ALL ({ownedQuantity})
+            </button>
+          )}
+        </label>
         <input
           type="number"
           min="0"

@@ -12,19 +12,14 @@ export async function GET(req: NextRequest) {
   const backendRes = await fetchBackend(`/portfolio/${userId}/allocation`, {}, cookieHeader);
 
   if (!backendRes.ok) {
-    return NextResponse.json({ success: true, data: { bySector: [], bySymbol: [] } });
+    return NextResponse.json({ success: true, data: { bySymbol: [] } });
   }
 
   const body = await backendRes.json();
-  const raw = body?.data ?? { bySector: [], bySymbol: [] };
+  const raw = body?.data ?? { bySymbol: [] };
   return NextResponse.json({
     success: true,
     data: {
-      bySector: (raw.bySector ?? []).map((s: { sector: string; value: string; percent: string }) => ({
-        name: s.sector,
-        value: parseFloat(s.value),
-        percentage: parseFloat(s.percent),
-      })),
       bySymbol: (raw.bySymbol ?? []).map((s: { symbol: string; value: string; percent: string }) => ({
         name: s.symbol,
         value: parseFloat(s.value),
