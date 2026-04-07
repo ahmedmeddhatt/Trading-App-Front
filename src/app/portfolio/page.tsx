@@ -710,6 +710,10 @@ export default function PortfolioPage() {
     const { from, to } = rangeToFromTo(range);
     const fromMs = new Date(from).getTime();
     const toMs = new Date(to + "T23:59:59Z").getTime();
+    // Sum totalInvested across all active positions (constant for every point)
+    const totalInvestedSum = analytics.positions.reduce(
+      (sum, pos) => sum + Number(pos.totalInvested), 0,
+    );
     const byTs = new Map<string, number>();
     for (const pos of analytics.positions) {
       const qty = Number(pos.totalQuantity);
@@ -732,7 +736,7 @@ export default function PortfolioPage() {
     }
     return Array.from(byTs.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([timestamp, totalValue]) => ({ timestamp, totalValue }));
+      .map(([timestamp, totalValue]) => ({ timestamp, totalValue, totalInvested: totalInvestedSum }));
   }, [analytics, range]);
 
   const effectiveTimeline = (timeline && timeline.length >= 2) ? timeline : graphDataTimeline;
@@ -764,7 +768,11 @@ export default function PortfolioPage() {
     <AppShell>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
         {/* Stat cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+          <StatCard
+            label={t("analytics.portfolioValue")}
+            value={`EGP ${(totalInvested + unrealized).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+          />
           <StatCard
             label={t("portfolio.totalInvested")}
             value={`EGP ${totalInvested.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}

@@ -11,7 +11,7 @@ import {
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Cell, Legend, ReferenceLine,
-  PieChart, Pie,
+  PieChart, Pie, ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
@@ -317,57 +317,88 @@ export default function AnalyticsPage() {
     return { abs: last - first, pct: first > 0 ? ((last - first) / first) * 100 : 0 };
   }, [effectiveTimeline]);
 
-  // PnL bar chart per position
+  // PnL bar chart per position — sorted by net P&L descending
   const pnlBarData = useMemo(() =>
-    positions.map((p) => ({
-      symbol: p.symbol,
-      unrealized: p.unrealizedNum,
-      realized: p.realizedNum,
-    })),
-    [positions]
-  );
-
-  // Return% scatter for positions
-  const returnData = useMemo(() =>
-    positions.map((p) => ({
-      symbol: p.symbol,
-      return: p.returnPct,
-      invested: p.investedNum,
-    })),
-    [positions]
-  );
-
-  // Capital: invested vs current market value per symbol
-  const capitalData = useMemo(() =>
-    positions.map((p) => ({
-      symbol: p.symbol,
-      invested: p.investedNum,
-      currentValue: p.investedNum + p.unrealizedNum,
-    })),
-    [positions]
-  );
-
-  // Price: avg cost basis vs current price per symbol
-  const priceVsCostData = useMemo(() =>
-    positions
-      .filter((p) => p.currentPrice != null && p.currentPrice > 0)
+    [...positions]
       .map((p) => ({
         symbol: p.symbol,
-        avgCost: parseFloat(String(p.averagePrice)),
-        currentPrice: p.currentPrice ?? 0,
+        unrealized: p.unrealizedNum,
+        realized: p.realizedNum,
+        net: p.unrealizedNum + p.realizedNum,
+      }))
+      .sort((a, b) => b.net - a.net),
+    [positions]
+  );
+
+  // Risk-Return scatter: invested vs return%, sized by market value
+  const riskReturnData = useMemo(() =>
+    positions
+      .filter((p) => p.investedNum > 0)
+      .map((p) => ({
+        symbol: p.symbol,
+        invested: p.investedNum,
+        returnPct: p.returnPct,
+        marketValue: p.investedNum + p.unrealizedNum,
+        isPositive: p.returnPct >= 0,
       })),
     [positions]
   );
 
-  // Holding duration per symbol
-  const holdingData = useMemo(() =>
+  // Portfolio value waterfall: invested → each gain/loss → total value
+  const waterfallData = useMemo(() => {
+    const items: { name: string; value: number; fill: string; isTotal?: boolean }[] = [];
+    items.push({ name: t("common.invested"), value: totalInvested, fill: "#3b82f6", isTotal: true });
+    const sorted = [...positions].sort((a, b) => (b.unrealizedNum + b.realizedNum) - (a.unrealizedNum + a.realizedNum));
+    for (const p of sorted) {
+      const net = p.unrealizedNum + p.realizedNum;
+      if (Math.abs(net) < 0.01) continue;
+      items.push({ name: p.symbol, value: net, fill: net >= 0 ? "#10b981" : "#ef4444" });
+    }
+    if (fees > 0) {
+      items.push({ name: t("common.fees"), value: -fees, fill: "#f59e0b" });
+    }
+    const totalValue = totalInvested + totalUnrealized + totalRealized;
+    items.push({ name: t("analytics.netValue"), value: totalValue, fill: totalValue >= totalInvested ? "#10b981" : "#ef4444", isTotal: true });
+    return items;
+  }, [positions, totalInvested, totalUnrealized, totalRealized, fees, t]);
+
+  // Position health data
+  const positionHealthData = useMemo(() =>
     positions
-      .filter((p) => (p.daysSinceFirstBuy ?? 0) > 0)
+      .filter((p) => p.currentPrice != null && p.currentPrice > 0)
+      .map((p) => {
+        const avgCost = parseFloat(String(p.averagePrice));
+        const current = p.currentPrice ?? 0;
+        const gap = avgCost > 0 ? ((current - avgCost) / avgCost) * 100 : 0;
+        const weight = totalInvested > 0 ? (p.investedNum / totalInvested) * 100 : 0;
+        return {
+          symbol: p.symbol,
+          avgCost,
+          currentPrice: current,
+          gap,
+          invested: p.investedNum,
+          marketValue: p.investedNum + p.unrealizedNum,
+          unrealized: p.unrealizedNum,
+          returnPct: p.returnPct,
+          days: p.daysSinceFirstBuy ?? 0,
+          weight,
+        };
+      })
+      .sort((a, b) => Math.abs(b.unrealized) - Math.abs(a.unrealized)),
+    [positions, totalInvested]
+  );
+
+  // Return vs Holding Duration scatter
+  const returnVsDurationData = useMemo(() =>
+    positions
+      .filter((p) => (p.daysSinceFirstBuy ?? 0) > 0 && p.investedNum > 0)
       .map((p) => ({
         symbol: p.symbol,
         days: p.daysSinceFirstBuy ?? 0,
-      }))
-      .sort((a, b) => b.days - a.days),
+        returnPct: p.returnPct,
+        invested: p.investedNum,
+        isPositive: p.returnPct >= 0,
+      })),
     [positions]
   );
 
@@ -487,169 +518,233 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        {/* ── Two-col: P&L bars + Performers ──────────── */}
+        {/* ── 1. P&L Breakdown — sorted by net, stacked unrealized + realized ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-          {/* P&L per symbol bar chart */}
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
             <SectionHeader title={t("analytics.pnlByPosition")} sub={t("analytics.pnlSub")} />
             {pnlBarData.length === 0 ? (
               <EmptyState message={t("analytics.noPositions2")} />
             ) : (
               <div dir="ltr">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={pnlBarData} margin={{ top: 4, right: dir === "rtl" ? 60 : 4, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="symbol" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis orientation={dir === "rtl" ? "right" : "left"} tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
-                    tickFormatter={(v) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)} />
+              <ResponsiveContainer width="100%" height={Math.max(180, pnlBarData.length * 38)}>
+                <BarChart data={pnlBarData} layout="vertical" margin={{ top: 4, right: 80, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                    tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(1)}k` : (v as number).toFixed(0)} />
+                  <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11, fontWeight: 700 }} tickLine={false} axisLine={false} width={52} />
                   <Tooltip
                     contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: "#9ca3af" }}
-                    formatter={(v: unknown, name: unknown) => [fmtEGP(v as number), name === "unrealized" ? t("common.unrealized") : t("common.realized")]}
+                    labelStyle={{ color: "#9ca3af", fontWeight: 700 }}
+                    formatter={(v: unknown, name: unknown) => [
+                      fmtSignedEGP(v as number),
+                      name === "unrealized" ? t("common.unrealized") : name === "realized" ? t("common.realized") : "Net",
+                    ]}
                   />
-                  <Bar dataKey="unrealized" name="unrealized" radius={[3, 3, 0, 0]}>
+                  <Legend wrapperStyle={{ fontSize: 10, color: "#6b7280" }}
+                    formatter={(v) => v === "unrealized" ? t("common.unrealized") : t("common.realized")} />
+                  <ReferenceLine x={0} stroke="#374151" />
+                  <Bar dataKey="unrealized" name="unrealized" stackId="pnl" radius={[0, 0, 0, 0]}>
                     {pnlBarData.map((entry, i) => (
                       <Cell key={i} fill={entry.unrealized >= 0 ? "#10b981" : "#ef4444"} fillOpacity={0.85} />
                     ))}
                   </Bar>
-                  <Bar dataKey="realized" name="realized" radius={[3, 3, 0, 0]} fill="#3b82f6" fillOpacity={0.6} />
+                  <Bar dataKey="realized" name="realized" stackId="pnl" radius={[0, 3, 3, 0]} fill="#3b82f6" fillOpacity={0.6} />
                 </BarChart>
               </ResponsiveContainer>
               </div>
             )}
           </div>
 
-          {/* Return % per symbol */}
+          {/* ── 2. Risk-Return Scatter — invested vs return%, bubble = market value ── */}
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <SectionHeader title={t("analytics.returnByPosition")} sub={t("analytics.returnSub")} />
-            {returnData.length === 0 ? (
+            <SectionHeader title={t("analytics.riskReturn")} sub={t("analytics.riskReturnSub")} />
+            {riskReturnData.length === 0 ? (
               <EmptyState message={t("analytics.noPositions2")} />
             ) : (
               <div dir="ltr">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={returnData} layout="vertical" margin={{ top: 4, right: dir === "rtl" ? 48 : 12, left: dir === "rtl" ? 12 : 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
-                    tickFormatter={(v) => `${v.toFixed(0)}%`} />
-                  <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11 }} tickLine={false} axisLine={false} width={48} orientation={dir === "rtl" ? "right" : "left"} />
+              <ResponsiveContainer width="100%" height={Math.max(180, pnlBarData.length * 38)}>
+                <ScatterChart margin={{ top: 8, right: 24, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <XAxis type="number" dataKey="invested" name={t("common.invested")}
+                    tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                    tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(0)}k` : (v as number).toFixed(0)}
+                    label={{ value: t("common.invested"), fill: "#4b5563", fontSize: 10, position: "insideBottom", offset: -2 }}
+                  />
+                  <YAxis type="number" dataKey="returnPct" name={t("common.return")}
+                    tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                    tickFormatter={(v) => `${(v as number).toFixed(0)}%`}
+                    label={{ value: t("common.return"), fill: "#4b5563", fontSize: 10, angle: -90, position: "insideLeft", offset: 10 }}
+                  />
+                  <ZAxis type="number" dataKey="marketValue" range={[60, 400]} />
+                  <ReferenceLine y={0} stroke="#374151" strokeDasharray="3 3" />
                   <Tooltip
                     contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, t("common.return")]}
-                    labelFormatter={(label) => label}
+                    formatter={(v, name) =>
+                      String(name) === t("common.return") ? [`${(v as number).toFixed(2)}%`, name] : [fmtEGP(v as number), name]
+                    }
+                    labelFormatter={(_, payload) => {
+                      const p = payload?.[0]?.payload as { symbol?: string } | undefined;
+                      return p?.symbol ?? "";
+                    }}
                   />
-                  <Bar dataKey="return" radius={[0, 3, 3, 0]}>
-                    {returnData.map((entry, i) => (
-                      <Cell key={i} fill={entry.return >= 0 ? "#10b981" : "#ef4444"} fillOpacity={0.85} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                  <Scatter data={riskReturnData.filter((d) => d.isPositive)} fill="#10b981" fillOpacity={0.8} />
+                  <Scatter data={riskReturnData.filter((d) => !d.isPositive)} fill="#ef4444" fillOpacity={0.8} />
+                </ScatterChart>
               </ResponsiveContainer>
               </div>
             )}
           </div>
         </div>
 
-        {/* ── Capital Deployed vs Current Worth ────────── */}
-        {capitalData.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            {/* Invested vs Market Value */}
-            <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-              <SectionHeader title={t("analytics.capitalDeployed")} sub={t("analytics.capitalDeployedSub")} />
-              <div dir="ltr">
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={capitalData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                    <XAxis dataKey="symbol" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={64}
-                      tickFormatter={(v: number) => Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)} />
-                    <Tooltip
-                      contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: unknown, name: unknown) => [
-                        fmtEGP(v as number),
-                        name === "invested" ? t("common.invested") : t("analytics.currentValue"),
-                      ]}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 11, color: "#6b7280" }}
-                      formatter={(v) => v === "invested" ? t("common.invested") : t("analytics.currentValue")} />
-                    <Bar dataKey="invested" fill="#3b82f6" fillOpacity={0.7} radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="currentValue" radius={[3, 3, 0, 0]}>
-                      {capitalData.map((entry, i) => (
-                        <Cell key={i} fill={entry.currentValue >= entry.invested ? "#10b981" : "#ef4444"} fillOpacity={0.85} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Avg Cost Basis vs Current Price */}
-            <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-              <SectionHeader title={t("analytics.priceVsCost")} sub={t("analytics.priceVsCostSub")} />
-              {priceVsCostData.length === 0 ? <EmptyState message={t("analytics.noPriceData")} /> : (
-                <div dir="ltr">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={priceVsCostData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                      <XAxis dataKey="symbol" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} />
-                      <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={64}
-                        tickFormatter={(v) => `${v.toFixed(0)}`} />
-                      <Tooltip
-                        contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                        formatter={(v: unknown, name: unknown) => [
-                          fmtEGP(v as number),
-                          name === "avgCost" ? t("common.avgCost") : t("analytics.mktPrice"),
-                        ]}
-                      />
-                      <Legend wrapperStyle={{ fontSize: 11, color: "#6b7280" }}
-                        formatter={(v) => v === "avgCost" ? t("common.avgCost") : t("analytics.mktPrice")} />
-                      <Bar dataKey="avgCost" fill="#6b7280" fillOpacity={0.8} radius={[3, 3, 0, 0]} />
-                      <Bar dataKey="currentPrice" radius={[3, 3, 0, 0]}>
-                        {priceVsCostData.map((entry, i) => (
-                          <Cell key={i} fill={entry.currentPrice >= entry.avgCost ? "#10b981" : "#ef4444"} fillOpacity={0.85} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── Holding Duration ─────────────────────────── */}
-        {holdingData.length > 0 && (
+        {/* ── 3. Portfolio Value Waterfall ────────────────── */}
+        {waterfallData.length > 2 && (
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <SectionHeader title={t("analytics.holdingDuration")} sub={t("analytics.holdingDurationSub")} />
+            <SectionHeader title={t("analytics.valueWaterfall")} sub={t("analytics.valueWaterfallSub")} />
             <div dir="ltr">
-              <ResponsiveContainer width="100%" height={Math.max(140, holdingData.length * 36)}>
-                <BarChart data={holdingData} layout="vertical" margin={{ top: 4, right: 60, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
-                    tickFormatter={(v) => `${v}d`} />
-                  <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11 }} tickLine={false} axisLine={false} width={52} />
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={(() => {
+                  let running = 0;
+                  return waterfallData.map((d) => {
+                    if (d.isTotal) {
+                      const result = { name: d.name, value: d.value, base: 0, fill: d.fill };
+                      running = d.value;
+                      return result;
+                    }
+                    const base = running;
+                    running += d.value;
+                    return { name: d.name, value: Math.abs(d.value), base: d.value >= 0 ? base : base + d.value, fill: d.fill };
+                  });
+                })()} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10, fontWeight: 600 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
+                    tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(0)}k` : (v as number).toFixed(0)} />
                   <Tooltip
                     contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown) => [`${v as number} ${t("common.days")}`, t("analytics.heldFor")]}
+                    formatter={(v: unknown, name: unknown) => {
+                      if (name === "base") return [null, null];
+                      return [fmtEGP(v as number), t("analytics.value")];
+                    }}
                   />
-                  <ReferenceLine x={30} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: "30d", fill: "#f59e0b", fontSize: 10 }} />
-                  <ReferenceLine x={90} stroke="#8b5cf6" strokeDasharray="3 3" label={{ value: "90d", fill: "#8b5cf6", fontSize: 10 }} />
-                  <Bar dataKey="days" radius={[0, 3, 3, 0]}>
-                    {holdingData.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={entry.days < 30 ? "#f59e0b" : entry.days < 90 ? "#3b82f6" : "#8b5cf6"}
-                        fillOpacity={0.85}
-                      />
+                  <Bar dataKey="base" stackId="w" fill="transparent" />
+                  <Bar dataKey="value" stackId="w" radius={[3, 3, 0, 0]}>
+                    {waterfallData.map((d, i) => (
+                      <Cell key={i} fill={d.fill} fillOpacity={d.isTotal ? 0.9 : 0.75} />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* ── 4. Position Health Cards ────────────────────── */}
+        {positionHealthData.length > 0 && (
+          <div className="space-y-3">
+            <SectionHeader title={t("analytics.positionHealth")} sub={t("analytics.positionHealthSub")} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {positionHealthData.map((p) => {
+                const isUp = p.gap >= 0;
+                return (
+                  <div key={p.symbol} className="bg-gray-900 rounded-xl p-4 space-y-3">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <Link href={`/stocks/${p.symbol}`} className="font-bold text-white text-sm hover:text-blue-400 transition-colors font-mono">
+                        {p.symbol}
+                      </Link>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isUp ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"}`}>
+                        {isUp ? "+" : "−"}{Math.abs(p.gap).toFixed(1)}%
+                      </span>
+                    </div>
+                    {/* Price gap bar */}
+                    <div>
+                      <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                        <span>{t("common.avgCost")}: {fmtEGP(p.avgCost)}</span>
+                        <span>{t("analytics.mktPrice")}: {fmtEGP(p.currentPrice)}</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${isUp ? "bg-emerald-500" : "bg-red-500"}`}
+                          style={{ width: `${Math.min(100, Math.max(5, 50 + p.gap))}%` }}
+                        />
+                      </div>
+                    </div>
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <p className="text-gray-600 text-[10px]">{t("common.invested")}</p>
+                        <p className="text-white text-xs font-semibold">{fmtEGP(p.invested)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-[10px]">{t("analytics.currentValue")}</p>
+                        <p className="text-white text-xs font-semibold">{fmtEGP(p.marketValue)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-[10px]">P&L</p>
+                        <p className={`text-xs font-semibold ${p.unrealized >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {fmtSignedEGP(p.unrealized)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-[10px]">{t("common.return")}</p>
+                        <p className={`text-xs font-semibold ${p.returnPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {p.returnPct >= 0 ? "+" : "−"}{Math.abs(p.returnPct).toFixed(1)}%
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-[10px]">{t("analytics.heldFor")}</p>
+                        <p className="text-white text-xs font-semibold">{p.days}d</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 text-[10px]">{t("risk.weight")}</p>
+                        <p className="text-white text-xs font-semibold">{p.weight.toFixed(1)}%</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── 5. Return vs Holding Duration Scatter ───────── */}
+        {returnVsDurationData.length > 0 && (
+          <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+            <SectionHeader title={t("analytics.returnVsDuration")} sub={t("analytics.returnVsDurationSub")} />
+            <div dir="ltr">
+              <ResponsiveContainer width="100%" height={240}>
+                <ScatterChart margin={{ top: 8, right: 24, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                  <XAxis type="number" dataKey="days" name={t("analytics.heldFor")}
+                    tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                    tickFormatter={(v) => `${v}d`}
+                    label={{ value: t("analytics.heldFor"), fill: "#4b5563", fontSize: 10, position: "insideBottom", offset: -2 }}
+                  />
+                  <YAxis type="number" dataKey="returnPct" name={t("common.return")}
+                    tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
+                    tickFormatter={(v) => `${(v as number).toFixed(0)}%`}
+                    label={{ value: t("common.return"), fill: "#4b5563", fontSize: 10, angle: -90, position: "insideLeft", offset: 10 }}
+                  />
+                  <ZAxis type="number" dataKey="invested" range={[60, 300]} />
+                  <ReferenceLine y={0} stroke="#374151" strokeDasharray="3 3" />
+                  <Tooltip
+                    contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v, name) =>
+                      String(name) === t("common.return") ? [`${(v as number).toFixed(2)}%`, name] : [`${v} ${t("common.days")}`, name]
+                    }
+                    labelFormatter={(_, payload) => {
+                      const p = payload?.[0]?.payload as { symbol?: string } | undefined;
+                      return p?.symbol ?? "";
+                    }}
+                  />
+                  <Scatter data={returnVsDurationData.filter((d) => d.isPositive)} fill="#10b981" fillOpacity={0.85} />
+                  <Scatter data={returnVsDurationData.filter((d) => !d.isPositive)} fill="#ef4444" fillOpacity={0.85} />
+                </ScatterChart>
+              </ResponsiveContainer>
               <div className="flex gap-4 mt-2 text-xs text-gray-500 justify-center">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> &lt;30d</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> 30–90d</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" /> &gt;90d</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> {t("analytics.profitable")}</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> {t("analytics.atLoss")}</span>
+                <span className="text-gray-600">({t("analytics.bubbleSize")})</span>
               </div>
             </div>
           </div>
@@ -1017,17 +1112,20 @@ function ClosedTradeScoring() {
     .filter(([, v]) => v > 0)
     .map(([k, v]) => ({ name: `Grade ${k}`, value: v, key: k })) : [];
 
-  const returnBarData = trades.slice(0, 20).map((trade) => ({
-    symbol: `${trade.symbol} ${new Date(trade.id.slice(0, 10) || Date.now()).toLocaleDateString()}`,
-    return: parseFloat(trade.returnPct),
-    grade: trade.grade,
-  }));
+  const totalGrades = gradeData.reduce((s, d) => s + d.value, 0);
 
   return (
     <div className="bg-gray-900 rounded-xl p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <Award size={16} className="text-amber-400" />
-        <SectionHeader title={t("analytics.closedScoring")} sub={t("analytics.closedScoringSub")} />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Award size={16} className="text-amber-400" />
+          <SectionHeader title={t("analytics.closedScoring")} sub={t("analytics.closedScoringSub")} />
+        </div>
+        {trades.length > 5 && (
+          <Link href="/analytics/closed-trades" className="text-blue-400 hover:text-blue-300 text-xs font-medium">
+            {t("common.viewAll")} ({trades.length})
+          </Link>
+        )}
       </div>
 
       {summary && (
@@ -1046,55 +1144,48 @@ function ClosedTradeScoring() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Grade distribution donut */}
-        {gradeData.length > 0 && (
-          <div>
-            <p className="text-gray-500 text-xs mb-2">{t("analytics.gradeDist")}</p>
-            <div dir="ltr">
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie data={gradeData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
-                  {gradeData.map((entry, i) => (
-                    <Cell key={i} fill={GRADE_COLORS[entry.key as keyof typeof GRADE_COLORS] ?? "#6b7280"} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }} />
-                <Legend formatter={(v) => <span className="text-xs text-gray-400">{v}</span>} />
-              </PieChart>
-            </ResponsiveContainer>
+      {/* Grade distribution — horizontal bars + grade explanation */}
+      {gradeData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest">{t("analytics.gradeDist")}</p>
+            {gradeData.map((g) => {
+              const pct = totalGrades > 0 ? (g.value / totalGrades) * 100 : 0;
+              const color = GRADE_COLORS[g.key as keyof typeof GRADE_COLORS] ?? "#6b7280";
+              return (
+                <div key={g.key} className="flex items-center gap-3">
+                  <span className={`w-8 text-center px-1.5 py-0.5 rounded text-xs font-bold ${GRADE_BG[g.key]}`}>{g.key}</span>
+                  <div className="flex-1 h-5 bg-gray-800 rounded-full overflow-hidden relative">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color, opacity: 0.85 }} />
+                    <span className="absolute inset-0 flex items-center px-2 text-[10px] font-bold text-white">
+                      {g.value} {g.value === 1 ? "trade" : "trades"} ({pct.toFixed(0)}%)
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Grade explanation */}
+          <div className="space-y-2">
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest">{t("analytics.gradeExplain")}</p>
+            <div className="space-y-1.5">
+              {[
+                { grade: "A", color: GRADE_BG.A, desc: t("analytics.gradeADesc") },
+                { grade: "B", color: GRADE_BG.B, desc: t("analytics.gradeBDesc") },
+                { grade: "C", color: GRADE_BG.C, desc: t("analytics.gradeCDesc") },
+                { grade: "D", color: GRADE_BG.D, desc: t("analytics.gradeDDesc") },
+              ].map((g) => (
+                <div key={g.grade} className="flex items-start gap-2 p-2 rounded-lg bg-gray-800/50">
+                  <span className={`shrink-0 w-7 text-center px-1.5 py-0.5 rounded text-xs font-bold ${g.color}`}>{g.grade}</span>
+                  <p className="text-gray-400 text-xs leading-relaxed">{g.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Return % bar chart */}
-        {returnBarData.length > 0 && (
-          <div>
-            <p className="text-gray-500 text-xs mb-2">{t("analytics.returnPerTrade")}</p>
-            <div dir="ltr">
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={returnBarData} margin={{ left: dir === "rtl" ? 0 : -20, right: dir === "rtl" ? -20 : 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="symbol" tick={false} />
-                <YAxis orientation={dir === "rtl" ? "right" : "left"} tick={{ fill: "#6b7280", fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
-                <Tooltip
-                  contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8 }}
-                  formatter={(v: unknown) => [`${(v as number).toFixed(2)}%`, t("common.return")]}
-                />
-                <Bar dataKey="return" radius={[3, 3, 0, 0]}>
-                  {returnBarData.map((entry, i) => (
-                    <Cell key={i} fill={GRADE_COLORS[entry.grade] ?? "#6b7280"} opacity={0.85} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Trade list */}
+      {/* Trade list — first 5 only */}
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
@@ -1105,7 +1196,7 @@ function ClosedTradeScoring() {
             </tr>
           </thead>
           <tbody>
-            {trades.map((trade) => (
+            {trades.slice(0, 5).map((trade) => (
               <tr key={trade.id} className="td-row border-b border-gray-800/50">
                 <td className="px-3 py-2 font-mono font-bold">{trade.symbol}</td>
                 <td className="px-3 py-2">{trade.quantity}</td>
@@ -1128,6 +1219,13 @@ function ClosedTradeScoring() {
             ))}
           </tbody>
         </table>
+        {trades.length > 5 && (
+          <div className="px-4 py-3 border-t border-gray-800 text-center">
+            <Link href="/analytics/closed-trades" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+              {t("common.viewAll")} ({trades.length})
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
