@@ -97,6 +97,9 @@ export default function PositionDetailPage() {
     costBasisLadder, priceHistory, allTransactions, realizedGains,
   } = data;
 
+  const totalBought = allTransactions.filter(tx => tx.type === "BUY").reduce((sum, tx) => sum + parseFloat(tx.quantity), 0);
+  const totalSold = allTransactions.filter(tx => tx.type === "SELL").reduce((sum, tx) => sum + parseFloat(tx.quantity), 0);
+
   const cp = currentPrice ? parseFloat(currentPrice) : null;
   const be = parseFloat(breakEvenPrice);
   const gap = gapToBreakEven ? parseFloat(gapToBreakEven) : null;
@@ -204,11 +207,13 @@ export default function PositionDetailPage() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {isClosed ? [
             { label: t("common.invested"), value: formatEGP(position.totalInvested) },
             { label: t("pos.totalProceeds"), value: formatEGP(totalProceedsFromSells) },
             { label: t("pos.totalRealizedPnL"), value: formatSignedEGP(totalRealizedPnL), color: pnlColor(totalRealizedPnL) },
+            { label: t("pos.totalBought"), value: `${totalBought}`, color: "text-emerald-400" },
+            { label: t("pos.totalSold"), value: `${totalSold}`, color: "text-orange-400" },
             { label: t("pos.totalFeesPaid"), value: formatEGP(totalFeesPaid) },
             { label: t("pos.daysHeld"), value: `${daysHeld}d` },
             { label: t("pos.sellTrades"), value: `${realizedGains.length}` },
@@ -222,12 +227,14 @@ export default function PositionDetailPage() {
             { label: t("common.avgCost"), value: formatEGP(position.averagePrice) },
             { label: t("portfolio.breakEven"), value: formatEGP(breakEvenPrice) },
             { label: t("common.currentPrice"), value: cp ? formatEGP(cp) : "—" },
+            { label: t("pos.totalBought"), value: `${totalBought}`, color: "text-emerald-400" },
+            { label: t("pos.totalSold"), value: `${totalSold}`, color: "text-orange-400" },
             { label: t("pos.daysHeld"), value: `${daysHeld}d` },
             { label: t("pos.totalFeesPaid"), value: formatEGP(totalFeesPaid) },
-          ].map(({ label, value }) => (
+          ].map(({ label, value, color }) => (
             <div key={label} className="bg-gray-900 rounded-xl p-4">
               <p className="text-gray-500 text-xs mb-1">{label}</p>
-              <p className="text-lg font-bold text-white">{value}</p>
+              <p className={`text-lg font-bold ${color ?? "text-white"}`}>{value}</p>
             </div>
           ))}
         </div>

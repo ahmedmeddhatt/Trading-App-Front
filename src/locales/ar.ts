@@ -339,6 +339,8 @@ const ar: Record<string, string> = {
   "pos.totalRealizedPnL":"الأرباح/الخسائر المحققة",
   "pos.totalFeesPaid":   "إجمالي الرسوم المدفوعة",
   "pos.sellTrades":      "صفقات البيع",
+  "pos.totalBought":     "إجمالي الشراء",
+  "pos.totalSold":       "إجمالي البيع",
   "pos.cumulativePnL":   "الأرباح/الخسائر المحققة التراكمية",
   "pos.tradePnL":        "أرباح/خسائر الصفقة",
   "tx.pnl":              "أر/خس",

@@ -23,5 +23,5 @@ export async function GET(req: NextRequest) {
   }
 
   const body = await backendRes.json();
-  return NextResponse.json(body);
+  return NextResponse.json({ success: true, data: body });
 }

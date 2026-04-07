@@ -16,10 +16,9 @@ export async function GET(
   );
 
   if (!backendRes.ok) {
-    // Return empty array so the chart gracefully shows "No data"
     return NextResponse.json({ success: true, data: [] });
   }
 
   const body = await backendRes.json();
-  return NextResponse.json(body);
+  return NextResponse.json({ success: true, data: body });
 }

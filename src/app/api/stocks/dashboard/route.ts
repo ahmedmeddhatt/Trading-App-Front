@@ -7,9 +7,9 @@ export async function GET(req: NextRequest) {
 
   if (!backendRes.ok) {
     const body = await backendRes.json().catch(() => ({}));
-    return NextResponse.json(body, { status: backendRes.status });
+    return NextResponse.json({ success: false, ...body }, { status: backendRes.status });
   }
 
   const body = await backendRes.json();
-  return NextResponse.json(body);
+  return NextResponse.json({ success: true, data: body });
 }

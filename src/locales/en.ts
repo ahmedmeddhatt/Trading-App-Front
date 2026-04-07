@@ -339,6 +339,8 @@ const en = {
   "pos.totalRealizedPnL":"Realized P&L",
   "pos.totalFeesPaid":   "Total Fees Paid",
   "pos.sellTrades":      "Sell Trades",
+  "pos.totalBought":     "Total Bought",
+  "pos.totalSold":       "Total Sold",
   "pos.cumulativePnL":   "Cumulative Realized P&L",
   "pos.tradePnL":        "Trade P&L",
   "tx.pnl":              "P&L",

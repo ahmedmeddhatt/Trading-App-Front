@@ -45,7 +45,9 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
   }, [quantity, priceInput]);
 
   const parsedFees = parseFloat(feesInput) || 0;
-  const total = qty * parsedPrice + parsedFees;
+  const total = side === "sell"
+    ? qty * parsedPrice - parsedFees
+    : qty * parsedPrice + parsedFees;
 
   const sellError = side === "sell" && qty > ownedQuantity
     ? `${t("trade.cantSell")} ${qty} — ${t("trade.youOnlyOwn")} ${ownedQuantity} ${t("trade.sharesUnit")}`
