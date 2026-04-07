@@ -277,6 +277,8 @@ const ar: Record<string, string> = {
 
   // ── Analytics extras ─────────────────────────────────────────────────────────
   "analytics.portfolioOverTime": "قيمة المحفظة عبر الزمن",
+  "analytics.revenueOverTime":   "الإيرادات عبر الزمن",
+  "analytics.revenue":           "الإيرادات",
   "analytics.returnLabel":       "عائد",
   "analytics.winRate":           "معدل الربح",
   "analytics.positions":         "مراكز",
@@ -362,6 +364,9 @@ const ar: Record<string, string> = {
   // ── Realized gains table ───────────────────────────────────────────────────
   "realized.allTrades":  "كل الصفقات",
   "realized.trades":     "صفقة",
+
+  // ── Common actions ────────────────────────────────────────────────────────
+  "common.viewAll":      "عرض الكل",
 };
 
 export default ar;

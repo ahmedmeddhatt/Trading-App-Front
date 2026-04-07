@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   AreaChart,
   Area,
@@ -13,9 +14,12 @@ import {
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
+type ChartMode = "value" | "revenue";
+
 export interface TimelinePoint {
   timestamp: string;
   totalValue: string | number;
+  totalInvested?: string | number;
 }
 
 const fmt = new Intl.NumberFormat("en-EG", {
@@ -43,7 +47,7 @@ function formatDate(ts: string, range: DateRange) {
 
 interface TooltipEntry {
   value: number;
-  payload: { fullDate: string; totalValue: number };
+  payload: { fullDate: string; totalValue: number; revenue: number };
 }
 
 function ChartTooltip({
@@ -105,17 +109,25 @@ function ChartTooltip({
 
 export default function TimelineChart({ data, range, onRangeChange, loading }: Props) {
   const { t, dir } = useLanguage();
+  const [mode, setMode] = useState<ChartMode>("value");
 
   // API returns totalValue as a decimal string — convert to number throughout
-  const chartData = data.map((p) => ({
-    date: formatDate(p.timestamp, range),
-    fullDate: new Date(p.timestamp).toLocaleDateString("en-US", {
-      weekday: "long", year: "numeric", month: "long", day: "numeric",
-    }),
-    totalValue: Number(p.totalValue),
-  }));
+  const chartData = data.map((p) => {
+    const value = Number(p.totalValue);
+    const invested = p.totalInvested != null ? Number(p.totalInvested) : null;
+    const revenue = invested != null ? value - invested : 0;
+    return {
+      date: formatDate(p.timestamp, range),
+      fullDate: new Date(p.timestamp).toLocaleDateString("en-US", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
+      }),
+      totalValue: value,
+      revenue,
+    };
+  });
 
-  const numericValues = chartData.map((d) => d.totalValue);
+  const dataKey = mode === "revenue" ? "revenue" : "totalValue";
+  const numericValues = chartData.map((d) => d[dataKey]);
   const isPositive =
     numericValues.length >= 2
       ? numericValues[numericValues.length - 1] >= numericValues[0]
@@ -128,9 +140,33 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
   return (
     <div className="bg-gray-900 rounded-xl p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-          {t("analytics.portfolioOverTime")}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+            {mode === "value" ? t("analytics.portfolioOverTime") : t("analytics.revenueOverTime")}
+          </h2>
+          <div className="flex gap-0.5 bg-gray-800 rounded-lg p-0.5">
+            <button
+              onClick={() => setMode("value")}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150 ${
+                mode === "value"
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {t("analytics.value")}
+            </button>
+            <button
+              onClick={() => setMode("revenue")}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150 ${
+                mode === "revenue"
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {t("analytics.revenue")}
+            </button>
+          </div>
+        </div>
         <div className="flex gap-1">
           {RANGES.map((r) => (
             <button
@@ -172,7 +208,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v: number) =>
-                  v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v.toFixed(0)}`
+                  Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v.toFixed(0)}`
                 }
                 width={44}
               />
@@ -202,7 +238,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
               )}
               <Area
                 type="monotone"
-                dataKey="totalValue"
+                dataKey={dataKey}
                 stroke={lineColor}
                 strokeWidth={2.5}
                 fill={lineColor}

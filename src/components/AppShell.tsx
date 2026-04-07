@@ -21,7 +21,10 @@ const NAV_KEYS = [
   { href: "/profile",                key: "nav.profile",      icon: UserCircle },
 ] as const;
 
-const MOBILE_NAV_KEYS = NAV_KEYS.slice(0, 4);
+const MOBILE_NAV_KEYS = [
+  ...NAV_KEYS.slice(0, 4),
+  NAV_KEYS.find((n) => n.href === "/profile")!,
+];
 
 function isActive(href: string, pathname: string) {
   if (href === "/stocks")    return pathname.startsWith("/stocks");

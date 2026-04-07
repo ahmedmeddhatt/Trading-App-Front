@@ -277,6 +277,8 @@ const en = {
 
   // ── Analytics extras ─────────────────────────────────────────────────────────
   "analytics.portfolioOverTime": "Portfolio Value Over Time",
+  "analytics.revenueOverTime":   "Revenue Over Time",
+  "analytics.revenue":           "Revenue",
   "analytics.returnLabel":       "return",
   "analytics.winRate":           "Win Rate",
   "analytics.positions":         "positions",
@@ -362,6 +364,9 @@ const en = {
   // ── Realized gains table ───────────────────────────────────────────────────
   "realized.allTrades":  "All Trades",
   "realized.trades":     "trades",
+
+  // ── Common actions ────────────────────────────────────────────────────────
+  "common.viewAll":      "View All",
 } as const;
 
 export type TranslationKey = keyof typeof en;

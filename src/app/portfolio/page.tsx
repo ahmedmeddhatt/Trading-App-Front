@@ -74,6 +74,7 @@ interface Analytics {
 interface TimelinePoint {
   timestamp: string;
   totalValue: string | number;
+  totalInvested?: string | number;
 }
 
 interface AllocationSlice { name: string; value: number; percentage: number; }
@@ -635,7 +636,7 @@ function RealizedGainsTable() {
                 No trades match this filter.
               </td>
             </tr>
-          ) : sorted.map((g) => {
+          ) : sorted.slice(0, 5).map((g) => {
             const profit = parseFloat(g.profit);
             const win = profit >= 0;
             const retPct = g.returnPct != null ? parseFloat(g.returnPct) : null;
@@ -675,6 +676,13 @@ function RealizedGainsTable() {
         </tfoot>
       </table>
       </div>
+      {sorted.length > 5 && (
+        <div className="px-4 py-3 border-t border-gray-800 text-center">
+          <Link href="/portfolio/realized-gains" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+            {t("common.viewAll")} ({sorted.length})
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -1141,7 +1149,7 @@ export default function PortfolioPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {closedPositions.map((cp) => {
+                  {closedPositions.slice(0, 5).map((cp) => {
                     const profit = parseFloat(cp.totalProfit);
                     const isWin = profit >= 0;
                     const retPct = cp.returnPct != null ? parseFloat(cp.returnPct) : null;
@@ -1190,6 +1198,13 @@ export default function PortfolioPage() {
                   })}
                 </tbody>
               </table>
+              {closedPositions.length > 5 && (
+                <div className="px-4 py-3 border-t border-gray-800 text-center">
+                  <Link href="/portfolio/closed-positions" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
+                    {t("common.viewAll")} ({closedPositions.length})
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}

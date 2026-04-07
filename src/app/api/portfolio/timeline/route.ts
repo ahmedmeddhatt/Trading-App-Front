@@ -17,6 +17,6 @@ export async function GET(req: NextRequest) {
   }
 
   const body = await backendRes.json();
-  const timeline = body?.data?.timeline ?? [];
+  const timeline = body?.data?.timeline ?? body?.timeline ?? [];
   return NextResponse.json({ success: true, data: timeline });
 }
