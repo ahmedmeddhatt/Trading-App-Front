@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Search } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
@@ -87,6 +87,28 @@ export default function DashboardOverview() {
             />
           </div>
         )}
+
+        {/* Quick Access — mobile only (these pages are hidden from mobile bottom nav) */}
+        <div className="grid grid-cols-3 gap-2 sm:hidden">
+          <Link href="/analytics">
+            <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
+              <LineChart size={20} className="text-blue-400" />
+              <span className="text-xs text-gray-300 font-medium">{t("nav.analytics")}</span>
+            </div>
+          </Link>
+          <Link href="/analytics/risk">
+            <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
+              <ShieldAlert size={20} className="text-amber-400" />
+              <span className="text-xs text-gray-300 font-medium">{t("nav.risk")}</span>
+            </div>
+          </Link>
+          <Link href="/strategies">
+            <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
+              <Lightbulb size={20} className="text-emerald-400" />
+              <span className="text-xs text-gray-300 font-medium">{t("nav.strategies")}</span>
+            </div>
+          </Link>
+        </div>
 
         {dashError ? (
           <div className="flex flex-col items-center gap-2 py-10 bg-gray-900/60 border border-amber-900/40 rounded-xl">

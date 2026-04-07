@@ -5,5 +5,5 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sym
   const { symbol } = await params;
   const res = await fetchBackend(`/stocks/${symbol.toUpperCase()}/technical`);
   const body = await res.json();
-  return NextResponse.json({ success: true, data: body }, { status: res.status });
+  return NextResponse.json({ success: true, data: body.data ?? body }, { status: res.status });
 }

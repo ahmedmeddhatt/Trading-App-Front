@@ -16,9 +16,9 @@ export async function GET(
   );
 
   if (!backendRes.ok) {
-    return NextResponse.json({ success: true, data: [] });
+    return NextResponse.json({ success: false, data: [] }, { status: backendRes.status });
   }
 
   const body = await backendRes.json();
-  return NextResponse.json({ success: true, data: body });
+  return NextResponse.json({ success: true, data: body.data ?? body });
 }

@@ -20,6 +20,8 @@ const NAV_KEYS = [
   { href: "/strategies",             key: "nav.strategies",   icon: Lightbulb },
 ] as const;
 
+const MOBILE_NAV_KEYS = NAV_KEYS.slice(0, 4);
+
 function isActive(href: string, pathname: string) {
   if (href === "/stocks")    return pathname.startsWith("/stocks");
   if (href === "/portfolio") return pathname === "/portfolio" || pathname.startsWith("/portfolio/positions");
@@ -161,7 +163,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             boxShadow: !isDark ? "0 -2px 16px rgba(14,30,60,0.07)" : undefined,
           }}
         >
-          {NAV_KEYS.map(({ href, key, icon: Icon }) => {
+          {MOBILE_NAV_KEYS.map(({ href, key, icon: Icon }) => {
             const active = isActive(href, pathname);
             return (
               <Link

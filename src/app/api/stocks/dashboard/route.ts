@@ -11,5 +11,5 @@ export async function GET(req: NextRequest) {
   }
 
   const body = await backendRes.json();
-  return NextResponse.json({ success: true, data: body });
+  return NextResponse.json({ success: true, data: body.data ?? body });
 }
