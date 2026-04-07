@@ -239,40 +239,80 @@ export default function PositionDetailPage() {
           ))}
         </div>
 
-        {/* Break-even Gauge */}
+        {/* Break-even Gauge — Enhanced */}
         {cp != null && (
-          <div className="bg-gray-900 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Target size={14} className="text-gray-400" />
-              <h2 className="text-sm font-semibold text-gray-400">{t("pos.breakEvenGauge")}</h2>
+          <div className="bg-gray-900 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Target size={14} className="text-gray-400" />
+                <h2 className="text-sm font-semibold text-gray-400">{t("pos.breakEvenGauge")}</h2>
+              </div>
+              <span className={`text-sm font-bold px-2.5 py-1 rounded-lg ${gap != null && gap >= 0 ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"}`}>
+                {gap != null ? (gap >= 0 ? "+" : "") + gap.toFixed(2) + "%" : "—"}
+              </span>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-gray-500 w-24 text-right">{formatEGP(gaugeMin)}</span>
-              <div className="relative flex-1 h-4 rounded-full overflow-hidden bg-gray-800">
-                {/* Static dim zones */}
-                <div className="absolute left-0 top-0 h-full w-1/2 bg-red-950/60" />
-                <div className="absolute right-0 top-0 h-full w-1/2 bg-emerald-950/40" />
-                {/* Fill: from needle to break-even center — red when below, green when above */}
+
+            {/* Key metrics row */}
+            <div className="grid grid-cols-3 gap-3 mb-5">
+              <div className="bg-gray-800 rounded-lg p-3 text-center">
+                <p className="text-gray-500 text-xs mb-1">{t("portfolio.breakEven")}</p>
+                <p className="text-yellow-400 font-bold text-sm">{formatEGP(be)}</p>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-3 text-center">
+                <p className="text-gray-500 text-xs mb-1">{t("pos.current")}</p>
+                <p className={`font-bold text-sm ${gap != null && gap >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatEGP(cp)}</p>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-3 text-center">
+                <p className="text-gray-500 text-xs mb-1">{gap != null && gap >= 0 ? t("pos.aboveBreakEven") : t("pos.belowBreakEven")}</p>
+                <p className={`font-bold text-sm ${gap != null && gap >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatEGP(Math.abs(cp - be))}</p>
+              </div>
+            </div>
+
+            {/* Gauge bar */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-600 w-20 text-right font-mono">{formatEGP(gaugeMin)}</span>
+              <div className="relative flex-1 h-6 rounded-full overflow-hidden bg-gray-800">
+                {/* Gradient background zones */}
+                <div className="absolute left-0 top-0 h-full w-1/2 bg-gradient-to-r from-red-950/80 to-red-900/40" />
+                <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-r from-emerald-900/40 to-emerald-950/80" />
+                {/* Active fill */}
                 {gaugeVal <= 50 ? (
-                  <div className="absolute top-0 h-full bg-red-500/80 transition-all" style={{ left: `${gaugeVal}%`, width: `${50 - gaugeVal}%` }} />
+                  <div className="absolute top-0 h-full bg-red-500/70 transition-all duration-500" style={{ left: `${gaugeVal}%`, width: `${50 - gaugeVal}%` }} />
                 ) : (
-                  <div className="absolute top-0 h-full bg-emerald-500/80 transition-all" style={{ left: "50%", width: `${gaugeVal - 50}%` }} />
+                  <div className="absolute top-0 h-full bg-emerald-500/70 transition-all duration-500" style={{ left: "50%", width: `${gaugeVal - 50}%` }} />
                 )}
                 {/* Break-even marker */}
                 <div className="absolute top-0 h-full w-0.5 bg-yellow-400 z-10" style={{ left: "50%" }} />
+                <div className="absolute z-10 -translate-x-1/2" style={{ left: "50%", top: -18 }}>
+                  <span className="text-[9px] text-yellow-400 font-medium">BE</span>
+                </div>
                 {/* Current price needle */}
-                <div className="absolute top-0 h-full w-1 bg-white z-20 rounded-sm transition-all" style={{ left: `${gaugeVal}%` }} />
+                <div className="absolute top-0 h-full w-1.5 bg-white z-20 rounded-sm transition-all duration-500 shadow-lg shadow-white/20" style={{ left: `${gaugeVal}%`, transform: "translateX(-50%)" }} />
               </div>
-              <span className="text-xs text-gray-500 w-24">{formatEGP(gaugeMax)}</span>
+              <span className="text-xs text-gray-600 w-20 font-mono">{formatEGP(gaugeMax)}</span>
             </div>
-            <div className="flex justify-between mt-1 px-28">
-              <span className="text-xs text-gray-600">−{gaugeRangePct}%</span>
-              <span className="text-xs text-yellow-400">{t("portfolio.breakEven")}: {formatEGP(be)}</span>
-              <span className="text-xs text-gray-600">+{gaugeRangePct}%</span>
+            <div className="flex justify-between mt-1.5" style={{ paddingLeft: 92, paddingRight: 92 }}>
+              <span className="text-[10px] text-gray-600">−{gaugeRangePct}%</span>
+              <span className="text-[10px] text-yellow-400/70">{formatEGP(be)}</span>
+              <span className="text-[10px] text-gray-600">+{gaugeRangePct}%</span>
             </div>
-            <p className={`text-center text-sm mt-2 font-medium ${pnlColor(gap)}`}>
-              {t("pos.current")}: {formatEGP(cp)} — {gap != null ? (gap >= 0 ? `${formatPct(gap)} ${t("pos.aboveBreakEven")}` : `${formatPct(gap)} ${t("pos.belowBreakEven")}`) : "—"}
-            </p>
+
+            {/* Scenario analysis */}
+            {!isClosed && parseFloat(position.quantity) > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-800">
+                <p className="text-xs text-gray-500 mb-2">To break even, price needs to move:</p>
+                <div className="flex items-center gap-2">
+                  <div className={`flex-1 h-1.5 rounded-full ${gap != null && gap >= 0 ? "bg-emerald-500" : "bg-gray-700"}`}>
+                    <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: gap != null && gap >= 0 ? "100%" : "0%" }} />
+                  </div>
+                  <span className={`text-xs font-medium ${gap != null && gap >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {gap != null && gap >= 0
+                      ? "Already above break-even!"
+                      : `${formatEGP(be - cp)} more (${((be - cp) / cp * 100).toFixed(1)}%)`}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -328,40 +368,117 @@ export default function PositionDetailPage() {
           </div>
         )}
 
-        {/* Cost Basis Ladder Chart */}
-        {ladder.length > 0 && (
-          <div className="bg-gray-900 rounded-xl p-4">
-            <h2 className="text-sm font-semibold text-gray-400 mb-4">{t("pos.costLadder")}</h2>
-            <div dir="ltr">
-            <ResponsiveContainer width="100%" height={Math.max(160, ladder.length * 52)}>
-              <BarChart data={ladder} layout="vertical" margin={{ left: dir === "rtl" ? 0 : 72, right: dir === "rtl" ? 72 : 16, top: 4, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }}
-                  axisLine={false} tickLine={false}
-                  tickFormatter={(v) => formatEGP(v)} domain={[0, maxLotValue * 1.1]} />
-                <YAxis type="category" dataKey="buyPrice" tick={{ fill: "#6b7280", fontSize: 11 }}
-                  tickFormatter={(v) => formatEGP(v)} width={72} orientation={dir === "rtl" ? "right" : "left"}
-                  axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, padding: "8px 12px" }}
-                  formatter={(v: unknown) => [formatEGP(v as number), t("pos.lotValue")]}
-                  labelFormatter={(v) => `${t("pos.buyAt")} ${formatEGP(v)}`}
-                  cursor={{ fill: "#ffffff08" }}
-                />
-                <Bar dataKey="lotValue" radius={[0, 6, 6, 0]} barSize={28}>
-                  {ladder.map((entry, i) => (
-                    <Cell key={i} fill={cp != null && entry.buyPrice <= cp ? "#10b981" : "#ef4444"} opacity={0.85} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Cost Basis Ladder — Enhanced */}
+        {ladder.length > 0 && (() => {
+          const totalLotValue = ladder.reduce((s, l) => s + l.lotValue, 0);
+          const avgBuy = parseFloat(position.averagePrice);
+          const lotsBelow = ladder.filter((l) => cp != null && l.buyPrice <= cp).length;
+          const lotsAbove = ladder.length - lotsBelow;
+          return (
+            <div className="bg-gray-900 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-gray-400">{t("pos.costLadder")}</h2>
+                <span className="text-xs text-gray-500">{ladder.length} lot{ladder.length > 1 ? "s" : ""} · {formatEGP(totalLotValue)} total</span>
+              </div>
+
+              {/* Summary stats */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                <div className="bg-gray-800 rounded-lg p-2.5 text-center">
+                  <p className="text-gray-500 text-[10px] mb-0.5">Avg Buy</p>
+                  <p className="text-white font-bold text-xs">{formatEGP(avgBuy)}</p>
+                </div>
+                <div className="bg-gray-800 rounded-lg p-2.5 text-center">
+                  <p className="text-gray-500 text-[10px] mb-0.5">Price Range</p>
+                  <p className="text-white font-bold text-xs">{formatEGP(ladder[0].buyPrice)} – {formatEGP(ladder[ladder.length - 1].buyPrice)}</p>
+                </div>
+                <div className="bg-gray-800 rounded-lg p-2.5 text-center">
+                  <p className="text-gray-500 text-[10px] mb-0.5">In Profit</p>
+                  <p className="text-emerald-400 font-bold text-xs">{lotsBelow} lot{lotsBelow !== 1 ? "s" : ""}</p>
+                </div>
+                <div className="bg-gray-800 rounded-lg p-2.5 text-center">
+                  <p className="text-gray-500 text-[10px] mb-0.5">At Loss</p>
+                  <p className="text-red-400 font-bold text-xs">{lotsAbove} lot{lotsAbove !== 1 ? "s" : ""}</p>
+                </div>
+              </div>
+
+              {/* Chart */}
+              <div dir="ltr">
+              <ResponsiveContainer width="100%" height={Math.max(180, ladder.length * 56)}>
+                <BarChart data={ladder} layout="vertical" margin={{ left: dir === "rtl" ? 0 : 72, right: dir === "rtl" ? 72 : 48, top: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }}
+                    axisLine={false} tickLine={false}
+                    tickFormatter={(v) => formatEGP(v)} domain={[0, maxLotValue * 1.15]} />
+                  <YAxis type="category" dataKey="buyPrice" tick={{ fill: "#6b7280", fontSize: 11 }}
+                    tickFormatter={(v) => formatEGP(v)} width={72} orientation={dir === "rtl" ? "right" : "left"}
+                    axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, padding: "10px 14px", fontSize: 12 }}
+                    formatter={(v: unknown, _name: unknown, props: { payload?: { quantity: number; buyPrice: number } }) => {
+                      const lot = props.payload;
+                      if (!lot) return [formatEGP(v as number), t("pos.lotValue")];
+                      const pnl = cp != null ? (cp - lot.buyPrice) * lot.quantity : 0;
+                      const pnlPct = lot.buyPrice > 0 && cp != null ? ((cp - lot.buyPrice) / lot.buyPrice * 100).toFixed(1) : "0";
+                      return [`${formatEGP(v as number)} · ${lot.quantity} shares · P&L: ${pnl >= 0 ? "+" : ""}${formatEGP(pnl)} (${pnlPct}%)`, t("pos.lotValue")];
+                    }}
+                    labelFormatter={(v) => `${t("pos.buyAt")} ${formatEGP(v)}`}
+                    cursor={{ fill: "#ffffff08" }}
+                  />
+                  {cp != null && (
+                    <ReferenceLine x={cp * parseFloat(position.quantity) / ladder.length} stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1} />
+                  )}
+                  <Bar dataKey="lotValue" radius={[0, 6, 6, 0]} barSize={30}>
+                    {ladder.map((entry, i) => (
+                      <Cell key={i} fill={cp != null && entry.buyPrice <= cp ? "#10b981" : "#ef4444"} opacity={0.9} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              </div>
+
+              {/* Per-lot detail table */}
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-500 border-b border-gray-800">
+                      <th className="py-1.5 text-left">Date</th>
+                      <th className="py-1.5 text-right">Buy Price</th>
+                      <th className="py-1.5 text-right">Shares</th>
+                      <th className="py-1.5 text-right">Lot Value</th>
+                      <th className="py-1.5 text-right">Weight</th>
+                      {cp != null && <th className="py-1.5 text-right">P&L</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ladder.map((lot, i) => {
+                      const pnl = cp != null ? (cp - lot.buyPrice) * lot.quantity : null;
+                      const weight = totalLotValue > 0 ? (lot.lotValue / totalLotValue * 100).toFixed(1) : "0";
+                      return (
+                        <tr key={i} className="border-b border-gray-800/40">
+                          <td className="py-1.5 text-gray-400">{new Date(lot.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</td>
+                          <td className="py-1.5 text-right text-gray-300">{formatEGP(lot.buyPrice)}</td>
+                          <td className="py-1.5 text-right text-gray-300">{lot.quantity.toFixed(lot.quantity % 1 === 0 ? 0 : 2)}</td>
+                          <td className="py-1.5 text-right text-gray-300">{formatEGP(lot.lotValue)}</td>
+                          <td className="py-1.5 text-right text-gray-500">{weight}%</td>
+                          {pnl != null && (
+                            <td className={`py-1.5 text-right font-medium ${pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              {pnl >= 0 ? "+" : ""}{formatEGP(pnl)}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex gap-4 justify-center mt-3 text-xs text-gray-500">
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> {t("pos.boughtBelow")}</span>
+                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> {t("pos.boughtAbove")}</span>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              <span className="text-emerald-400">●</span> {t("pos.boughtBelow")} &nbsp;·&nbsp;
-              <span className="text-red-400">●</span> {t("pos.boughtAbove")}
-            </p>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Cumulative Realized P&L Chart */}
         {cumulativePnLData.length > 0 && (

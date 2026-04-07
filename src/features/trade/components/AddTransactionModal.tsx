@@ -13,8 +13,14 @@ interface StockResult {
   name: string | null;
 }
 
+interface OwnedPosition {
+  symbol: string;
+  quantity: number;
+}
+
 interface AddTransactionModalProps {
   onClose: () => void;
+  ownedPositions?: OwnedPosition[];
 }
 
 const FEE_RATE = 0.00175;
@@ -43,7 +49,7 @@ function Row({
   );
 }
 
-export default function AddTransactionModal({ onClose }: AddTransactionModalProps) {
+export default function AddTransactionModal({ onClose, ownedPositions = [] }: AddTransactionModalProps) {
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [symbolInput, setSymbolInput] = useState("");
@@ -71,12 +77,25 @@ export default function AddTransactionModal({ onClose }: AddTransactionModalProp
       apiClient.get<{ stocks: StockResult[]; total: number }>(
         `/api/stocks?search=${encodeURIComponent(debouncedSearch)}&limit=8`
       ),
-    enabled: debouncedSearch.length >= 1 && !selectedSymbol,
+    enabled: debouncedSearch.length >= 1 && !selectedSymbol && side === "buy",
   });
-  const stocks = stocksData?.stocks ?? [];
+
+  // When selling, only show owned stocks filtered by search input
+  const ownedFiltered = ownedPositions
+    .filter((p) => p.quantity > 0)
+    .filter((p) => !debouncedSearch || p.symbol.includes(debouncedSearch.toUpperCase()))
+    .map((p) => ({ symbol: p.symbol, name: null as string | null }));
+
+  const stocks = side === "sell" ? ownedFiltered : (stocksData?.stocks ?? []);
+
+  const ownedQtyForSelected = ownedPositions.find((p) => p.symbol === selectedSymbol)?.quantity ?? 0;
 
   const qty = Math.max(0, parseFloat(quantity) || 0);
   const parsedPrice = parseFloat(priceInput) || 0;
+
+  const sellError = side === "sell" && qty > ownedQtyForSelected && selectedSymbol
+    ? `Cannot sell ${qty} — you only own ${ownedQtyForSelected} shares`
+    : null;
 
   // Auto-calculate fees
   useEffect(() => {
@@ -86,8 +105,8 @@ export default function AddTransactionModal({ onClose }: AddTransactionModalProp
   }, [quantity, priceInput]);
 
   const parsedFees = parseFloat(feesInput) || 0;
-  const total = qty * parsedPrice + parsedFees;
-  const canReview = qty > 0 && parsedPrice > 0 && selectedSymbol.length > 0;
+  const total = side === "sell" ? qty * parsedPrice - parsedFees : qty * parsedPrice + parsedFees;
+  const canReview = qty > 0 && parsedPrice > 0 && selectedSymbol.length > 0 && !sellError;
 
   const handleSelectSymbol = (symbol: string) => {
     setSelectedSymbol(symbol);
@@ -241,7 +260,7 @@ export default function AddTransactionModal({ onClose }: AddTransactionModalProp
                 {(["buy", "sell"] as const).map((s) => (
                   <button
                     key={s}
-                    onClick={() => setSide(s)}
+                    onClick={() => { setSide(s); setSelectedSymbol(""); setSymbolInput(""); }}
                     className={`flex-1 py-2 text-sm font-semibold transition-colors ${
                       side === s
                         ? s === "buy"
@@ -271,7 +290,7 @@ export default function AddTransactionModal({ onClose }: AddTransactionModalProp
                       setSelectedSymbol("");
                       setShowDropdown(true);
                     }}
-                    onFocus={() => { if (symbolInput && !selectedSymbol) setShowDropdown(true); }}
+                    onFocus={() => { if ((symbolInput || side === "sell") && !selectedSymbol) setShowDropdown(true); }}
                     placeholder="Search symbol..."
                     className="w-full bg-gray-800 rounded-lg pl-9 pr-4 py-2 text-white text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -313,15 +332,33 @@ export default function AddTransactionModal({ onClose }: AddTransactionModalProp
 
               {/* Quantity */}
               <div className="space-y-1">
-                <label className="text-gray-500 text-xs">Quantity</label>
+                <label className="text-gray-500 text-xs flex justify-between">
+                  <span>Quantity</span>
+                  {side === "sell" && selectedSymbol && ownedQtyForSelected > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(String(ownedQtyForSelected))}
+                      className="text-blue-400 hover:text-blue-300 text-xs"
+                    >
+                      Max: {ownedQtyForSelected}
+                    </button>
+                  )}
+                </label>
                 <input
                   type="number"
                   min="0"
+                  max={side === "sell" && ownedQtyForSelected > 0 ? ownedQtyForSelected : undefined}
                   step="1"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   className="w-full bg-gray-800 rounded-lg px-4 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                {sellError && (
+                  <div className="flex items-center gap-2 text-amber-400 text-xs mt-1">
+                    <AlertCircle size={12} />
+                    <span>{sellError}</span>
+                  </div>
+                )}
               </div>
 
               {/* Price */}

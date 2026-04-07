@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { X, TrendingUp, TrendingDown, Loader2, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import { apiClient } from "@/lib/apiClient";
 
 interface Transaction {
@@ -91,6 +92,14 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
             <h2 className="font-bold text-white">Transaction History</h2>
             <p className="text-gray-500 text-sm">{symbol}</p>
           </div>
+          <Link
+            href={`/portfolio/positions/${symbol}`}
+            className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs mr-2 transition-colors"
+            onClick={onClose}
+          >
+            <span>Full Details</span>
+            <ExternalLink size={12} />
+          </Link>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-white transition-colors"

@@ -10,6 +10,7 @@ import { formatEGP, formatSignedEGP, formatPct, pnlColor } from "@/lib/tradeCalc
 import { exportToCSV } from "@/lib/csvExport";
 import { useLanguage } from "@/context/LanguageContext";
 import AddTransactionModal from "@/features/trade/components/AddTransactionModal";
+import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 
 interface TxRow {
   id: string; symbol: string; type: "BUY" | "SELL";
@@ -35,6 +36,8 @@ export default function TransactionsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const { data: portfolio } = usePortfolio();
+  const ownedPositions = (portfolio?.positions ?? []).map((p) => ({ symbol: p.symbol, quantity: p.quantity }));
 
   const qs = new URLSearchParams();
   if (symbolFilter) qs.set("symbol", symbolFilter);
@@ -219,7 +222,7 @@ export default function TransactionsPage() {
     </AppShell>
 
     {showAddModal && (
-      <AddTransactionModal onClose={() => setShowAddModal(false)} />
+      <AddTransactionModal onClose={() => setShowAddModal(false)} ownedPositions={ownedPositions} />
     )}
     </>
   );
