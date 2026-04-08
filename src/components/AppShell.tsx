@@ -176,13 +176,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={href}
-                className={`flex flex-col items-center justify-center gap-0.5 py-2 font-medium transition-colors ${
+                className={`flex flex-col items-center justify-center gap-1 py-3 font-medium transition-colors ${
                   active ? "text-blue-500" : isDark ? "text-gray-500" : "text-slate-400"
                 }`}
-                style={{ minWidth: 44, flex: "1 0 44px" }}
+                style={{ minWidth: 52, flex: "1 0 52px" }}
               >
-                <Icon size={18} strokeWidth={active ? 2.5 : 1.5} />
-                <span style={{ fontSize: 8, lineHeight: 1.2, textAlign: "center" }}>{t(key)}</span>
+                <Icon size={30} strokeWidth={active ? 2.5 : 1.5} />
+                <span style={{ fontSize: 15, lineHeight: 1.2, textAlign: "center", fontWeight: active ? 600 : 500 }}>{t(key)}</span>
               </Link>
             );
           })}
