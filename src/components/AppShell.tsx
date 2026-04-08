@@ -182,7 +182,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 style={{ minWidth: 52, flex: "1 0 52px" }}
               >
                 <Icon size={23} strokeWidth={active ? 2.5 : 1.5} />
-                <span style={{ fontSize: 11, lineHeight: 1.2, textAlign: "center", fontWeight: active ? 600 : 500 }}>{t(key)}</span>
+                <span style={{ fontSize: 10, lineHeight: 1.2, textAlign: "center", fontWeight: active ? 600 : 500 }}>{t(key)}</span>
               </Link>
             );
           })}
