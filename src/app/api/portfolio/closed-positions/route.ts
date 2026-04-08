@@ -7,7 +7,8 @@ export async function GET(req: NextRequest) {
   if (!userId)
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
 
-  const res = await fetchBackend(`/portfolio/${userId}/closed-positions`, {}, cookieHeader);
+  const queryString = req.nextUrl.search;
+  const res = await fetchBackend(`/portfolio/${userId}/closed-positions${queryString}`, {}, cookieHeader);
   if (!res.ok) return NextResponse.json([], { status: res.status });
   return NextResponse.json(await res.json());
 }

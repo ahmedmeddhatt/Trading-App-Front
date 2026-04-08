@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import RangeSelector from "@/components/RangeSelector";
 import { useQuery } from "@tanstack/react-query";
 import {
   AreaChart,
@@ -15,6 +17,7 @@ import {
 import { useActiveStock } from "@/store/useActiveStock";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { apiClient } from "@/lib/apiClient";
+import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
 import PortfolioSummary from "@/features/portfolio/components/PortfolioSummary";
 import TradeForm from "@/features/trade/components/TradeForm";
 
@@ -26,21 +29,31 @@ interface HistoryPoint {
 }
 
 function useStockHistory(symbol: string) {
+  const to = new Date().toISOString().slice(0, 10);
   return useQuery<HistoryPoint[]>({
-    queryKey: ["stock-history", symbol],
-    queryFn: () => apiClient.get<HistoryPoint[]>(`/api/prices/history/${symbol}`),
+    queryKey: ["stock-history", symbol, "ALL"],
+    queryFn: () => apiClient.get<HistoryPoint[]>(`/api/prices/history/${symbol}?from=2000-01-01&to=${to}`),
     retry: 1,
     staleTime: 60_000,
   });
 }
 
+const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+
 export default function DashboardPage() {
   const { symbol, setSymbol } = useActiveStock();
+  const [range, setRange] = useState<DateRange>("1Y");
   const { prices } = usePriceStream([symbol]);
   const priceData = prices[symbol] ?? null;
-  const { data: history = [], isLoading: histLoading } = useStockHistory(symbol);
+  const { data: allHistory = [], isLoading: histLoading } = useStockHistory(symbol);
 
   const isPositive = priceData ? priceData.change >= 0 : null;
+
+  // Filter history client-side by range
+  const history = useMemo(() => {
+    const cutoffMs = Date.now() - (RANGE_DAYS[range] ?? 365) * 86400000;
+    return allHistory.filter(h => h.timestamp >= cutoffMs);
+  }, [allHistory, range]);
 
   // Compute stats from history
   const histPrices = history.map((h) => h.price);
@@ -105,9 +118,19 @@ export default function DashboardPage() {
 
         {/* Center: Chart */}
         <div className="lg:col-span-1 bg-gray-900 rounded-xl p-5 flex flex-col gap-3">
-          <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-            Price Chart
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+              Price Chart
+            </h2>
+            <div className="flex gap-1">
+              {(["1W","1M","3M","6M","1Y"] as const).map((r) => (
+                <button key={r} onClick={() => setRange(r)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+                    range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+                  }`}>{r}</button>
+              ))}
+            </div>
+          </div>
           <div className="flex-1 min-h-[200px]">
             {histLoading ? (
               <div className="flex items-center justify-center h-full min-h-[200px]">

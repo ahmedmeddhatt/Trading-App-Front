@@ -11,9 +11,11 @@ import {
 import { Loader2, ArrowLeft, TrendingUp, TrendingDown, Target, XCircle, DollarSign, ChevronUp, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
+import RangeSelector from "@/components/RangeSelector";
 import { apiClient } from "@/lib/apiClient";
 import { formatEGP, formatSignedEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
 import { useLanguage } from "@/context/LanguageContext";
+import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
 
 interface PositionDetail {
   position: { symbol: string; totalQuantity: string; averagePrice: string; totalInvested: string };
@@ -45,6 +47,7 @@ export default function PositionDetailPage() {
   const { t, dir } = useLanguage();
   const { symbol } = useParams<{ symbol: string }>();
   const [gainSort, setGainSort] = useState<{ key: GainSortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
+  const [range, setRange] = useState<DateRange>("1Y");
 
   const { data, isLoading } = useQuery({
     queryKey: ["position-detail", symbol],
@@ -137,16 +140,21 @@ export default function PositionDetailPage() {
     txByDate.get(d)!.push({ type: tx.type, price: parseFloat(tx.price) });
   });
 
-  const chartData = priceHistory.map((p) => {
-    const d = new Date(p.timestamp).toLocaleDateString();
-    const trades = txByDate.get(d);
-    return {
-      label: d,
-      price: p.price,
-      buyMark: trades?.find((tx) => tx.type === "BUY")?.price ?? null,
-      sellMark: trades?.find((tx) => tx.type === "SELL")?.price ?? null,
-    };
-  });
+  const { from: rangeFrom } = rangeToFromTo(range);
+  const rangeFromDate = new Date(rangeFrom);
+
+  const chartData = priceHistory
+    .filter((p) => new Date(p.timestamp) >= rangeFromDate)
+    .map((p) => {
+      const d = new Date(p.timestamp).toLocaleDateString();
+      const trades = txByDate.get(d);
+      return {
+        label: d,
+        price: p.price,
+        buyMark: trades?.find((tx) => tx.type === "BUY")?.price ?? null,
+        sellMark: trades?.find((tx) => tx.type === "SELL")?.price ?? null,
+      };
+    });
 
   const toggleGainSort = (key: GainSortKey) =>
     setGainSort(prev => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" });
@@ -319,7 +327,17 @@ export default function PositionDetailPage() {
         {/* Price Chart with Trade Markers */}
         {chartData.length > 0 && (
           <div className="bg-gray-900 rounded-xl p-4">
-            <h2 className="text-sm font-semibold text-gray-400 mb-4">{t("pos.priceHistory")}</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-400">{t("pos.priceHistory")}</h2>
+              <div className="flex gap-1">
+                {(["1W","1M","3M","6M","1Y"] as const).map((r) => (
+                  <button key={r} onClick={() => setRange(r)}
+                    className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+                      range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+                    }`}>{r}</button>
+                ))}
+              </div>
+            </div>
             <div dir="ltr">
             <ResponsiveContainer width="100%" height={360}>
               <ComposedChart data={chartData} margin={{ top: 8, right: dir === "rtl" ? 16 : 56, left: dir === "rtl" ? 56 : 4, bottom: 0 }}>

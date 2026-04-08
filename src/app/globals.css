@@ -382,25 +382,83 @@ a[role="button"]:not([disabled]):active {
   box-shadow: 0 0 0 3px rgba(249,115,22,0.25), 0 4px 14px rgba(249,115,22,0.35) !important;
 }
 
-/* ── Recharts tooltips — dark on both modes, EOF wins cascade ───────────── */
+/* ── Recharts tooltips — dark on both modes, smooth transitions ───────────── */
+.recharts-tooltip-wrapper {
+  background: transparent !important;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  pointer-events: none !important;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.5)) !important;
+}
 .recharts-tooltip-wrapper .recharts-default-tooltip,
 .recharts-default-tooltip {
-  background-color: #111827 !important;
-  border: 1px solid #374151 !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+  background-color: #0f172a !important;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05) !important;
   color: #f9fafb !important;
+  padding: 10px 14px !important;
+  backdrop-filter: blur(12px) !important;
 }
 html:not(.dark) .recharts-tooltip-wrapper .recharts-default-tooltip,
 html:not(.dark) .recharts-default-tooltip {
-  background-color: #1e293b !important;
-  border: 1px solid #334155 !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
+  background-color: #0f172a !important;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+  border: 1px solid rgba(99, 102, 241, 0.2) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05) !important;
   color: #f1f5f9 !important;
 }
-.recharts-tooltip-label { color: #9ca3af !important; }
+.recharts-tooltip-label { color: #94a3b8 !important; font-weight: 600 !important; font-size: 11px !important; margin-bottom: 4px !important; }
 html:not(.dark) .recharts-tooltip-label { color: #94a3b8 !important; }
 .recharts-tooltip-item-name,
-.recharts-tooltip-item { color: #f9fafb !important; }
+.recharts-tooltip-item { color: #e2e8f0 !important; font-size: 12px !important; }
 html:not(.dark) .recharts-tooltip-item-name,
-html:not(.dark) .recharts-tooltip-item { color: #f1f5f9 !important; }
+html:not(.dark) .recharts-tooltip-item { color: #e2e8f0 !important; }
+.recharts-tooltip-item-separator { color: #475569 !important; }
+.recharts-tooltip-item-list { padding: 0 !important; margin: 0 !important; }
+/* Hide the ugly cursor border */
+.recharts-tooltip-cursor {
+  stroke: none !important;
+  fill: none !important;
+  display: none !important;
+}
+/* Smooth scale on hovered bar/area/pie segments */
+.recharts-bar-rectangle {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease !important;
+  transform-origin: center bottom !important;
+  transform-box: fill-box !important;
+}
+.recharts-bar-rectangle:hover {
+  transform: scaleY(1.04) scaleX(1.06) !important;
+  filter: brightness(1.15) !important;
+}
+.recharts-area-area,
+.recharts-area-curve {
+  transition: filter 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.recharts-area:hover .recharts-area-area {
+  filter: brightness(1.12) !important;
+}
+.recharts-line-curve {
+  transition: filter 0.3s ease, stroke-width 0.3s ease !important;
+}
+.recharts-line:hover .recharts-line-curve {
+  filter: brightness(1.15) drop-shadow(0 0 6px currentColor) !important;
+  stroke-width: 3 !important;
+}
+.recharts-pie-sector {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease !important;
+  transform-origin: center center !important;
+  transform-box: fill-box !important;
+}
+.recharts-pie-sector:hover {
+  transform: scale(1.05) !important;
+  filter: brightness(1.15) !important;
+}
+.recharts-dot {
+  transition: r 0.3s ease, filter 0.3s ease !important;
+}
+.recharts-dot:hover {
+  filter: brightness(1.2) drop-shadow(0 0 4px currentColor) !important;
+}

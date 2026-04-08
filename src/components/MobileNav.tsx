@@ -30,12 +30,12 @@ export default function MobileNav({ active }: { active: string }) {
               key={href}
               href={href}
               style={{ flex: 1 }}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2 font-medium transition-colors ${
+              className={`flex flex-col items-center justify-center gap-1 py-3 font-medium transition-colors ${
                 isAct ? "text-blue-400" : "text-gray-500"
               }`}
             >
-              <Icon size={22} strokeWidth={isAct ? 2.5 : 1.5} />
-              <span style={{ fontSize: 10 }}>{label}</span>
+              <Icon size={28} strokeWidth={isAct ? 2.5 : 1.5} />
+              <span style={{ fontSize: 13 }}>{label}</span>
             </Link>
           );
         })}

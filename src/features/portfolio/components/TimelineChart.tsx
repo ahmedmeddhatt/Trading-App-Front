@@ -68,13 +68,14 @@ function ChartTooltip({
 
   return (
     <div style={{
-      background: "#0f172a",
-      border: `1px solid ${lineColor}55`,
+      background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+      border: `1px solid ${lineColor}33`,
       borderRadius: 12,
       padding: "12px 16px",
-      boxShadow: `0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px ${lineColor}22`,
+      boxShadow: `0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px ${lineColor}15, inset 0 1px 0 rgba(255,255,255,0.05)`,
       minWidth: 200,
       pointerEvents: "none",
+      backdropFilter: "blur(12px)",
     }}>
       <p style={{ color: "#64748b", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
         {fullDate}
@@ -213,6 +214,9 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
                 width={44}
               />
               <Tooltip
+                wrapperStyle={{ backgroundColor: "transparent" }}
+                animationDuration={300}
+                animationEasing="ease-out"
                 content={(props) => (
                   <ChartTooltip
                     active={props.active}
@@ -221,12 +225,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
                     lineColor={lineColor}
                   />
                 )}
-                cursor={{
-                  stroke: lineColor,
-                  strokeWidth: 1.5,
-                  strokeOpacity: 0.4,
-                  strokeDasharray: "5 4",
-                }}
+                cursor={false}
               />
               {maxVal != null && (
                 <ReferenceLine y={maxVal} stroke={lineColor} strokeDasharray="3 3" strokeOpacity={0.4}

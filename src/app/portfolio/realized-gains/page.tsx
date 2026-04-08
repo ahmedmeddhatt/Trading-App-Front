@@ -6,7 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
+import RangeSelector from "@/components/RangeSelector";
 import { useLanguage } from "@/context/LanguageContext";
+import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
 
 interface RealizedGainRecord {
   id: string;
@@ -66,11 +68,45 @@ const RG_PRESETS: { id: RGPreset; label: string; key: RGSortKey; dir: "asc" | "d
 
 export default function RealizedGainsPage() {
   const { t } = useLanguage();
-  const { data, isLoading } = useQuery<RealizedGainsResponse>({
-    queryKey: ["portfolio", "realized-gains"],
-    queryFn: () => apiClient.get<RealizedGainsResponse>("/api/portfolio/realized-gains"),
+  const [range, setRange] = useState<DateRange>("1Y");
+  const allTo = new Date().toISOString().slice(0, 10);
+  const { data: allData, isLoading } = useQuery<RealizedGainsResponse>({
+    queryKey: ["portfolio", "realized-gains", "ALL"],
+    queryFn: () => apiClient.get<RealizedGainsResponse>(`/api/portfolio/realized-gains?from=2000-01-01&to=${allTo}`),
     retry: 1,
+    staleTime: 60_000,
   });
+
+  const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+  const data = useMemo(() => {
+    if (!allData) return allData;
+    const cutoffMs = Date.now() - (RANGE_DAYS[range] ?? 365) * 86400000;
+    const filteredGains = allData.gains.filter(g => new Date(g.date).getTime() >= cutoffMs);
+    if (filteredGains.length === 0) return { gains: [], summary: null };
+    const totalProfit = filteredGains.reduce((s, g) => s + parseFloat(g.profit), 0);
+    const totalFees = filteredGains.reduce((s, g) => s + parseFloat(g.fees), 0);
+    const totalQty = filteredGains.reduce((s, g) => s + parseFloat(g.quantity), 0);
+    const totalCost = filteredGains.reduce((s, g) => s + parseFloat(g.avgPrice) * parseFloat(g.quantity), 0);
+    const winCount = filteredGains.filter(g => parseFloat(g.profit) > 0).length;
+    const lossCount = filteredGains.length - winCount;
+    const holdDays = filteredGains.filter(g => g.holdDays != null).map(g => g.holdDays!);
+    const symbols = new Set(filteredGains.map(g => g.symbol));
+    return {
+      gains: filteredGains,
+      summary: {
+        totalProfit: totalProfit.toString(),
+        totalFees: totalFees.toString(),
+        totalQuantity: totalQty.toString(),
+        totalCostBasis: totalCost.toString(),
+        totalReturn: totalCost > 0 ? ((totalProfit / totalCost) * 100).toString() : null,
+        uniqueSymbols: symbols.size,
+        avgHoldDays: holdDays.length > 0 ? Math.round(holdDays.reduce((s, d) => s + d, 0) / holdDays.length) : null,
+        count: filteredGains.length,
+        winCount,
+        lossCount,
+      },
+    };
+  }, [allData, range]);
 
   const [sortKey, setSortKey] = useState<RGSortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -152,9 +188,19 @@ export default function RealizedGainsPage() {
   return (
     <AppShell>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Link href="/portfolio" className="text-blue-400 hover:text-blue-300 text-sm">&larr; {t("nav.portfolio")}</Link>
-          <h1 className="text-white font-bold text-lg">{t("portfolio.realizedPnl")} — {t("realized.allTrades")}</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/portfolio" className="text-blue-400 hover:text-blue-300 text-sm">&larr; {t("nav.portfolio")}</Link>
+            <h1 className="text-white font-bold text-lg">{t("portfolio.realizedPnl")} — {t("realized.allTrades")}</h1>
+          </div>
+          <div className="flex gap-1">
+            {(["1W","1M","3M","6M","1Y"] as const).map((r) => (
+              <button key={r} onClick={() => setRange(r)}
+                className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+                  range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+                }`}>{r}</button>
+            ))}
+          </div>
         </div>
 
         {isLoading ? (

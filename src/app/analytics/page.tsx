@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
+import RangeSelector from "@/components/RangeSelector";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -36,6 +37,15 @@ interface AnalyticsPosition {
   graphData?: Array<{ price: string; timestamp: string }>;
 }
 
+interface AnalyticsTransaction {
+  symbol: string;
+  type: "BUY" | "SELL";
+  quantity: string;
+  price: string;
+  fees: string;
+  date: string;
+}
+
 interface Analytics {
   positions: AnalyticsPosition[];
   portfolioValue: {
@@ -51,6 +61,8 @@ interface Analytics {
   netPnL?: string;
   avgHoldingDays?: number;
   symbolsTraded?: number;
+  transactions?: AnalyticsTransaction[];
+  priceHistory?: Record<string, { price: string; timestamp: string }[]>;
 }
 
 interface TimelinePoint { timestamp: string; totalValue: number; }
@@ -71,33 +83,27 @@ interface StockHistoryResponse {
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 function useAnalytics() {
+  const to = new Date().toISOString().slice(0, 10);
   return useQuery<Analytics | null>({
-    queryKey: ["portfolio", "analytics"],
-    queryFn: () => apiClient.get<Analytics | null>("/api/portfolio/analytics"),
+    queryKey: ["portfolio", "analytics", "ALL"],
+    queryFn: () => apiClient.get<Analytics | null>(`/api/portfolio/analytics?from=2000-01-01&to=${to}`),
     retry: 1,
+    staleTime: 60_000,
   });
 }
 
-function useTimeline(range: ExtendedRange) {
-  const { from, to } = useMemo(() => {
-    const t = new Date();
-    const to = t.toISOString().slice(0, 10);
-    if (range === "ALL") return { from: "2000-01-01", to };
-    const f = new Date(t);
-    const days: Record<DateRange, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
-    f.setDate(f.getDate() - days[range]);
-    return { from: f.toISOString().slice(0, 10), to };
-  }, [range]);
-
+function useTimeline() {
+  const to = new Date().toISOString().slice(0, 10);
   return useQuery<TimelinePoint[]>({
-    queryKey: ["portfolio", "timeline", range],
+    queryKey: ["portfolio", "timeline", "ALL"],
     queryFn: async () => {
-      const r = await apiClient.get<unknown>(`/api/portfolio/timeline?from=${from}&to=${to}`);
+      const r = await apiClient.get<unknown>(`/api/portfolio/timeline?from=2000-01-01&to=${to}`);
       if (Array.isArray(r)) return r as TimelinePoint[];
       const tl = (r as { timeline?: TimelinePoint[] })?.timeline;
       return Array.isArray(tl) ? tl : [];
     },
     retry: 1,
+    staleTime: 60_000,
   });
 }
 
@@ -126,6 +132,217 @@ const pct = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}%`;
 const RANGES: ExtendedRange[] = ["1W", "1M", "3M", "6M", "1Y", "ALL"];
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16"];
+
+const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+
+function rangeCutoffMs(range: ExtendedRange): number {
+  return range === "ALL" ? 0 : Date.now() - (RANGE_DAYS[range] ?? 30) * 86400000;
+}
+
+function SectionRangeBtns({ range, setRange }: { range: ExtendedRange; setRange: (r: ExtendedRange) => void }) {
+  return (
+    <div className="flex gap-1">
+      {RANGES.map((r) => (
+        <button key={r} onClick={() => setRange(r)}
+          className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+          }`}>{r}</button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Reconstructs positions from transactions for a given date range.
+ * When range is "ALL", returns current positions as-is.
+ * Otherwise, replays BUY/SELL transactions up to `toDate` and uses historical prices
+ * to compute what the portfolio looked like at that time.
+ */
+function reconstructPositionsForRange(
+  analytics: Analytics | null,
+  range: ExtendedRange,
+): ReturnType<typeof computeCurrentPositions> {
+  if (!analytics) return [];
+  if (range === "ALL") return computeCurrentPositions(analytics.positions);
+
+  const txs = analytics.transactions ?? [];
+  const priceHistory = analytics.priceHistory ?? {};
+  if (txs.length === 0) return computeCurrentPositions(analytics.positions);
+
+  const cutoff = rangeCutoffMs(range);
+  const now = Date.now();
+
+  // Replay transactions up to now to build positions that existed during the range
+  const posMap = new Map<string, { qty: number; totalCost: number; firstBuyDate: number }>();
+  const realizedMap = new Map<string, number>();
+
+  for (const tx of txs) {
+    const txMs = new Date(tx.date).getTime();
+    if (txMs > now) continue;
+    const qty = parseFloat(tx.quantity);
+    const price = parseFloat(tx.price);
+
+    if (tx.type === "BUY") {
+      const existing = posMap.get(tx.symbol) ?? { qty: 0, totalCost: 0, firstBuyDate: txMs };
+      existing.qty += qty;
+      existing.totalCost += qty * price;
+      if (txMs < existing.firstBuyDate) existing.firstBuyDate = txMs;
+      posMap.set(tx.symbol, existing);
+    } else {
+      const existing = posMap.get(tx.symbol);
+      if (existing && existing.qty > 0) {
+        const avgCost = existing.totalCost / existing.qty;
+        const profit = (price - avgCost) * qty;
+        // Only count realized gains within the range
+        if (txMs >= cutoff) {
+          realizedMap.set(tx.symbol, (realizedMap.get(tx.symbol) ?? 0) + profit);
+        }
+        existing.qty -= qty;
+        existing.totalCost = existing.qty * avgCost;
+        if (existing.qty <= 0.0001) { existing.qty = 0; existing.totalCost = 0; }
+        posMap.set(tx.symbol, existing);
+      }
+    }
+  }
+
+  // Also replay up to the START of the range to know what existed then
+  const posAtStart = new Map<string, { qty: number; totalCost: number }>();
+  for (const tx of txs) {
+    const txMs = new Date(tx.date).getTime();
+    if (txMs >= cutoff) break;
+    const qty = parseFloat(tx.quantity);
+    const price = parseFloat(tx.price);
+    if (tx.type === "BUY") {
+      const existing = posAtStart.get(tx.symbol) ?? { qty: 0, totalCost: 0 };
+      existing.qty += qty;
+      existing.totalCost += qty * price;
+      posAtStart.set(tx.symbol, existing);
+    } else {
+      const existing = posAtStart.get(tx.symbol);
+      if (existing && existing.qty > 0) {
+        const avgCost = existing.totalCost / existing.qty;
+        existing.qty -= qty;
+        existing.totalCost = existing.qty * avgCost;
+        if (existing.qty <= 0.0001) { existing.qty = 0; existing.totalCost = 0; }
+        posAtStart.set(tx.symbol, existing);
+      }
+    }
+  }
+
+  // Include symbols that had positions during the range (either at start or traded during)
+  const relevantSymbols = new Set<string>();
+  for (const tx of txs) {
+    const txMs = new Date(tx.date).getTime();
+    if (txMs >= cutoff && txMs <= now) relevantSymbols.add(tx.symbol);
+  }
+  for (const [sym, pos] of posAtStart) {
+    if (pos.qty > 0) relevantSymbols.add(sym);
+  }
+  for (const [sym, pos] of posMap) {
+    if (pos.qty > 0) relevantSymbols.add(sym);
+  }
+
+  // Current positions map for live prices
+  const currentPosMap = new Map(analytics.positions.map(p => [p.symbol, p]));
+
+  // Get historical price at start of range for each symbol
+  function getPriceAt(symbol: string, targetMs: number): number | null {
+    const ph = priceHistory[symbol];
+    if (!ph || ph.length === 0) return null;
+    let closest: { price: string; timestamp: string } | null = null;
+    for (const p of ph) {
+      const pMs = new Date(p.timestamp).getTime();
+      if (pMs <= targetMs) closest = p;
+      else break;
+    }
+    return closest ? parseFloat(closest.price) : null;
+  }
+
+  const results: { symbol: string; returnPct: number; unrealizedNum: number; realizedNum: number; investedNum: number;
+    currentPrice: number | null; totalQuantity: string | number; averagePrice: string | number;
+    totalInvested: string | number; unrealizedPnL: string | number; realizedPnL: string | number;
+    returnPercent?: string | number; daysSinceFirstBuy?: number; graphData?: { price: string; timestamp: string }[];
+  }[] = [];
+
+  for (const symbol of relevantSymbols) {
+    const currentPos = posMap.get(symbol);
+    const startPos = posAtStart.get(symbol);
+    const analyticPos = currentPosMap.get(symbol);
+    const currentQty = currentPos?.qty ?? 0;
+    const startQty = startPos?.qty ?? 0;
+    const realized = realizedMap.get(symbol) ?? 0;
+
+    // Get prices
+    const livePrice = analyticPos?.currentPrice ?? getPriceAt(symbol, now);
+    const startPrice = getPriceAt(symbol, cutoff);
+    const avgCost = currentQty > 0 && currentPos ? currentPos.totalCost / currentPos.qty : 0;
+    const invested = currentQty > 0 ? currentPos!.totalCost : (startPos?.totalCost ?? 0);
+
+    // Unrealized P&L: change in value of shares held during this period
+    let unrealized = 0;
+    if (currentQty > 0 && livePrice != null) {
+      if (startPrice != null && startQty > 0) {
+        // Shares held from start: value change = (livePrice - startPrice) * min(startQty, currentQty)
+        const heldThrough = Math.min(startQty, currentQty);
+        unrealized = (livePrice - startPrice) * heldThrough;
+        // New shares bought during period: unrealized from avg cost
+        const newShares = currentQty - heldThrough;
+        if (newShares > 0) unrealized += (livePrice - avgCost) * newShares;
+      } else {
+        unrealized = (livePrice - avgCost) * currentQty;
+      }
+    }
+
+    // Return % for the period
+    const periodInvested = startQty > 0 && startPrice != null ? startQty * startPrice : invested;
+    const totalReturn = realized + unrealized;
+    const returnPct = periodInvested > 0 ? (totalReturn / periodInvested) * 100 : 0;
+
+    const firstBuyDate = currentPos?.firstBuyDate;
+    const days = firstBuyDate ? Math.floor((now - firstBuyDate) / 86400000) : undefined;
+
+    // Get graphData filtered to range
+    const graphData = (analyticPos?.graphData ?? (priceHistory[symbol] ?? []).map(p => ({ price: p.price, timestamp: p.timestamp })))
+      .filter(g => new Date(g.timestamp).getTime() >= cutoff);
+
+    results.push({
+      symbol,
+      returnPct,
+      unrealizedNum: unrealized,
+      realizedNum: realized,
+      investedNum: periodInvested > 0 ? periodInvested : invested,
+      currentPrice: livePrice,
+      totalQuantity: currentQty.toString(),
+      averagePrice: avgCost.toFixed(2),
+      totalInvested: invested.toFixed(2),
+      unrealizedPnL: unrealized.toFixed(2),
+      realizedPnL: realized.toFixed(2),
+      returnPercent: returnPct,
+      daysSinceFirstBuy: days,
+      graphData,
+    });
+  }
+
+  return results.sort((a, b) => b.returnPct - a.returnPct);
+}
+
+/** For "ALL" range — just format current positions */
+function computeCurrentPositions(positions: AnalyticsPosition[]) {
+  return positions.map((p) => {
+    const invested = parseFloat(String(p.totalInvested));
+    const qty = parseFloat(String(p.totalQuantity));
+    const currentPrice = p.currentPrice ?? 0;
+    const unrealized = parseFloat(String(p.unrealizedPnL));
+    const returnPct = p.returnPercent != null ? parseFloat(String(p.returnPercent)) : invested > 0 ? (unrealized / invested) * 100 : 0;
+    return { ...p, returnPct, unrealizedNum: unrealized, realizedNum: parseFloat(String(p.realizedPnL)), investedNum: invested };
+  }).sort((a, b) => b.returnPct - a.returnPct);
+}
+
+function filterTimeline(timeline: TimelinePoint[], range: ExtendedRange) {
+  if (range === "ALL") return timeline;
+  const cutoff = rangeCutoffMs(range);
+  return timeline.filter(p => new Date(p.timestamp).getTime() >= cutoff);
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -190,11 +407,25 @@ function KpiCard({
       <div className={`p-2 rounded-lg ${iconColors[color]}`}>
         <Icon size={16} />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-gray-500 text-xs">{label}</p>
-        <p className={`text-lg font-bold mt-0.5 truncate ${
-          positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"
-        }`}>{value}</p>
+        {(() => {
+          const match = value.match(/^([A-Z]{3})\s*(.+)$/);
+          if (match) {
+            const valColor = positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400";
+            return (
+              <div className="mt-0.5">
+                <span className="text-gray-500 text-[10px] font-medium tracking-wider uppercase">{match[1]}</span>
+                <p className={`text-lg font-bold leading-tight ${valColor}`}>{match[2]}</p>
+              </div>
+            );
+          }
+          return (
+            <p className={`text-lg font-bold mt-0.5 ${
+              positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"
+            }`}>{value}</p>
+          );
+        })()}
         {sub && <p className="text-gray-600 text-xs mt-0.5">{sub}</p>}
       </div>
     </div>
@@ -222,42 +453,32 @@ function EmptyState({ message }: { message: string }) {
 
 export default function AnalyticsPage() {
   const { t, dir } = useLanguage();
-  const [range, setRange] = useState<ExtendedRange>("1M");
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
+  // Per-section independent range states
+  const [timelineRange, setTimelineRange] = useState<ExtendedRange>("1M");
+  const [pnlRange, setPnlRange] = useState<ExtendedRange>("1M");
+  const [riskRange, setRiskRange] = useState<ExtendedRange>("1M");
+  const [waterfallRange, setWaterfallRange] = useState<ExtendedRange>("1M");
+  const [healthRange, setHealthRange] = useState<ExtendedRange>("1M");
+  const [durationRange, setDurationRange] = useState<ExtendedRange>("1M");
+  const [tableRange, setTableRange] = useState<ExtendedRange>("1M");
+
+  // Fetch ALL data once — no refetch on range change
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
-  const { data: timeline = [], isLoading: timelineLoading } = useTimeline(range);
+  const { data: allTimeline = [], isLoading: timelineLoading } = useTimeline();
+
+  // ALL positions (no range filter) for KPI cards
+  const allPositions = useMemo(() => reconstructPositionsForRange(analytics ?? null, "ALL"), [analytics]);
 
   const pv = analytics?.portfolioValue;
   const totalInvested = pv ? parseFloat(String(pv.totalInvested)) : 0;
-  const totalUnrealized = pv ? parseFloat(String(pv.totalUnrealized)) : 0;
   const totalRealized = pv && pv.totalRealized != null ? parseFloat(String(pv.totalRealized)) : 0;
-  const totalPnL = pv ? parseFloat(String(pv.totalPnL)) : 0;
-  const netPnL = analytics?.netPnL ? parseFloat(analytics.netPnL) : null;
   const fees = analytics?.totalFeesPaid ? parseFloat(analytics.totalFeesPaid) : 0;
+  const totalUnrealized = allPositions.reduce((s, p) => s + p.unrealizedNum, 0);
+  const totalPnL = totalRealized + totalUnrealized;
+  const netPnL = totalPnL - fees;
 
-  // Positions sorted by return%
-  const positions = useMemo(() => {
-    return (analytics?.positions ?? [])
-      .map((p) => {
-        const invested = parseFloat(String(p.totalInvested));
-        const unrealized = parseFloat(String(p.unrealizedPnL));
-        // Compute return% from unrealized PnL / invested if returnPercent not provided
-        const returnPct = p.returnPercent != null
-          ? parseFloat(String(p.returnPercent))
-          : invested > 0 ? (unrealized / invested) * 100 : 0;
-        return {
-          ...p,
-          returnPct,
-          unrealizedNum: unrealized,
-          realizedNum: parseFloat(String(p.realizedPnL)),
-          investedNum: invested,
-        };
-      })
-      .sort((a, b) => b.returnPct - a.returnPct);
-  }, [analytics]);
-
-  // Avg hold days from positions (analytics endpoint doesn't include it directly)
   const avgHoldDays = useMemo(() => {
     const ps = analytics?.positions ?? [];
     if (ps.length === 0) return null;
@@ -265,23 +486,20 @@ export default function AnalyticsPage() {
     return Math.round(total / ps.length);
   }, [analytics]);
 
-  // Fallback: build timeline from positions' graphData when the timeline API returns < 2 points
-  const effectiveTimeline = useMemo(() => {
-    if (timeline.length >= 2) return timeline;
-    if (!analytics?.positions?.length) return timeline;
-    const days: Record<DateRange, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
-    const cutoffMs = range === "ALL" ? 0 : Date.now() - (days[range as DateRange] ?? 30) * 86400000;
+  // Build fallback timeline from graphData (used when API returns < 2 points)
+  const fullTimeline = useMemo(() => {
+    if (allTimeline.length >= 2) return allTimeline;
+    if (!analytics?.positions?.length) return allTimeline;
     const byTs = new Map<string, number>();
     for (const pos of analytics.positions) {
       const qty = Number(pos.totalQuantity);
       if (qty === 0) continue;
       for (const g of pos.graphData ?? []) {
         const ms = new Date(g.timestamp).getTime();
-        if (isNaN(ms) || ms < cutoffMs) continue;
+        if (isNaN(ms)) continue;
         byTs.set(g.timestamp, (byTs.get(g.timestamp) ?? 0) + Number(g.price) * qty);
       }
     }
-    // Always add current prices as the "now" data point so the chart has ≥ 2 points
     const nowKey = new Date().toISOString();
     if (!byTs.has(nowKey)) {
       const currentTotal = analytics.positions.reduce((sum, pos) => {
@@ -294,10 +512,12 @@ export default function AnalyticsPage() {
     const pts = Array.from(byTs.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([timestamp, totalValue]) => ({ timestamp, totalValue }));
-    return pts.length >= 2 ? pts : timeline;
-  }, [timeline, analytics, range]);
+    return pts.length >= 2 ? pts : allTimeline;
+  }, [allTimeline, analytics]);
 
-  // Chart data — API returns totalValue as decimal string; convert explicitly
+  // Timeline filtered by its own range (client-side)
+  const effectiveTimeline = useMemo(() => filterTimeline(fullTimeline, timelineRange), [fullTimeline, timelineRange]);
+
   const timelineChartData = useMemo(() =>
     effectiveTimeline.map((p) => ({
       date: new Date(p.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
@@ -318,91 +538,6 @@ export default function AnalyticsPage() {
     return { abs: last - first, pct: first > 0 ? ((last - first) / first) * 100 : 0 };
   }, [effectiveTimeline]);
 
-  // PnL bar chart per position — sorted by net P&L descending
-  const pnlBarData = useMemo(() =>
-    [...positions]
-      .map((p) => ({
-        symbol: p.symbol,
-        unrealized: p.unrealizedNum,
-        realized: p.realizedNum,
-        net: p.unrealizedNum + p.realizedNum,
-      }))
-      .sort((a, b) => b.net - a.net),
-    [positions]
-  );
-
-  // Risk-Return scatter: invested vs return%, sized by market value
-  const riskReturnData = useMemo(() =>
-    positions
-      .filter((p) => p.investedNum > 0)
-      .map((p) => ({
-        symbol: p.symbol,
-        invested: p.investedNum,
-        returnPct: p.returnPct,
-        marketValue: p.investedNum + p.unrealizedNum,
-        isPositive: p.returnPct >= 0,
-      })),
-    [positions]
-  );
-
-  // Portfolio value waterfall: invested → each gain/loss → total value
-  const waterfallData = useMemo(() => {
-    const items: { name: string; value: number; fill: string; isTotal?: boolean }[] = [];
-    items.push({ name: t("common.invested"), value: totalInvested, fill: "#3b82f6", isTotal: true });
-    const sorted = [...positions].sort((a, b) => (b.unrealizedNum + b.realizedNum) - (a.unrealizedNum + a.realizedNum));
-    for (const p of sorted) {
-      const net = p.unrealizedNum + p.realizedNum;
-      if (Math.abs(net) < 0.01) continue;
-      items.push({ name: p.symbol, value: net, fill: net >= 0 ? "#10b981" : "#ef4444" });
-    }
-    if (fees > 0) {
-      items.push({ name: t("common.fees"), value: -fees, fill: "#f59e0b" });
-    }
-    const totalValue = totalInvested + totalUnrealized + totalRealized;
-    items.push({ name: t("analytics.netValue"), value: totalValue, fill: totalValue >= totalInvested ? "#10b981" : "#ef4444", isTotal: true });
-    return items;
-  }, [positions, totalInvested, totalUnrealized, totalRealized, fees, t]);
-
-  // Position health data
-  const positionHealthData = useMemo(() =>
-    positions
-      .filter((p) => p.currentPrice != null && p.currentPrice > 0)
-      .map((p) => {
-        const avgCost = parseFloat(String(p.averagePrice));
-        const current = p.currentPrice ?? 0;
-        const gap = avgCost > 0 ? ((current - avgCost) / avgCost) * 100 : 0;
-        const weight = totalInvested > 0 ? (p.investedNum / totalInvested) * 100 : 0;
-        return {
-          symbol: p.symbol,
-          avgCost,
-          currentPrice: current,
-          gap,
-          invested: p.investedNum,
-          marketValue: p.investedNum + p.unrealizedNum,
-          unrealized: p.unrealizedNum,
-          returnPct: p.returnPct,
-          days: p.daysSinceFirstBuy ?? 0,
-          weight,
-        };
-      })
-      .sort((a, b) => Math.abs(b.unrealized) - Math.abs(a.unrealized)),
-    [positions, totalInvested]
-  );
-
-  // Return vs Holding Duration scatter
-  const returnVsDurationData = useMemo(() =>
-    positions
-      .filter((p) => (p.daysSinceFirstBuy ?? 0) > 0 && p.investedNum > 0)
-      .map((p) => ({
-        symbol: p.symbol,
-        days: p.daysSinceFirstBuy ?? 0,
-        returnPct: p.returnPct,
-        invested: p.investedNum,
-        isPositive: p.returnPct >= 0,
-      })),
-    [positions]
-  );
-
   if (analyticsLoading) {
     return (
       <AppShell>
@@ -413,7 +548,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  if (!analytics || positions.length === 0) {
+  if (!analytics || allPositions.length === 0) {
     return (
       <AppShell>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 flex flex-col items-center gap-4 text-center">
@@ -456,7 +591,7 @@ export default function AnalyticsPage() {
           <KpiCard
             icon={Target} label={t("analytics.winRate")}
             value={analytics.winRate != null ? `${parseFloat(String(analytics.winRate)).toFixed(1)}%` : "—"}
-            sub={`${analytics.symbolsTraded ?? positions.length} ${t("analytics.symbols")}`}
+            sub={`${analytics.symbolsTraded ?? allPositions.length} ${t("analytics.symbols")}`}
             color="purple"
           />
           <KpiCard
@@ -473,19 +608,7 @@ export default function AnalyticsPage() {
               title={t("analytics.portfolioValue")}
               sub={timelineChange ? `${pct(timelineChange.pct)} · ${fmtEGP(timelineChange.abs)} ${t("analytics.thisPeriod")}` : undefined}
             />
-            <div className="flex gap-1">
-              {RANGES.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRange(r)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
-                    range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
+            <SectionRangeBtns range={timelineRange} setRange={setTimelineRange} />
           </div>
           {timelineLoading ? (
             <div className="h-48 flex items-center justify-center">
@@ -530,8 +653,16 @@ export default function AnalyticsPage() {
         {/* ── 1. P&L Breakdown — enhanced with net labels & gradient fills ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <SectionHeader title={t("analytics.pnlByPosition")} sub={t("analytics.pnlSub")} />
-            {pnlBarData.length === 0 ? (
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <SectionHeader title={t("analytics.pnlByPosition")} sub={t("analytics.pnlSub")} />
+              <SectionRangeBtns range={pnlRange} setRange={setPnlRange} />
+            </div>
+            {(() => {
+              const positions = reconstructPositionsForRange(analytics ?? null, pnlRange);
+              const pnlBarData = [...positions]
+                .map((p) => ({ symbol: p.symbol, unrealized: p.unrealizedNum, realized: p.realizedNum, net: p.unrealizedNum + p.realizedNum }))
+                .sort((a, b) => b.net - a.net);
+              return pnlBarData.length === 0 ? (
               <EmptyState message={t("analytics.noPositions2")} />
             ) : (
               <>
@@ -599,18 +730,27 @@ export default function AnalyticsPage() {
                 </ResponsiveContainer>
                 </div>
               </>
-            )}
+            )
+            })()}
           </div>
 
           {/* ── 2. Risk-Return Scatter — with quadrant labels & symbol annotations ── */}
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <SectionHeader title={t("analytics.riskReturn")} sub={t("analytics.riskReturnSub")} />
-            {riskReturnData.length === 0 ? (
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <SectionHeader title={t("analytics.riskReturn")} sub={t("analytics.riskReturnSub")} />
+              <SectionRangeBtns range={riskRange} setRange={setRiskRange} />
+            </div>
+            {(() => {
+              const positions = reconstructPositionsForRange(analytics ?? null, riskRange);
+              const riskReturnData = positions
+                .filter((p) => p.investedNum > 0)
+                .map((p) => ({ symbol: p.symbol, invested: p.investedNum, returnPct: p.returnPct, marketValue: p.investedNum + p.unrealizedNum, isPositive: p.returnPct >= 0 }));
+              return riskReturnData.length === 0 ? (
               <EmptyState message={t("analytics.noPositions2")} />
             ) : (
               <>
                 <div dir="ltr" className="relative">
-                <ResponsiveContainer width="100%" height={Math.max(240, pnlBarData.length * 38)}>
+                <ResponsiveContainer width="100%" height={Math.max(240, riskReturnData.length * 38)}>
                   <ScatterChart margin={{ top: 20, right: 28, left: 0, bottom: 8 }}>
                     <defs>
                       <radialGradient id="dotGreen" cx="30%" cy="30%">
@@ -660,24 +800,42 @@ export default function AnalyticsPage() {
                   <span className="text-gray-600">({t("analytics.bubbleSize")})</span>
                 </div>
               </>
-            )}
+            );
+            })()}
           </div>
         </div>
 
         {/* ── 3. Portfolio Value Waterfall — enhanced with value labels & gradients ── */}
-        {waterfallData.length > 2 && (
+        {(() => {
+          const wfPositions = reconstructPositionsForRange(analytics ?? null, waterfallRange);
+          const wfInvested = wfPositions.reduce((s, p) => s + p.investedNum, 0);
+          const wfUnrealized = wfPositions.reduce((s, p) => s + p.unrealizedNum, 0);
+          const wfRealized = wfPositions.reduce((s, p) => s + p.realizedNum, 0);
+          const waterfallData: { name: string; value: number; fill: string; isTotal?: boolean }[] = [];
+          waterfallData.push({ name: t("common.invested"), value: wfInvested, fill: "#3b82f6", isTotal: true });
+          [...wfPositions].sort((a, b) => (b.unrealizedNum + b.realizedNum) - (a.unrealizedNum + a.realizedNum)).forEach((p) => {
+            const net = p.unrealizedNum + p.realizedNum;
+            if (Math.abs(net) >= 0.01) waterfallData.push({ name: p.symbol, value: net, fill: net >= 0 ? "#10b981" : "#ef4444" });
+          });
+          if (fees > 0) waterfallData.push({ name: t("common.fees"), value: -fees, fill: "#f59e0b" });
+          const wfTotalValue = wfInvested + wfUnrealized + wfRealized;
+          waterfallData.push({ name: t("analytics.netValue"), value: wfTotalValue, fill: wfTotalValue >= wfInvested ? "#10b981" : "#ef4444", isTotal: true });
+          if (waterfallData.length <= 2) return null;
+          return (
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <SectionHeader title={t("analytics.valueWaterfall")} sub={t("analytics.valueWaterfallSub")} />
-            {/* Visual summary */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <SectionHeader title={t("analytics.valueWaterfall")} sub={t("analytics.valueWaterfallSub")} />
+              <SectionRangeBtns range={waterfallRange} setRange={setWaterfallRange} />
+            </div>
             <div className="flex items-center gap-3 text-xs flex-wrap">
               <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded bg-blue-500 inline-block" />
-                <span className="text-gray-400">{t("common.invested")}: <span className="text-white font-semibold">{fmtEGP(totalInvested)}</span></span>
+                <span className="text-gray-400">{t("common.invested")}: <span className="text-white font-semibold">{fmtEGP(wfInvested)}</span></span>
               </div>
               <span className="text-gray-700">→</span>
               {(() => {
-                const netVal = totalInvested + totalUnrealized + totalRealized;
-                const diff = netVal - totalInvested;
+                const netVal = wfTotalValue;
+                const diff = netVal - wfInvested;
                 return (
                   <div className="flex items-center gap-1.5">
                     <span className={`w-3 h-3 rounded inline-block ${diff >= 0 ? "bg-emerald-500" : "bg-red-500"}`} />
@@ -725,7 +883,10 @@ export default function AnalyticsPage() {
                   <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
                     tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(0)}k` : (v as number).toFixed(0)} />
                   <Tooltip
-                    contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
+                    wrapperStyle={{ backgroundColor: "transparent" }}
+                    contentStyle={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
+                    animationDuration={300}
+                    animationEasing="ease-out"
                     formatter={(v: unknown, name: unknown, props: { payload?: { raw?: number; isTotal?: boolean } }) => {
                       if (name === "base") return [null, null];
                       const raw = props.payload?.raw ?? (v as number);
@@ -749,12 +910,30 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── 4. Position Health Cards ────────────────────── */}
-        {positionHealthData.length > 0 && (
+        {(() => {
+          const hPositions = reconstructPositionsForRange(analytics ?? null, healthRange);
+          const hInvested = hPositions.reduce((s, p) => s + p.investedNum, 0);
+          const positionHealthData = hPositions
+            .filter((p) => p.currentPrice != null && p.currentPrice > 0)
+            .map((p) => {
+              const avgCost = parseFloat(String(p.averagePrice));
+              const current = p.currentPrice ?? 0;
+              const gap = avgCost > 0 ? ((current - avgCost) / avgCost) * 100 : 0;
+              const weight = hInvested > 0 ? (p.investedNum / hInvested) * 100 : 0;
+              return { symbol: p.symbol, avgCost, currentPrice: current, gap, invested: p.investedNum, marketValue: p.investedNum + p.unrealizedNum, unrealized: p.unrealizedNum, returnPct: p.returnPct, days: p.daysSinceFirstBuy ?? 0, weight };
+            })
+            .sort((a, b) => Math.abs(b.unrealized) - Math.abs(a.unrealized));
+          if (positionHealthData.length === 0) return null;
+          return (
           <div className="space-y-3">
-            <SectionHeader title={t("analytics.positionHealth")} sub={t("analytics.positionHealthSub")} />
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <SectionHeader title={t("analytics.positionHealth")} sub={t("analytics.positionHealthSub")} />
+              <SectionRangeBtns range={healthRange} setRange={setHealthRange} />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {positionHealthData.map((p) => {
                 const isUp = p.gap >= 0;
@@ -818,12 +997,22 @@ export default function AnalyticsPage() {
               })}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── 5. Return vs Holding Duration Scatter — enhanced with labels ── */}
-        {returnVsDurationData.length > 0 && (
+        {(() => {
+          const durPositions = reconstructPositionsForRange(analytics ?? null, durationRange);
+          const returnVsDurationData = durPositions
+            .filter((p) => (p.daysSinceFirstBuy ?? 0) > 0 && p.investedNum > 0)
+            .map((p) => ({ symbol: p.symbol, days: p.daysSinceFirstBuy ?? 0, returnPct: p.returnPct, invested: p.investedNum, isPositive: p.returnPct >= 0 }));
+          if (returnVsDurationData.length === 0) return null;
+          return (
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <SectionHeader title={t("analytics.returnVsDuration")} sub={t("analytics.returnVsDurationSub")} />
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <SectionHeader title={t("analytics.returnVsDuration")} sub={t("analytics.returnVsDurationSub")} />
+              <SectionRangeBtns range={durationRange} setRange={setDurationRange} />
+            </div>
             {/* Quick insight */}
             <div className="flex gap-4 text-xs flex-wrap">
               {(() => {
@@ -888,12 +1077,19 @@ export default function AnalyticsPage() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── Position Table ───────────────────────────── */}
+        {(() => {
+          const positions = reconstructPositionsForRange(analytics ?? null, tableRange);
+          return (
         <div className="bg-gray-900 rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-800">
-            <SectionHeader title={t("analytics.allPositions")} sub={`${positions.length} ${t("analytics.holdings")}`} />
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <SectionHeader title={t("analytics.allPositions")} sub={`${positions.length} ${t("analytics.holdings")}`} />
+              <SectionRangeBtns range={tableRange} setRange={setTableRange} />
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -960,6 +1156,8 @@ export default function AnalyticsPage() {
             </table>
           </div>
         </div>
+          );
+        })()}
 
         {/* ── Best / Worst ─────────────────────────────── */}
         {(analytics.bestPerformer || analytics.worstPerformer) && (

@@ -159,6 +159,7 @@ const ar: Record<string, string> = {
   "dashboard.shares":       "سهم",
   "dashboard.avg":          "متوسط",
   "dashboard.unrealizedLabel": "غير محقق",
+  "dashboard.recentTx":     "المعاملات الأخيرة",
   "dashboard.noPositions":  "لا توجد مراكز بعد.",
 
   // ── Stocks ───────────────────────────────────────────────────────────────────
@@ -332,8 +333,9 @@ const ar: Record<string, string> = {
   "risk.peakToTrough":         "من القمة إلى القاع",
 
   // ── Strategies ───────────────────────────────────────────────────────────────
-  "strategies.title":       "استراتيجيات الذكاء الاصطناعي",
-  "strategies.sub":         "استراتيجيات احترافية مستوحاة من أبرز مؤسسات وول ستريت. أدخل بياناتك وانسخ الاستراتيجية لاستخدامها مع أي مساعد ذكاء اصطناعي.",
+  "strategies.title":       "تحليل الاستراتيجيات بالذكاء الاصطناعي",
+  "strategies.sub":         "تحليل احترافي مستوحى من أبرز مؤسسات وول ستريت. اختر الأسهم واحصل على توصيات قابلة للتنفيذ.",
+  "strategies.selectStocks": "اختر الأسهم للتحليل",
   "strategies.copy":        "نسخ الاستراتيجية",
   "strategies.copied":      "تم النسخ!",
   "strategies.expand":      "استخدم الاستراتيجية",

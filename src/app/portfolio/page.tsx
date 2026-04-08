@@ -13,6 +13,7 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import RangeSelector from "@/components/RangeSelector";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { useLanguage } from "@/context/LanguageContext";
@@ -54,6 +55,15 @@ interface Performer {
   returnPercent: number;
 }
 
+interface AnalyticsTransaction {
+  symbol: string;
+  type: "BUY" | "SELL";
+  quantity: string;
+  price: string;
+  fees: string;
+  date: string;
+}
+
 interface Analytics {
   positions: AnalyticsPosition[];
   portfolioValue: {
@@ -69,6 +79,8 @@ interface Analytics {
   netPnL?: string;
   avgHoldingDays?: number;
   symbolsTraded?: number;
+  transactions?: AnalyticsTransaction[];
+  priceHistory?: Record<string, { price: string; timestamp: string }[]>;
 }
 
 interface TimelinePoint {
@@ -117,24 +129,27 @@ function rangeToFromTo(range: DateRange): { from: string; to: string } {
 // ─── Hooks ───────────────────────────────────────────────────────────────────
 
 function useAnalytics() {
+  const to = new Date().toISOString().slice(0, 10);
   return useQuery<Analytics | null>({
-    queryKey: ["portfolio", "analytics"],
-    queryFn: () => apiClient.get<Analytics | null>("/api/portfolio/analytics"),
+    queryKey: ["portfolio", "analytics", "ALL"],
+    queryFn: () => apiClient.get<Analytics | null>(`/api/portfolio/analytics?from=2000-01-01&to=${to}`),
     retry: 1,
+    staleTime: 60_000,
   });
 }
 
-function useTimeline(range: DateRange) {
-  const { from, to } = rangeToFromTo(range);
+function useTimeline() {
+  const to = new Date().toISOString().slice(0, 10);
   return useQuery<TimelinePoint[]>({
-    queryKey: ["portfolio", "timeline", range],
+    queryKey: ["portfolio", "timeline", "ALL"],
     queryFn: async () => {
-      const result = await apiClient.get<unknown>(`/api/portfolio/timeline?from=${from}&to=${to}`);
+      const result = await apiClient.get<unknown>(`/api/portfolio/timeline?from=2000-01-01&to=${to}`);
       if (Array.isArray(result)) return result as TimelinePoint[];
       const tl = (result as { timeline?: TimelinePoint[] })?.timeline;
       return Array.isArray(tl) ? tl : [];
     },
     retry: 1,
+    staleTime: 60_000,
   });
 }
 
@@ -207,18 +222,172 @@ interface RealizedGainsResponse {
 }
 
 function useRealizedGains() {
+  const to = new Date().toISOString().slice(0, 10);
   return useQuery<RealizedGainsResponse>({
-    queryKey: ["portfolio", "realized-gains"],
-    queryFn: () => apiClient.get<RealizedGainsResponse>("/api/portfolio/realized-gains"),
+    queryKey: ["portfolio", "realized-gains", "ALL"],
+    queryFn: () => apiClient.get<RealizedGainsResponse>(`/api/portfolio/realized-gains?from=2000-01-01&to=${to}`),
     retry: 1,
+    staleTime: 60_000,
   });
 }
 
 function useClosedPositions() {
+  const to = new Date().toISOString().slice(0, 10);
   return useQuery<ClosedPosition[]>({
-    queryKey: ["portfolio", "closed-positions"],
-    queryFn: () => apiClient.get<ClosedPosition[]>("/api/portfolio/closed-positions"),
+    queryKey: ["portfolio", "closed-positions", "ALL"],
+    queryFn: () => apiClient.get<ClosedPosition[]>(`/api/portfolio/closed-positions?from=2000-01-01&to=${to}`),
     retry: 1,
+    staleTime: 60_000,
+  });
+}
+
+const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+
+function SectionRangeBtns({ range, setRange }: { range: DateRange; setRange: (r: DateRange) => void }) {
+  const RANGE_OPTIONS: DateRange[] = ["1W", "1M", "3M", "6M", "1Y"];
+  return (
+    <div className="flex gap-1">
+      {RANGE_OPTIONS.map((r) => (
+        <button key={r} onClick={() => setRange(r)}
+          className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+          }`}>{r}</button>
+      ))}
+    </div>
+  );
+}
+
+function filterByDateRange<T extends { date?: string; closeDate?: string | null; lastSellDate?: string | null }>(items: T[], range: DateRange, dateField: keyof T = "date" as keyof T): T[] {
+  const cutoffMs = Date.now() - (RANGE_DAYS[range] ?? 30) * 86400000;
+  return items.filter((item) => {
+    const d = String(item[dateField] ?? "");
+    return d && new Date(d).getTime() >= cutoffMs;
+  });
+}
+
+/** Reconstruct positions from transactions for a given date range */
+function reconstructPositionsForRange(analytics: Analytics | null, range: DateRange) {
+  if (!analytics) return [];
+  const txs = analytics.transactions ?? [];
+  const priceHistory = analytics.priceHistory ?? {};
+  if (txs.length === 0) return analytics.positions;
+
+  const cutoffMs = Date.now() - (RANGE_DAYS[range] ?? 30) * 86400000;
+  const now = Date.now();
+
+  // Replay transactions to build current positions
+  const posMap = new Map<string, { qty: number; totalCost: number; firstBuyDate: number }>();
+  const realizedMap = new Map<string, number>();
+
+  for (const tx of txs) {
+    const txMs = new Date(tx.date).getTime();
+    if (txMs > now) continue;
+    const qty = parseFloat(tx.quantity);
+    const price = parseFloat(tx.price);
+
+    if (tx.type === "BUY") {
+      const existing = posMap.get(tx.symbol) ?? { qty: 0, totalCost: 0, firstBuyDate: txMs };
+      existing.qty += qty;
+      existing.totalCost += qty * price;
+      if (txMs < existing.firstBuyDate) existing.firstBuyDate = txMs;
+      posMap.set(tx.symbol, existing);
+    } else {
+      const existing = posMap.get(tx.symbol);
+      if (existing && existing.qty > 0) {
+        const avgCost = existing.totalCost / existing.qty;
+        const profit = (price - avgCost) * qty;
+        if (txMs >= cutoffMs) realizedMap.set(tx.symbol, (realizedMap.get(tx.symbol) ?? 0) + profit);
+        existing.qty -= qty;
+        existing.totalCost = existing.qty * avgCost;
+        if (existing.qty <= 0.0001) { existing.qty = 0; existing.totalCost = 0; }
+        posMap.set(tx.symbol, existing);
+      }
+    }
+  }
+
+  // Positions at start of range
+  const posAtStart = new Map<string, { qty: number; totalCost: number }>();
+  for (const tx of txs) {
+    const txMs = new Date(tx.date).getTime();
+    if (txMs >= cutoffMs) break;
+    const qty = parseFloat(tx.quantity);
+    const price = parseFloat(tx.price);
+    if (tx.type === "BUY") {
+      const existing = posAtStart.get(tx.symbol) ?? { qty: 0, totalCost: 0 };
+      existing.qty += qty;
+      existing.totalCost += qty * price;
+      posAtStart.set(tx.symbol, existing);
+    } else {
+      const existing = posAtStart.get(tx.symbol);
+      if (existing && existing.qty > 0) {
+        const avgCost = existing.totalCost / existing.qty;
+        existing.qty -= qty;
+        existing.totalCost = existing.qty * avgCost;
+        if (existing.qty <= 0.0001) { existing.qty = 0; existing.totalCost = 0; }
+        posAtStart.set(tx.symbol, existing);
+      }
+    }
+  }
+
+  // Relevant symbols = had positions at start OR traded during range
+  const relevantSymbols = new Set<string>();
+  for (const tx of txs) {
+    const txMs = new Date(tx.date).getTime();
+    if (txMs >= cutoffMs && txMs <= now) relevantSymbols.add(tx.symbol);
+  }
+  for (const [sym, pos] of posAtStart) { if (pos.qty > 0) relevantSymbols.add(sym); }
+  for (const [sym, pos] of posMap) { if (pos.qty > 0) relevantSymbols.add(sym); }
+
+  const currentPosMap = new Map(analytics.positions.map(p => [p.symbol, p]));
+
+  function getPriceAt(symbol: string, targetMs: number): number | null {
+    const ph = priceHistory[symbol];
+    if (!ph || ph.length === 0) return null;
+    let closest: { price: string } | null = null;
+    for (const p of ph) {
+      if (new Date(p.timestamp).getTime() <= targetMs) closest = p;
+      else break;
+    }
+    return closest ? parseFloat(closest.price) : null;
+  }
+
+  return Array.from(relevantSymbols).map((symbol) => {
+    const currentPos = posMap.get(symbol);
+    const startPos = posAtStart.get(symbol);
+    const analyticPos = currentPosMap.get(symbol);
+    const currentQty = currentPos?.qty ?? 0;
+    const startQty = startPos?.qty ?? 0;
+    const realized = realizedMap.get(symbol) ?? 0;
+    const livePrice = analyticPos?.currentPrice ?? getPriceAt(symbol, now);
+    const startPrice = getPriceAt(symbol, cutoffMs);
+    const avgCost = currentQty > 0 && currentPos ? currentPos.totalCost / currentPos.qty : 0;
+    const invested = currentQty > 0 ? currentPos!.totalCost : (startPos?.totalCost ?? 0);
+
+    let unrealized = 0;
+    if (currentQty > 0 && livePrice != null) {
+      if (startPrice != null && startQty > 0) {
+        const heldThrough = Math.min(startQty, currentQty);
+        unrealized = (livePrice - startPrice) * heldThrough;
+        const newShares = currentQty - heldThrough;
+        if (newShares > 0) unrealized += (livePrice - avgCost) * newShares;
+      } else {
+        unrealized = (livePrice - avgCost) * currentQty;
+      }
+    }
+
+    const periodInvested = startQty > 0 && startPrice != null ? startQty * startPrice : invested;
+
+    return {
+      symbol,
+      totalQuantity: currentQty.toString(),
+      averagePrice: avgCost.toFixed(2),
+      totalInvested: invested.toFixed(2),
+      currentPrice: livePrice,
+      unrealizedPnL: unrealized.toFixed(2),
+      realizedPnL: realized.toFixed(2),
+      returnPercent: periodInvested > 0 ? ((realized + unrealized) / periodInvested) * 100 : 0,
+      daysSinceFirstBuy: currentPos?.firstBuyDate ? Math.floor((now - currentPos.firstBuyDate) / 86400000) : undefined,
+    } as AnalyticsPosition;
   });
 }
 
@@ -303,9 +472,20 @@ function StatCard({
   return (
     <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
       <p className="text-gray-500 text-[10px] sm:text-xs mb-0.5 sm:mb-1 truncate">{label}</p>
-      <p className={`text-sm sm:text-xl font-bold truncate ${valueClass ?? autoClass}`}>
-        {value}
-      </p>
+      {(() => {
+        const match = value.match(/^([A-Z]{3})\s*(.+)$/);
+        if (match) {
+          return (
+            <div>
+              <span className="text-gray-500 text-[10px] font-medium tracking-wider uppercase">{match[1]}</span>
+              <p className={`text-sm sm:text-xl font-bold leading-tight ${valueClass ?? autoClass}`}>{match[2]}</p>
+            </div>
+          );
+        }
+        return (
+          <p className={`text-sm sm:text-xl font-bold truncate ${valueClass ?? autoClass}`}>{value}</p>
+        );
+      })()}
       {sub && <p className="text-gray-600 text-xs mt-0.5">{sub}</p>}
     </div>
   );
@@ -429,9 +609,42 @@ const RG_PRESETS: { id: RGPreset; label: string; key: RGSortKey; dir: "asc" | "d
   { id: "symbol",      label: "A → Z",        key: "symbol",    dir: "asc",  filter: "all",    color: "text-gray-400 border-gray-700 bg-gray-800/40" },
 ];
 
-function RealizedGainsTable() {
+function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRangeChange: (r: DateRange) => void }) {
   const { t } = useLanguage();
-  const { data, isLoading } = useRealizedGains();
+  const { data: allData, isLoading } = useRealizedGains();
+
+  // Client-side date filtering
+  const data = useMemo(() => {
+    if (!allData) return allData;
+    const cutoffMs = Date.now() - (RANGE_DAYS[range] ?? 30) * 86400000;
+    const filteredGains = allData.gains.filter(g => new Date(g.date).getTime() >= cutoffMs);
+    if (filteredGains.length === 0) return { gains: [], summary: null };
+    // Recompute summary from filtered gains
+    const totalProfit = filteredGains.reduce((s, g) => s + parseFloat(g.profit), 0);
+    const totalFees = filteredGains.reduce((s, g) => s + parseFloat(g.fees), 0);
+    const totalQty = filteredGains.reduce((s, g) => s + parseFloat(g.quantity), 0);
+    const totalCost = filteredGains.reduce((s, g) => s + parseFloat(g.avgPrice) * parseFloat(g.quantity), 0);
+    const winCount = filteredGains.filter(g => parseFloat(g.profit) > 0).length;
+    const lossCount = filteredGains.length - winCount;
+    const holdDays = filteredGains.filter(g => g.holdDays != null).map(g => g.holdDays!);
+    const symbols = new Set(filteredGains.map(g => g.symbol));
+    return {
+      gains: filteredGains,
+      summary: {
+        totalProfit: totalProfit.toString(),
+        totalFees: totalFees.toString(),
+        totalQuantity: totalQty.toString(),
+        totalCostBasis: totalCost.toString(),
+        totalReturn: totalCost > 0 ? ((totalProfit / totalCost) * 100).toString() : null,
+        uniqueSymbols: symbols.size,
+        avgHoldDays: holdDays.length > 0 ? Math.round(holdDays.reduce((s, d) => s + d, 0) / holdDays.length) : null,
+        count: filteredGains.length,
+        winCount,
+        lossCount,
+      },
+    };
+  }, [allData, range]);
+  const RANGE_OPTIONS: DateRange[] = ["1W", "1M", "3M", "6M", "1Y"];
   const [sortKey, setSortKey] = useState<RGSortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [filter, setFilter]   = useState<RGFilter>("all");
@@ -535,6 +748,14 @@ function RealizedGainsTable() {
             <p className="text-gray-600 text-xs mt-0.5">
               {summary.count} {t("realized.trades")} · {summary.winCount}W / {summary.lossCount}L
             </p>
+          </div>
+          <div className="flex gap-1">
+            {RANGE_OPTIONS.map((r) => (
+              <button key={r} onClick={() => onRangeChange(r)}
+                className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+                  range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+                }`}>{r}</button>
+            ))}
           </div>
           <div className="flex gap-4 text-right">
             <div>
@@ -691,40 +912,40 @@ function RealizedGainsTable() {
 
 export default function PortfolioPage() {
   const { t } = useLanguage();
-  const [range, setRange] = useState<DateRange>("1M");
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
+  // Per-section independent range states
+  const [timelineRange, setTimelineRange] = useState<DateRange>("1M");
+  const [allocRange, setAllocRange] = useState<DateRange>("1M");
+  const [positionsRange, setPositionsRange] = useState<DateRange>("1M");
+  const [closedRange, setClosedRange] = useState<DateRange>("1M");
+  const [realizedRange, setRealizedRange] = useState<DateRange>("1M");
+
+  // Fetch ALL data once — no refetch on range change
   const { data: portfolio, isLoading, isError } = usePortfolio();
   const { data: analytics } = useAnalytics();
-  const { data: timeline, isLoading: timelineLoading } = useTimeline(range);
+  const { data: allTimeline, isLoading: timelineLoading } = useTimeline();
   const { data: allocation } = useAllocation();
-  const { data: closedPositions = [] } = useClosedPositions();
+  const { data: allClosedPositions = [] } = useClosedPositions();
 
   const positionSymbols = (portfolio?.positions ?? []).map((p) => p.symbol);
   const { prices } = usePriceStream(positionSymbols);
 
-  // Fallback timeline: build from positions' graphData when the timeline API
-  // returns < 2 points (e.g. stockPriceHistory not yet populated for this range)
-  const graphDataTimeline = useMemo(() => {
-    if (!analytics?.positions?.length) return [];
-    const { from, to } = rangeToFromTo(range);
-    const fromMs = new Date(from).getTime();
-    const toMs = new Date(to + "T23:59:59Z").getTime();
-    // Sum totalInvested across all active positions (constant for every point)
-    const totalInvestedSum = analytics.positions.reduce(
-      (sum, pos) => sum + Number(pos.totalInvested), 0,
-    );
+  // Fallback timeline from graphData (when API returns < 2 points)
+  const fullTimeline = useMemo(() => {
+    if (allTimeline && allTimeline.length >= 2) return allTimeline;
+    if (!analytics?.positions?.length) return allTimeline ?? [];
+    const totalInvestedSum = analytics.positions.reduce((sum, pos) => sum + Number(pos.totalInvested), 0);
     const byTs = new Map<string, number>();
     for (const pos of analytics.positions) {
       const qty = Number(pos.totalQuantity);
       if (qty === 0) continue;
       for (const g of pos.graphData ?? []) {
         const ms = new Date(String(g.timestamp)).getTime();
-        if (isNaN(ms) || ms < fromMs || ms > toMs) continue;
+        if (isNaN(ms)) continue;
         byTs.set(String(g.timestamp), (byTs.get(String(g.timestamp)) ?? 0) + Number(g.price) * qty);
       }
     }
-    // Always add current prices as the "now" data point so the chart has ≥ 2 points
     const nowKey = new Date().toISOString();
     if (!byTs.has(nowKey)) {
       const currentTotal = analytics.positions.reduce((sum, pos) => {
@@ -734,12 +955,26 @@ export default function PortfolioPage() {
       }, 0);
       if (currentTotal > 0) byTs.set(nowKey, currentTotal);
     }
-    return Array.from(byTs.entries())
+    const pts = Array.from(byTs.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([timestamp, totalValue]) => ({ timestamp, totalValue, totalInvested: totalInvestedSum }));
-  }, [analytics, range]);
+    return pts.length >= 2 ? pts : (allTimeline ?? []);
+  }, [allTimeline, analytics]);
 
-  const effectiveTimeline = (timeline && timeline.length >= 2) ? timeline : graphDataTimeline;
+  // Filter timeline by its own range (client-side)
+  const effectiveTimeline = useMemo(() => {
+    const cutoffMs = Date.now() - (RANGE_DAYS[timelineRange] ?? 30) * 86400000;
+    return fullTimeline.filter(p => new Date(p.timestamp).getTime() >= cutoffMs);
+  }, [fullTimeline, timelineRange]);
+
+  // Filter closed positions by their own range
+  const closedPositions = useMemo(() => {
+    const cutoffMs = Date.now() - (RANGE_DAYS[closedRange] ?? 30) * 86400000;
+    return allClosedPositions.filter((cp) => {
+      const d = cp.closeDate ?? cp.lastSellDate;
+      return d && new Date(d).getTime() >= cutoffMs;
+    });
+  }, [allClosedPositions, closedRange]);
 
   const analyticsMap = useMemo(
     () =>
@@ -764,9 +999,12 @@ export default function PortfolioPage() {
     ? parseFloat(String(pv.totalPnL))
     : (portfolio?.totalPnl ?? 0);
 
+  // rangeBtns removed — each section uses its own SectionRangeBtns
+
   return (
     <AppShell>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
+
         {/* Stat cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
           <StatCard
@@ -840,17 +1078,38 @@ export default function PortfolioPage() {
         {/* Timeline */}
         <TimelineChart
           data={effectiveTimeline}
-          range={range}
-          onRangeChange={setRange}
+          range={timelineRange}
+          onRangeChange={setTimelineRange}
           loading={timelineLoading}
         />
 
         {/* Portfolio Weight by Symbol — Donut + Legend */}
-        {allocation && allocation.bySymbol.length > 0 && (
+        {(() => {
+          // Reconstruct allocation from transactions for the selected range
+          const allocPositions = reconstructPositionsForRange(analytics ?? null, allocRange);
+          const allocTotal = allocPositions.reduce((sum, p) => {
+            const qty = parseFloat(String(p.totalQuantity));
+            const price = p.currentPrice ?? parseFloat(String(p.averagePrice));
+            return sum + qty * price;
+          }, 0);
+          const allocBySymbol = allocPositions
+            .filter(p => parseFloat(String(p.totalQuantity)) > 0)
+            .map(p => {
+              const qty = parseFloat(String(p.totalQuantity));
+              const price = p.currentPrice ?? parseFloat(String(p.averagePrice));
+              const value = qty * price;
+              return { name: p.symbol, value, percentage: allocTotal > 0 ? (value / allocTotal) * 100 : 0 };
+            })
+            .sort((a, b) => b.value - a.value);
+          if (allocBySymbol.length === 0) return null;
+          return (
           <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-            <div>
-              <h2 className="text-white font-semibold text-sm">{t("analytics.symbolAlloc")}</h2>
-              <p className="text-gray-500 text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 className="text-white font-semibold text-sm">{t("analytics.symbolAlloc")}</h2>
+                <p className="text-gray-500 text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
+              </div>
+              <SectionRangeBtns range={allocRange} setRange={setAllocRange} />
             </div>
             <div dir="ltr" className="flex flex-col sm:flex-row items-center gap-4">
               {/* Donut chart */}
@@ -858,7 +1117,7 @@ export default function PortfolioPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={allocation.bySymbol}
+                      data={allocBySymbol}
                       dataKey="percentage"
                       nameKey="name"
                       cx="50%"
@@ -868,7 +1127,7 @@ export default function PortfolioPage() {
                       paddingAngle={2}
                       stroke="none"
                     >
-                      {allocation.bySymbol.map((_, i) => (
+                      {allocBySymbol.map((_, i) => (
                         <Cell key={i} fill={["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316","#84cc16","#ec4899","#a78bfa"][i % 10]} />
                       ))}
                     </Pie>
@@ -884,12 +1143,12 @@ export default function PortfolioPage() {
                 {/* Center label */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <span className="text-gray-500 text-[10px]">{t("common.total")}</span>
-                  <span className="text-white text-sm font-bold">{allocation.bySymbol.length} {t("analytics.symbols")}</span>
+                  <span className="text-white text-sm font-bold">{allocBySymbol.length} {t("analytics.symbols")}</span>
                 </div>
               </div>
               {/* Legend */}
               <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2">
-                {allocation.bySymbol.map((item, i) => {
+                {allocBySymbol.map((item, i) => {
                   const color = ["#3b82f6","#10b981","#f59e0b","#8b5cf6","#ef4444","#06b6d4","#f97316","#84cc16","#ec4899","#a78bfa"][i % 10];
                   return (
                     <div key={item.name} className="flex items-center gap-2">
@@ -902,7 +1161,8 @@ export default function PortfolioPage() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Positions table */}
         <div className="bg-gray-900 rounded-xl overflow-hidden">
@@ -911,6 +1171,7 @@ export default function PortfolioPage() {
               {t("portfolio.positions")}
             </h2>
             <div className="flex items-center gap-3">
+              <SectionRangeBtns range={positionsRange} setRange={setPositionsRange} />
               <span className="text-gray-600 text-xs">
                 {filteredPositions.length} {filteredPositions.length !== 1 ? t("portfolio.positionPlural") : t("portfolio.positionSingular")}
               </span>
@@ -1122,9 +1383,12 @@ export default function PortfolioPage() {
           <div className="space-y-4">
             {/* P&L bar chart */}
             <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-              <div>
-                <h2 className="text-white font-semibold text-sm">{t("closed.sectionTitle")}</h2>
-                <p className="text-gray-500 text-xs mt-0.5">{t("closed.sectionSub")}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-white font-semibold text-sm">{t("closed.sectionTitle")}</h2>
+                  <p className="text-gray-500 text-xs mt-0.5">{t("closed.sectionSub")}</p>
+                </div>
+                <SectionRangeBtns range={closedRange} setRange={setClosedRange} />
               </div>
               <div dir="ltr">
                 <ResponsiveContainer width="100%" height={Math.max(120, closedPositions.length * 42)}>
@@ -1241,7 +1505,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── Realized P&L Detail Table ─────────────────────────── */}
-        <RealizedGainsTable />
+        <RealizedGainsTable range={realizedRange} onRangeChange={setRealizedRange} />
       </main>
     </AppShell>
   );

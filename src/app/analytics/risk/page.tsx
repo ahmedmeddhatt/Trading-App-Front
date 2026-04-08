@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis,
@@ -7,9 +8,11 @@ import {
 } from "recharts";
 import { Loader2, AlertTriangle, Shield, TrendingDown } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import RangeSelector from "@/components/RangeSelector";
 import { apiClient } from "@/lib/apiClient";
 import { formatEGP, formatPct } from "@/lib/tradeCalcs";
 import { useLanguage } from "@/context/LanguageContext";
+import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
 
 // Raw shape as returned by the backend (all numeric fields may be strings)
 interface RiskData {
@@ -52,14 +55,42 @@ function riskLevel(hhi: number): { labelKey: "risk.lowRisk" | "risk.moderateRisk
 
 export default function RiskPage() {
   const { t, dir } = useLanguage();
+  const [range, setRange] = useState<DateRange>("3M");
+  const allTo = new Date().toISOString().slice(0, 10);
   const { data, isLoading } = useQuery({
-    queryKey: ["risk-analytics"],
-    queryFn: () => apiClient.get<RiskData>("/api/analytics/risk"),
+    queryKey: ["risk-analytics", "ALL"],
+    queryFn: () => apiClient.get<RiskData>(`/api/analytics/risk?from=2000-01-01&to=${allTo}`),
+    staleTime: 60_000,
   });
+
+  const RANGE_OPTIONS: DateRange[] = ["1W", "1M", "3M", "6M", "1Y"];
+  const rangeBtns = (
+    <div className="flex gap-1">
+      {RANGE_OPTIONS.map((r) => (
+        <button key={r} onClick={() => setRange(r)}
+          className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+          }`}>{r}</button>
+      ))}
+    </div>
+  );
+
+  const rangeHeader = (
+    <div className="max-w-5xl mx-auto px-4 pt-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold">{t("risk.title")}</h1>
+          <p className="text-gray-500 text-sm">{t("risk.sub")}</p>
+        </div>
+        {rangeBtns}
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
       <AppShell>
+        {rangeHeader}
         <div className="flex justify-center items-center h-64">
           <Loader2 className="animate-spin text-gray-500" size={32} />
         </div>
@@ -70,6 +101,7 @@ export default function RiskPage() {
   if (!data) {
     return (
       <AppShell>
+        {rangeHeader}
         <div className="max-w-5xl mx-auto px-4 py-8 text-center text-gray-500">{t("risk.noData")}</div>
       </AppShell>
     );
@@ -100,7 +132,9 @@ export default function RiskPage() {
 
   const drawdownPct = parseFloat(String(data.drawdown.maxDrawdownPct));
   const drawdownAbs = parseFloat(String(data.drawdown.maxDrawdownAbs ?? data.drawdown.maxDrawdownValue ?? 0));
-  const drawdownTimeline = data.drawdown.timeline ?? [];
+  const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+  const cutoffMs = Date.now() - (RANGE_DAYS[range] ?? 90) * 86400000;
+  const drawdownTimeline = (data.drawdown.timeline ?? []).filter(d => new Date(d.date).getTime() >= cutoffMs);
 
   const { labelKey: riskLblKey, color: riskColor } = riskLevel(concentrationRisk.hhi);
 
@@ -116,11 +150,8 @@ export default function RiskPage() {
 
   return (
     <AppShell>
+      {rangeHeader}
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        <div>
-          <h1 className="text-xl font-bold">{t("risk.title")}</h1>
-          <p className="text-gray-500 text-sm">{t("risk.sub")}</p>
-        </div>
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -1,10 +1,13 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
+import RangeSelector from "@/components/RangeSelector";
 import { useLanguage } from "@/context/LanguageContext";
+import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
 import { Loader2 } from "lucide-react";
 
 interface ClosedPosition {
@@ -38,18 +41,40 @@ function fmt(val: string | number) {
 
 export default function ClosedPositionsPage() {
   const { t } = useLanguage();
-  const { data: closedPositions = [], isLoading } = useQuery<ClosedPosition[]>({
-    queryKey: ["portfolio", "closed-positions"],
-    queryFn: () => apiClient.get<ClosedPosition[]>("/api/portfolio/closed-positions"),
+  const [range, setRange] = useState<DateRange>("1Y");
+  const allTo = new Date().toISOString().slice(0, 10);
+  const { data: allClosedPositions = [], isLoading } = useQuery<ClosedPosition[]>({
+    queryKey: ["portfolio", "closed-positions", "ALL"],
+    queryFn: () => apiClient.get<ClosedPosition[]>(`/api/portfolio/closed-positions?from=2000-01-01&to=${allTo}`),
     retry: 1,
+    staleTime: 60_000,
   });
+
+  const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+  const closedPositions = useMemo(() => {
+    const cutoffMs = Date.now() - (RANGE_DAYS[range] ?? 365) * 86400000;
+    return allClosedPositions.filter((cp) => {
+      const d = cp.closeDate ?? cp.lastSellDate;
+      return d && new Date(d).getTime() >= cutoffMs;
+    });
+  }, [allClosedPositions, range]);
 
   return (
     <AppShell>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Link href="/portfolio" className="text-blue-400 hover:text-blue-300 text-sm">&larr; {t("nav.portfolio")}</Link>
-          <h1 className="text-white font-bold text-lg">{t("closed.tableTitle")}</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/portfolio" className="text-blue-400 hover:text-blue-300 text-sm">&larr; {t("nav.portfolio")}</Link>
+            <h1 className="text-white font-bold text-lg">{t("closed.tableTitle")}</h1>
+          </div>
+          <div className="flex gap-1">
+            {(["1W","1M","3M","6M","1Y"] as const).map((r) => (
+              <button key={r} onClick={() => setRange(r)}
+                className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+                  range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+                }`}>{r}</button>
+            ))}
+          </div>
         </div>
 
         {isLoading ? (

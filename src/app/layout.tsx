@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 import Providers from "@/providers/Providers";
 
@@ -21,9 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Set theme class before first paint to avoid flash */}
-        {/* Restore theme + language before first paint */}
-        <script
+        {/* Restore theme + language before first paint to avoid flash */}
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('td-theme');if(!t||t==='dark')document.documentElement.classList.add('dark');var l=localStorage.getItem('td-lang');if(l==='ar'){document.documentElement.setAttribute('lang','ar');document.documentElement.setAttribute('dir','rtl')}}catch(e){}`,
           }}

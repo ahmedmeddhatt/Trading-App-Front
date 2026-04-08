@@ -60,7 +60,7 @@ function useDashboardStocks() {
 function useRecentTransactions() {
   return useQuery<{ transactions: RecentTransaction[] }>({
     queryKey: ["portfolio", "transactions", "recent"],
-    queryFn: () => apiClient.get<{ transactions: RecentTransaction[] }>("/api/portfolio/transactions?limit=5&sort=desc"),
+    queryFn: () => apiClient.get<{ transactions: RecentTransaction[] }>("/api/portfolio/transactions?limit=3&sort=desc"),
     retry: 1,
   });
 }
@@ -112,19 +112,19 @@ export default function DashboardOverview() {
           <Link href="/analytics">
             <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
               <LineChart size={20} className="text-blue-400" />
-              <span className="text-xs text-gray-300 font-medium">{t("nav.analytics")}</span>
+              <span className="text-base text-gray-300 font-medium">{t("nav.analytics")}</span>
             </div>
           </Link>
           <Link href="/analytics/risk">
             <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
               <ShieldAlert size={20} className="text-amber-400" />
-              <span className="text-xs text-gray-300 font-medium">{t("nav.risk")}</span>
+              <span className="text-base text-gray-300 font-medium">{t("nav.risk")}</span>
             </div>
           </Link>
           <Link href="/strategies">
             <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
               <Lightbulb size={20} className="text-emerald-400" />
-              <span className="text-xs text-gray-300 font-medium">{t("nav.strategies")}</span>
+              <span className="text-base text-gray-300 font-medium">{t("nav.strategies")}</span>
             </div>
           </Link>
         </div>
@@ -133,15 +133,15 @@ export default function DashboardOverview() {
         {recentTxData?.transactions && recentTxData.transactions.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{t("dashboard.recentTx") ?? "Recent Transactions"}</h2>
-              <Link href="/portfolio/transactions" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
+              <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{t("dashboard.recentTx") ?? "Recent Transactions"}</h2>
+              <Link href="/portfolio/transactions" className="text-base sm:text-xs text-blue-400 hover:text-blue-300 font-medium">
                 {t("common.viewAll") ?? "View All"}
               </Link>
             </div>
             <div className="bg-gray-900 rounded-xl divide-y divide-gray-800">
-              {recentTxData.transactions.map((tx) => {
+              {recentTxData.transactions.slice(0, 3).map((tx) => {
                 const isBuy = tx.type === "BUY";
-                const total = tx.total ?? tx.price * tx.quantity;
+                const total = Number(tx.total ?? tx.price * tx.quantity);
                 return (
                   <div key={tx.id} className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -150,17 +150,17 @@ export default function DashboardOverview() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <Link href={`/stocks/${tx.symbol}`} className="text-white font-bold text-sm hover:text-blue-400 transition-colors">{tx.symbol}</Link>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBuy ? "bg-emerald-900/50 text-emerald-400" : "bg-orange-900/50 text-orange-400"}`}>
+                          <Link href={`/stocks/${tx.symbol}`} className="text-white font-bold text-base sm:text-base hover:text-blue-400 transition-colors">{tx.symbol}</Link>
+                          <span className={`text-sm sm:text-xs font-bold px-1.5 py-0.5 rounded ${isBuy ? "bg-emerald-900/50 text-emerald-400" : "bg-orange-900/50 text-orange-400"}`}>
                             {tx.type}
                           </span>
                         </div>
-                        <p className="text-gray-500 text-xs">{tx.quantity} shares @ ${tx.price.toFixed(2)}</p>
+                        <p className="text-gray-500 text-base sm:text-xs">{tx.quantity} shares @ ${Number(tx.price).toFixed(2)}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-white text-sm font-medium">${total.toFixed(2)}</p>
-                      <p className="text-gray-600 text-xs">{new Date(tx.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                      <p className="text-white text-lg sm:text-sm font-medium">${total.toFixed(2)}</p>
+                      <p className="text-gray-600 text-base sm:text-xs">{new Date(tx.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
                     </div>
                   </div>
                 );
@@ -186,7 +186,7 @@ export default function DashboardOverview() {
         {dashData?.myStocks && dashData.myStocks.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{t("dashboard.myStocks")}</h2>
+              <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{t("dashboard.myStocks")}</h2>
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
@@ -252,8 +252,8 @@ export default function DashboardOverview() {
 function StatCard({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
   return (
     <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
-      <p className="text-gray-500 text-[10px] sm:text-xs mb-0.5 sm:mb-1 truncate">{label}</p>
-      <p className={`text-base sm:text-2xl font-bold truncate ${positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"}`}>
+      <p className="text-gray-500 text-sm sm:text-xs mb-0.5 sm:mb-1 truncate">{label}</p>
+      <p className={`text-xl sm:text-2xl font-bold truncate ${positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"}`}>
         {value}
       </p>
     </div>
@@ -274,7 +274,7 @@ function Section({
   if (loading) {
     return (
       <div className="space-y-3">
-        <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{title}</h2>
+        <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{title}</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-gray-900 rounded-xl p-4 h-24 animate-pulse" />
@@ -288,7 +288,7 @@ function Section({
 
   return (
     <div className="space-y-3">
-      <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{title}</h2>
+      <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{title}</h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {stocks.map((stock) => {
           const live = prices[stock.symbol];
@@ -300,17 +300,17 @@ function Section({
             <Link key={stock.symbol} href={`/stocks/${stock.symbol}`}>
               <div className="td-hover-card bg-gray-900 rounded-xl p-4 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-white text-sm">{stock.symbol}</span>
+                  <span className="font-bold text-white text-lg sm:text-sm">{stock.symbol}</span>
                   {change != null && (
-                    <span className={`text-xs font-medium flex items-center gap-0.5 ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                    <span className={`text-base sm:text-xs font-medium flex items-center gap-0.5 ${isPos ? "text-emerald-400" : "text-red-400"}`}>
                       {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
                       {isPos ? "+" : "−"}{Math.abs(change).toFixed(2)}%
                     </span>
                   )}
                 </div>
-                {price != null && <p className="text-lg font-bold">${price.toFixed(2)}</p>}
-                {stock.name && <p className="text-gray-500 text-xs truncate">{stock.name}</p>}
-                {live && <p className="text-gray-700 text-xs">{new Date(live.timestamp).toLocaleTimeString()}</p>}
+                {price != null && <p className="text-2xl sm:text-lg font-bold">${price.toFixed(2)}</p>}
+                {stock.name && <p className="text-gray-500 text-base sm:text-xs truncate">{stock.name}</p>}
+                {live && <p className="text-gray-700 text-base sm:text-xs">{new Date(live.timestamp).toLocaleTimeString()}</p>}
               </div>
             </Link>
           );

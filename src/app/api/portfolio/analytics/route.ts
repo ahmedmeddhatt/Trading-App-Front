@@ -12,8 +12,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const queryString = req.nextUrl.search;
   const backendRes = await fetchBackend(
-    `/portfolio/${userId}/analytics`,
+    `/portfolio/${userId}/analytics${queryString}`,
     {},
     cookieHeader
   );

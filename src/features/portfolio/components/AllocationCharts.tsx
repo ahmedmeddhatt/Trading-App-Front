@@ -85,13 +85,14 @@ export default function AllocationCharts({
                 const slice = bySymbol.find((d) => d.name === entry.name);
                 return (
                   <div style={{
-                    background: "#1e293b",
-                    border: "1px solid #334155",
-                    borderRadius: 8,
-                    padding: "8px 12px",
+                    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                    border: "1px solid rgba(99,102,241,0.2)",
+                    borderRadius: 12,
+                    padding: "10px 14px",
                     fontSize: 12,
                     color: "#f1f5f9",
-                    boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)",
+                    backdropFilter: "blur(12px)",
                   }}>
                     <p style={{ color: "#94a3b8", marginBottom: 4 }}>{entry.name}</p>
                     <p style={{ color: entry.color ?? "#f1f5f9", fontWeight: 600 }}>

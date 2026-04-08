@@ -159,6 +159,7 @@ const en = {
   "dashboard.shares":       "shares",
   "dashboard.avg":          "avg",
   "dashboard.unrealizedLabel": "unrealized",
+  "dashboard.recentTx":     "Recent Transactions",
   "dashboard.noPositions":  "No positions yet.",
 
   // ── Stocks ───────────────────────────────────────────────────────────────────
@@ -332,8 +333,9 @@ const en = {
   "risk.peakToTrough":         "peak-to-trough",
 
   // ── Strategies ───────────────────────────────────────────────────────────────
-  "strategies.title":       "AI Strategy Prompts",
-  "strategies.sub":         "Professional-grade prompts powered by Wall Street frameworks. Fill in your details and copy to use with any AI assistant.",
+  "strategies.title":       "AI Strategy Analysis",
+  "strategies.sub":         "Professional-grade analysis powered by Wall Street frameworks. Select stocks and get actionable recommendations.",
+  "strategies.selectStocks": "Select Stocks to Analyze",
   "strategies.copy":        "Copy Prompt",
   "strategies.copied":      "Copied!",
   "strategies.expand":      "Use Strategy",
