@@ -18,6 +18,7 @@ import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePriceStream } from "@/hooks/usePriceStream";
+import { useTradingMode } from "@/store/useTradingMode";
 import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, LabelList } from "recharts";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
 
@@ -911,6 +912,9 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PortfolioPage() {
+  const { mode } = useTradingMode();
+  // Gold portfolio uses the same page — the backend filters by assetType via the user's positions
+  // The portfolio API already returns positions; in gold mode, positions have assetType=GOLD and symbol like GOLD_21K
   const { t } = useLanguage();
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 

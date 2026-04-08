@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Activity, LayoutDashboard, BarChart2, Briefcase, LineChart, LogOut,
-  Receipt, ShieldAlert, Sun, Moon, Lightbulb, UserCircle,
+  Receipt, ShieldAlert, Sun, Moon, Lightbulb, UserCircle, Coins,
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { useTheme } from "@/context/ThemeContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTradingModeStore } from "@/store/useTradingMode";
 
 const NAV_KEYS = [
   { href: "/dashboard",              key: "nav.overview",     icon: LayoutDashboard },
@@ -48,6 +49,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const isDark  = theme === "dark";
   const btnCls  = isDark ? darkBtn : lightBtn;
+  const tradingMode = useTradingModeStore((s) => s.mode);
+  const isGoldMode = tradingMode === "GOLD";
 
   const handleLogout = async () => {
     await apiClient.post("/api/auth/logout", {}).catch(() => {});
@@ -98,12 +101,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             boxShadow: !isDark ? "0 1px 12px rgba(14,30,60,0.07)" : undefined,
           }}
         >
-          {/* Logo */}
+          {/* Logo + Mode badge */}
           <Link href="/dashboard" className="flex items-center gap-1.5 shrink-0">
-            <Activity className="text-blue-500" size={18} />
+            {isGoldMode
+              ? <Coins className="text-amber-500" size={18} />
+              : <Activity className="text-blue-500" size={18} />
+            }
             <span className={`font-bold text-sm sm:text-base tracking-tight ${isDark ? "text-white" : "text-[#0C1A2E]"}`}>
               TradeDesk
             </span>
+            {isGoldMode && (
+              <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                Gold
+              </span>
+            )}
           </Link>
 
           {/* Desktop nav */}

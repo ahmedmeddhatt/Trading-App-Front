@@ -14,6 +14,8 @@ import StockSelector from "@/components/StockSelector";
 import StrategyResultCard from "@/components/StrategyResultCard";
 import type { StrategyAnalysisResult } from "@/components/StrategyResultCard";
 import { useStrategyAnalysis } from "@/features/strategies/hooks/useStrategyAnalysis";
+import { useTradingMode } from "@/store/useTradingMode";
+import GoldStrategies from "@/components/GoldStrategies";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -356,6 +358,12 @@ function StrategyCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function StrategiesPage() {
+  const { mode } = useTradingMode();
+  if (mode === "GOLD") return <GoldStrategies />;
+  return <StocksStrategiesPage />;
+}
+
+function StocksStrategiesPage() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const isDark = theme === "dark";

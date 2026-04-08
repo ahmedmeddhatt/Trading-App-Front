@@ -386,6 +386,39 @@ const en = {
 
   // ── Common actions ────────────────────────────────────────────────────────
   "common.viewAll":      "View All",
+
+  // ── Gold ─────────────────────────────────────────────────────────────────
+  "gold.title":          "Gold Prices Today",
+  "gold.subtitle":       "Egyptian gold prices across all karats",
+  "gold.popular":        "Most Popular",
+  "gold.allCategories":  "All Categories",
+  "gold.topMovers":      "Top Movers",
+  "gold.myGold":         "My Gold",
+  "gold.buyPrice":       "Buy Price",
+  "gold.sellPrice":      "Sell Price",
+  "gold.spread":         "Spread",
+  "gold.perGram":        "per gram",
+  "gold.perPiece":       "per piece",
+  "gold.perOunce":       "per ounce",
+  "gold.purity":         "Purity",
+  "gold.priceHistory":   "Price History",
+  "gold.aiAnalysis":     "AI Analysis",
+  "gold.keyFactors":     "Key Factors",
+  "gold.globalCorr":     "Global Correlation",
+  "gold.outlook":        "Outlook",
+  "gold.risks":          "Risks",
+  "gold.strategies":     "Gold Analysis Strategies",
+  "gold.noPositions":    "No gold positions yet.",
+  "gold.browse":         "Browse gold prices",
+
+  // Gold categories
+  "gold.GOLD_24K":       "24 Karat Gold",
+  "gold.GOLD_21K":       "21 Karat Gold",
+  "gold.GOLD_18K":       "18 Karat Gold",
+  "gold.GOLD_14K":       "14 Karat Gold",
+  "gold.GOLD_BAR":       "Gold Bar",
+  "gold.GOLD_POUND":     "Gold Pound",
+  "gold.GOLD_OUNCE":     "Gold Ounce",
 } as const;
 
 export type TranslationKey = keyof typeof en;

@@ -18,6 +18,8 @@ import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
 import SignalBadge from "@/components/SignalBadge";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTradingMode } from "@/store/useTradingMode";
+import GoldListPage from "@/app/gold/page";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -509,6 +511,8 @@ function StocksPageInner() {
 }
 
 export default function StocksPage() {
+  const { mode } = useTradingMode();
+  if (mode === "GOLD") return <GoldListPage />;
   return (
     <Suspense>
       <StocksPageInner />

@@ -386,6 +386,39 @@ const ar: Record<string, string> = {
 
   // ── Common actions ────────────────────────────────────────────────────────
   "common.viewAll":      "عرض الكل",
+
+  // ── Gold ─────────────────────────────────────────────────────────────────
+  "gold.title":          "أسعار الذهب اليوم",
+  "gold.subtitle":       "أسعار الذهب في مصر بجميع الأعيرة",
+  "gold.popular":        "الأكثر تداولاً",
+  "gold.allCategories":  "جميع الأعيرة",
+  "gold.topMovers":      "الأكثر تحركاً",
+  "gold.myGold":         "ذهبي",
+  "gold.buyPrice":       "سعر الشراء",
+  "gold.sellPrice":      "سعر البيع",
+  "gold.spread":         "هامش الربح",
+  "gold.perGram":        "للجرام",
+  "gold.perPiece":       "للقطعة",
+  "gold.perOunce":       "للأونصة",
+  "gold.purity":         "النقاء",
+  "gold.priceHistory":   "تاريخ الأسعار",
+  "gold.aiAnalysis":     "تحليل ذكي",
+  "gold.keyFactors":     "العوامل الرئيسية",
+  "gold.globalCorr":     "العلاقة بالسعر العالمي",
+  "gold.outlook":        "التوقعات",
+  "gold.risks":          "المخاطر",
+  "gold.strategies":     "استراتيجيات تحليل الذهب",
+  "gold.noPositions":    "لا تملك ذهب بعد.",
+  "gold.browse":         "تصفح أسعار الذهب",
+
+  // Gold categories
+  "gold.GOLD_24K":       "عيار 24",
+  "gold.GOLD_21K":       "عيار 21",
+  "gold.GOLD_18K":       "عيار 18",
+  "gold.GOLD_14K":       "عيار 14",
+  "gold.GOLD_BAR":       "سبيكة ذهب",
+  "gold.GOLD_POUND":     "جنيه ذهب",
+  "gold.GOLD_OUNCE":     "أونصة ذهب",
 };
 
 export default ar;

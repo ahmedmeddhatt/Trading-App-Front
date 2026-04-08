@@ -10,7 +10,9 @@ import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
 import PriceFreshnessBanner from "@/components/PriceFreshnessBanner";
 import MarketStatusBar from "@/components/MarketStatusBar";
 import AppShell from "@/components/AppShell";
+import GoldDashboard from "@/components/GoldDashboard";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTradingMode } from "@/store/useTradingMode";
 
 interface DashboardStock {
   symbol: string;
@@ -66,6 +68,12 @@ function useRecentTransactions() {
 }
 
 export default function DashboardOverview() {
+  const { mode } = useTradingMode();
+  if (mode === "GOLD") return <GoldDashboard />;
+  return <StocksDashboard />;
+}
+
+function StocksDashboard() {
   const [search, setSearch] = useState("");
   const { t } = useLanguage();
 
