@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
 
-  const backendRes = await fetchBackend(`/portfolio/${userId}/allocation`, {}, cookieHeader);
+  const search = req.nextUrl.search;
+  const backendRes = await fetchBackend(`/portfolio/${userId}/allocation${search}`, {}, cookieHeader);
 
   if (!backendRes.ok) {
     return NextResponse.json({ success: true, data: { bySymbol: [] } });

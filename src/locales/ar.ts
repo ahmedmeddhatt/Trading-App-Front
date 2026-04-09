@@ -57,6 +57,8 @@ const ar: Record<string, string> = {
   "portfolio.noPositions":    "لا توجد مراكز بعد.",
   "portfolio.failed":         "فشل تحميل المحفظة.",
   "portfolio.totalInvested":  "إجمالي الاستثمار",
+  "portfolio.capitalDeployed": "رأس المال المُستخدم",
+  "portfolio.totalTraded":     "إجمالي التداول",
   "portfolio.unrealizedPnl":  "أرباح/خسائر غير محققة",
   "portfolio.realizedPnl":    "أرباح/خسائر محققة",
   "portfolio.totalPnl":       "إجمالي الأرباح/الخسائر",

@@ -9,6 +9,7 @@ import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { useTradingModeStore } from "@/store/useTradingMode";
 import { apiClient } from "@/lib/apiClient";
+import DynamicFavicon from "@/components/DynamicFavicon";
 
 function ThemedToaster() {
   const { theme } = useTheme();
@@ -36,6 +37,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <TradingModeSync />
+          <DynamicFavicon />
           {children}
           <ThemedToaster />
           <ReactQueryDevtools initialIsOpen={false} />

@@ -8,6 +8,7 @@ import AppShell from "@/components/AppShell";
 import RangeSelector from "@/components/RangeSelector";
 import { useLanguage } from "@/context/LanguageContext";
 import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
+import { useAssetType, withAssetType } from "@/store/useTradingMode";
 import { Loader2 } from "lucide-react";
 
 interface ClosedPosition {
@@ -43,9 +44,10 @@ export default function ClosedPositionsPage() {
   const { t } = useLanguage();
   const [range, setRange] = useState<DateRange>("1Y");
   const allTo = new Date().toISOString().slice(0, 10);
+  const assetType = useAssetType();
   const { data: allClosedPositions = [], isLoading } = useQuery<ClosedPosition[]>({
-    queryKey: ["portfolio", "closed-positions", "ALL"],
-    queryFn: () => apiClient.get<ClosedPosition[]>(`/api/portfolio/closed-positions?from=2000-01-01&to=${allTo}`),
+    queryKey: ["portfolio", "closed-positions", "ALL", assetType],
+    queryFn: () => apiClient.get<ClosedPosition[]>(withAssetType(`/api/portfolio/closed-positions?from=2000-01-01&to=${allTo}`, assetType)),
     retry: 1,
     staleTime: 60_000,
   });

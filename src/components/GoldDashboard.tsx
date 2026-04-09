@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Search, Coins, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Coins, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { useLanguage } from "@/context/LanguageContext";
 import AppShell from "@/components/AppShell";
@@ -52,7 +52,7 @@ export default function GoldDashboard() {
   const { lang } = useLanguage();
   const isAr = lang === "ar";
 
-  const { data, isLoading, isError } = useGoldDashboard();
+  const { data, isLoading, isError, isFetching, refetch } = useGoldDashboard();
 
   const getName = (item: GoldCategoryItem) => isAr ? item.nameAr : item.nameEn;
 
@@ -60,7 +60,7 @@ export default function GoldDashboard() {
     <AppShell>
       {/* Gold price source indicator */}
       {data?.categories?.[0]?.source && (
-        <div className="bg-amber-900/20 border-b border-amber-800/30 px-4 py-1.5 text-center">
+        <div className="bg-amber-900/20 border-b border-amber-800/30 px-4 py-1.5 flex items-center justify-center gap-3">
           <span className="text-amber-400 text-xs">
             <Coins size={12} className="inline mr-1" />
             Gold prices via {data.categories[0].source}
@@ -71,6 +71,17 @@ export default function GoldDashboard() {
               <> · XAU/USD ${data.categories[0].globalSpotUsd.toLocaleString()}</>
             )}
           </span>
+          <button
+            onClick={async () => {
+              try { await fetch("/api/gold/refresh", { method: "POST" }); } catch {}
+              refetch();
+            }}
+            disabled={isFetching}
+            className="text-amber-400 hover:text-amber-300 disabled:opacity-50 transition-colors p-1 rounded-md hover:bg-amber-500/10"
+            title="Refresh prices"
+          >
+            <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
+          </button>
         </div>
       )}
 

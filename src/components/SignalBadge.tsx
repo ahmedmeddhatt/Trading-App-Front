@@ -1,11 +1,41 @@
 "use client";
 
-const SIGNAL_STYLES: Record<string, string> = {
-  "Strong Buy": "bg-emerald-900 text-emerald-300",
-  Buy: "bg-green-900 text-green-300",
+type StockStatus = "Hot" | "Warming Up" | "Neutral" | "Cooling Down" | "Cold";
+
+/** Map external recommendation values to our Hot/Cold status */
+function toStockStatus(signal?: string | null): StockStatus | null {
+  if (!signal) return null;
+  const s = signal.trim();
+  // Already a valid status
+  const valid: StockStatus[] = ["Hot", "Warming Up", "Neutral", "Cooling Down", "Cold"];
+  const match = valid.find((v) => v.toLowerCase() === s.toLowerCase());
+  if (match) return match;
+  // Map recommendation → status
+  const map: Record<string, StockStatus> = {
+    "strong buy": "Hot",
+    buy: "Warming Up",
+    hold: "Neutral",
+    neutral: "Neutral",
+    sell: "Cooling Down",
+    "strong sell": "Cold",
+  };
+  return map[s.toLowerCase()] ?? null;
+}
+
+const STATUS_STYLES: Record<StockStatus, string> = {
+  Hot: "bg-red-900/60 text-red-300",
+  "Warming Up": "bg-amber-900/60 text-amber-300",
   Neutral: "bg-gray-800 text-gray-400",
-  Sell: "bg-amber-900 text-amber-400",
-  "Strong Sell": "bg-amber-950 text-amber-500",
+  "Cooling Down": "bg-blue-900/60 text-blue-300",
+  Cold: "bg-cyan-900/60 text-cyan-300",
+};
+
+const STATUS_ICONS: Record<StockStatus, string> = {
+  Hot: "🔥",
+  "Warming Up": "🌡️",
+  Neutral: "➖",
+  "Cooling Down": "❄️",
+  Cold: "🧊",
 };
 
 interface SignalBadgeProps {
@@ -23,9 +53,11 @@ export default function SignalBadge({
   confidence,
   size = "sm",
 }: SignalBadgeProps) {
-  if (!signal) return <span className="text-gray-700">—</span>;
+  const status = toStockStatus(signal);
+  if (!status) return <span className="text-gray-700">—</span>;
 
-  const cls = SIGNAL_STYLES[signal] ?? "bg-gray-800 text-gray-400";
+  const cls = STATUS_STYLES[status];
+  const icon = STATUS_ICONS[status];
   const sizeClass = size === "md" ? "px-2.5 py-1 text-sm" : "px-1.5 py-0.5 text-xs";
   const hasTooltip = reasons?.length || summary;
 
@@ -34,7 +66,8 @@ export default function SignalBadge({
       <span
         className={`${sizeClass} rounded font-medium whitespace-nowrap ${cls} ${hasTooltip ? "cursor-help" : ""} inline-flex items-center gap-1`}
       >
-        {signal}
+        <span>{icon}</span>
+        {status}
         {confidence && (
           <span className="opacity-60 text-[10px]">({confidence})</span>
         )}

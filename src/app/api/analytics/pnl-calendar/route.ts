@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const userId = await getBackendUserId(cookieHeader);
   if (!userId) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
 
-  const year = new URL(req.url).searchParams.get("year") ?? new Date().getFullYear().toString();
-  const res = await fetchBackend(`/portfolio/${userId}/pnl-calendar?year=${year}`, {}, cookieHeader);
+  const search = req.nextUrl.search;
+  const res = await fetchBackend(`/portfolio/${userId}/pnl-calendar${search}`, {}, cookieHeader);
   return NextResponse.json(await res.json(), { status: res.status });
 }

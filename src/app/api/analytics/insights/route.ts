@@ -6,6 +6,7 @@ export async function GET(req: NextRequest) {
   const userId = await getBackendUserId(cookieHeader);
   if (!userId) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
 
-  const res = await fetchBackend(`/portfolio/${userId}/insights`, {}, cookieHeader);
+  const search = req.nextUrl.search;
+  const res = await fetchBackend(`/portfolio/${userId}/insights${search}`, {}, cookieHeader);
   return NextResponse.json(await res.json(), { status: res.status });
 }

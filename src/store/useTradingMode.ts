@@ -18,3 +18,13 @@ export const useTradingModeStore = create<TradingModeState>((set) => ({
 export function useTradingMode() {
   return useTradingModeStore();
 }
+
+/** Returns "GOLD" or "STOCK" for API query params */
+export function useAssetType(): "GOLD" | "STOCK" {
+  return useTradingModeStore((s) => s.mode === "GOLD" ? "GOLD" : "STOCK");
+}
+
+/** Appends assetType= to a URL string that already has ? or needs one */
+export function withAssetType(url: string, assetType: string): string {
+  return url.includes("?") ? `${url}&assetType=${assetType}` : `${url}?assetType=${assetType}`;
+}

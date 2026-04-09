@@ -8,6 +8,7 @@ import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
 import RangeSelector from "@/components/RangeSelector";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAssetType, withAssetType } from "@/store/useTradingMode";
 import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
 
 interface RealizedGainRecord {
@@ -70,9 +71,10 @@ export default function RealizedGainsPage() {
   const { t } = useLanguage();
   const [range, setRange] = useState<DateRange>("1Y");
   const allTo = new Date().toISOString().slice(0, 10);
+  const assetType = useAssetType();
   const { data: allData, isLoading } = useQuery<RealizedGainsResponse>({
-    queryKey: ["portfolio", "realized-gains", "ALL"],
-    queryFn: () => apiClient.get<RealizedGainsResponse>(`/api/portfolio/realized-gains?from=2000-01-01&to=${allTo}`),
+    queryKey: ["portfolio", "realized-gains", "ALL", assetType],
+    queryFn: () => apiClient.get<RealizedGainsResponse>(withAssetType(`/api/portfolio/realized-gains?from=2000-01-01&to=${allTo}`, assetType)),
     retry: 1,
     staleTime: 60_000,
   });

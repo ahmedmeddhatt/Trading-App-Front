@@ -82,11 +82,14 @@ interface StockHistoryResponse {
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
+import { useAssetType, withAssetType } from "@/store/useTradingMode";
+
 function useAnalytics() {
   const to = new Date().toISOString().slice(0, 10);
+  const assetType = useAssetType();
   return useQuery<Analytics | null>({
-    queryKey: ["portfolio", "analytics", "ALL"],
-    queryFn: () => apiClient.get<Analytics | null>(`/api/portfolio/analytics?from=2000-01-01&to=${to}`),
+    queryKey: ["portfolio", "analytics", "ALL", assetType],
+    queryFn: () => apiClient.get<Analytics | null>(withAssetType(`/api/portfolio/analytics?from=2000-01-01&to=${to}`, assetType)),
     retry: 1,
     staleTime: 60_000,
   });
@@ -94,10 +97,11 @@ function useAnalytics() {
 
 function useTimeline() {
   const to = new Date().toISOString().slice(0, 10);
+  const assetType = useAssetType();
   return useQuery<TimelinePoint[]>({
-    queryKey: ["portfolio", "timeline", "ALL"],
+    queryKey: ["portfolio", "timeline", "ALL", assetType],
     queryFn: async () => {
-      const r = await apiClient.get<unknown>(`/api/portfolio/timeline?from=2000-01-01&to=${to}`);
+      const r = await apiClient.get<unknown>(withAssetType(`/api/portfolio/timeline?from=2000-01-01&to=${to}`, assetType));
       if (Array.isArray(r)) return r as TimelinePoint[];
       const tl = (r as { timeline?: TimelinePoint[] })?.timeline;
       return Array.isArray(tl) ? tl : [];

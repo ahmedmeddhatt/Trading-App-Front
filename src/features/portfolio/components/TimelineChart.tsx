@@ -28,7 +28,7 @@ const fmt = new Intl.NumberFormat("en-EG", {
   minimumFractionDigits: 2,
 });
 
-const RANGES = ["1W", "1M", "3M", "6M", "1Y"] as const;
+const RANGES = ["1W", "1M", "3M", "6M", "1Y", "ALL"] as const;
 export type DateRange = (typeof RANGES)[number];
 
 interface Props {
@@ -41,7 +41,7 @@ interface Props {
 function formatDate(ts: string, range: DateRange) {
   const d = new Date(ts);
   if (range === "1W") return d.toLocaleDateString("en-US", { weekday: "short" });
-  if (range === "1Y") return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  if (range === "1Y" || range === "ALL") return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 

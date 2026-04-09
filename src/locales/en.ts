@@ -57,6 +57,8 @@ const en = {
   "portfolio.noPositions":    "No positions yet.",
   "portfolio.failed":         "Failed to load portfolio.",
   "portfolio.totalInvested":  "Total Invested",
+  "portfolio.capitalDeployed": "Capital Deployed",
+  "portfolio.totalTraded":     "Total Traded",
   "portfolio.unrealizedPnl":  "Unrealized P&L",
   "portfolio.realizedPnl":    "Realized P&L",
   "portfolio.totalPnl":       "Total P&L",

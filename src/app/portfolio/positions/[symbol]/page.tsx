@@ -194,37 +194,51 @@ export default function PositionDetailPage() {
               </div>
               <p className="text-gray-500 text-sm">
                 {isClosed
-                  ? `${t("pos.heldFor")} ${daysHeld} ${t("common.days")} · ${t("pos.exitedOn")} ${closedDate ? new Date(closedDate).toLocaleDateString() : "—"}`
+                  ? `${t("pos.heldFor")} ${daysHeld} ${t("common.days")}${closedDate ? ` · ${t("pos.exitedOn")} ${new Date(closedDate).toLocaleDateString()}` : ""}`
                   : `${t("pos.heldFor")} ${daysHeld} ${t("common.days")}`}
               </p>
             </div>
-            <div className="text-right">
-              {isClosed ? (
-                <>
-                  <p className={`text-2xl font-bold ${pnlColor(totalRealizedPnL)}`}>{formatSignedEGP(totalRealizedPnL)}</p>
-                  <p className="text-gray-500 text-sm">{t("pos.totalRealized")}</p>
-                </>
-              ) : unrealizedPnL != null && (
-                <>
-                  <p className={`text-2xl font-bold ${pnlColor(unrealizedPnL)}`}>{formatSignedEGP(unrealizedPnL)}</p>
-                  <p className={`text-sm ${pnlColor(unrealizedPct)}`}>{formatPct(unrealizedPct)} {t("pos.unrealizedLabel")}</p>
-                </>
-              )}
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                {isClosed ? (
+                  <>
+                    <p className={`text-2xl font-bold ${pnlColor(totalRealizedPnL)}`}>{formatSignedEGP(totalRealizedPnL)}</p>
+                    <p className="text-gray-500 text-sm">{t("pos.totalRealized")}</p>
+                  </>
+                ) : unrealizedPnL != null && (
+                  <>
+                    <p className={`text-2xl font-bold ${pnlColor(unrealizedPnL)}`}>{formatSignedEGP(unrealizedPnL)}</p>
+                    <p className={`text-sm ${pnlColor(unrealizedPct)}`}>{formatPct(unrealizedPct)} {t("pos.unrealizedLabel")}</p>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Link
+                  href={`/stocks/${symbol}`}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white text-center transition-colors"
+                >
+                  {t("trade.buy")}
+                </Link>
+                {!isClosed && (
+                  <Link
+                    href={`/stocks/${symbol}`}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-400 text-white text-center transition-colors"
+                  >
+                    {t("trade.sell")}
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {isClosed ? [
             { label: t("common.invested"), value: formatEGP(position.totalInvested) },
             { label: t("pos.totalProceeds"), value: formatEGP(totalProceedsFromSells) },
             { label: t("pos.totalRealizedPnL"), value: formatSignedEGP(totalRealizedPnL), color: pnlColor(totalRealizedPnL) },
-            { label: t("pos.totalBought"), value: `${totalBought}`, color: "text-emerald-400" },
-            { label: t("pos.totalSold"), value: `${totalSold}`, color: "text-orange-400" },
             { label: t("pos.totalFeesPaid"), value: formatEGP(totalFeesPaid) },
-            { label: t("pos.daysHeld"), value: `${daysHeld}d` },
-            { label: t("pos.sellTrades"), value: `${realizedGains.length}` },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-gray-900 rounded-xl p-4">
               <p className="text-gray-500 text-xs mb-1">{label}</p>
@@ -235,14 +249,30 @@ export default function PositionDetailPage() {
             { label: t("common.avgCost"), value: formatEGP(position.averagePrice) },
             { label: t("portfolio.breakEven"), value: formatEGP(breakEvenPrice) },
             { label: t("common.currentPrice"), value: cp ? formatEGP(cp) : "—" },
-            { label: t("pos.totalBought"), value: `${totalBought}`, color: "text-emerald-400" },
-            { label: t("pos.totalSold"), value: `${totalSold}`, color: "text-orange-400" },
-            { label: t("pos.daysHeld"), value: `${daysHeld}d` },
-            { label: t("pos.totalFeesPaid"), value: formatEGP(totalFeesPaid) },
-          ].map(({ label, value, color }) => (
+          ].map(({ label, value }) => (
             <div key={label} className="bg-gray-900 rounded-xl p-4">
               <p className="text-gray-500 text-xs mb-1">{label}</p>
-              <p className={`text-lg font-bold ${color ?? "text-white"}`}>{value}</p>
+              <p className="text-lg font-bold text-white">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Secondary stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {(isClosed ? [
+            { label: t("pos.totalBought"), value: `${totalBought}`, color: "text-emerald-400" as string | undefined },
+            { label: t("pos.totalSold"), value: `${totalSold}`, color: "text-orange-400" as string | undefined },
+            { label: t("pos.daysHeld"), value: `${daysHeld}d`, color: undefined as string | undefined },
+            { label: t("pos.sellTrades"), value: `${realizedGains.length}`, color: undefined as string | undefined },
+          ] : [
+            { label: t("pos.totalBought"), value: `${totalBought}`, color: "text-emerald-400" as string | undefined },
+            { label: t("pos.totalSold"), value: `${totalSold}`, color: "text-orange-400" as string | undefined },
+            { label: t("pos.daysHeld"), value: `${daysHeld}d`, color: undefined as string | undefined },
+            { label: t("pos.totalFeesPaid"), value: formatEGP(totalFeesPaid), color: undefined as string | undefined },
+          ]).map(({ label, value, color }) => (
+            <div key={label} className="bg-gray-900/60 rounded-xl p-3">
+              <p className="text-gray-500 text-xs mb-1">{label}</p>
+              <p className={`text-sm font-semibold ${color ?? "text-gray-300"}`}>{value}</p>
             </div>
           ))}
         </div>

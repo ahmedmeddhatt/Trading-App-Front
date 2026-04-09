@@ -24,6 +24,12 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
   const [priceInput, setPriceInput] = useState<string>(currentPrice != null ? currentPrice.toFixed(2) : "");
   const [feesInput, setFeesInput] = useState<string>("");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [localQtyAdjust, setLocalQtyAdjust] = useState(0);
+
+  const effectiveOwned = Math.max(0, ownedQuantity + localQtyAdjust);
+
+  // Reset local adjustment when prop changes (portfolio refetched)
+  useEffect(() => { setLocalQtyAdjust(0); }, [ownedQuantity]);
 
   const { submit, isPending, isError, error, reset } = useTrade();
 
@@ -33,6 +39,11 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
       setPriceInput(currentPrice.toFixed(2));
     }
   }, [currentPrice, priceInput]);
+
+  // Reset to buy if sell is selected but no position
+  useEffect(() => {
+    if (side === "sell" && effectiveOwned <= 0) setSide("buy");
+  }, [effectiveOwned, side]);
 
   const qty = Math.max(0, parseFloat(quantity) || 0);
   const parsedPrice = parseFloat(priceInput) || 0;
@@ -49,8 +60,8 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
     ? qty * parsedPrice - parsedFees
     : qty * parsedPrice + parsedFees;
 
-  const sellError = side === "sell" && qty > ownedQuantity
-    ? `${t("trade.cantSell")} ${qty} — ${t("trade.youOnlyOwn")} ${ownedQuantity} ${t("trade.sharesUnit")}`
+  const sellError = side === "sell" && qty > effectiveOwned
+    ? `${t("trade.cantSell")} ${qty} — ${t("trade.youOnlyOwn")} ${effectiveOwned} ${t("trade.sharesUnit")}`
     : null;
 
   const canReview = qty > 0 && parsedPrice > 0 && !sellError;
@@ -72,6 +83,8 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
     };
     submit(payload, {
       onSuccess: () => {
+        // Immediately adjust local owned quantity
+        setLocalQtyAdjust(prev => prev + (side === "sell" ? -qty : qty));
         setShowSuccess(true);
         setTimeout(() => {
           setShowSuccess(false);
@@ -164,15 +177,27 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
 
       {/* Side selector */}
       <div className="flex rounded-lg overflow-hidden border border-gray-700">
-        {(["buy", "sell"] as Side[]).map((s) => (
-          <button
-            key={s}
-            onClick={() => setSide(s)}
-            className={`flex-1 py-2 text-sm font-semibold transition-colors ${side === s ? (s === "buy" ? "bg-emerald-500 text-white" : "bg-orange-500 text-white") : "bg-transparent text-gray-400 hover:text-white"}`}
-          >
-            {s === "buy" ? t("trade.buy") : t("trade.sell")}
-          </button>
-        ))}
+        {(["buy", "sell"] as Side[]).map((s) => {
+          const disabled = s === "sell" && effectiveOwned <= 0;
+          return (
+            <button
+              key={s}
+              onClick={() => !disabled && setSide(s)}
+              disabled={disabled}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                disabled
+                  ? "bg-transparent text-gray-600 cursor-not-allowed"
+                  : side === s
+                  ? s === "buy"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-orange-500 text-white"
+                  : "bg-transparent text-gray-400 hover:text-white"
+              }`}
+            >
+              {s === "buy" ? t("trade.buy") : t("trade.sell")}
+            </button>
+          );
+        })}
       </div>
 
       {/* Symbol (read-only) */}
@@ -187,13 +212,13 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
       <div className="space-y-1">
         <label className="text-gray-500 text-xs flex justify-between">
           <span>{t("trade.quantity")}</span>
-          {side === "sell" && ownedQuantity > 0 && (
+          {side === "sell" && effectiveOwned > 0 && (
             <button
               type="button"
-              onClick={() => setQuantity(String(ownedQuantity))}
+              onClick={() => setQuantity(String(effectiveOwned))}
               className="text-orange-400 hover:text-orange-300 text-xs font-semibold"
             >
-              ALL ({ownedQuantity})
+              ALL ({effectiveOwned})
             </button>
           )}
         </label>
@@ -265,10 +290,10 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
       )}
 
       {/* Owned shares hint when selling */}
-      {side === "sell" && ownedQuantity > 0 && !sellError && (
-        <p className="text-gray-500 text-xs text-right">{t("trade.available")} {ownedQuantity} {t("trade.sharesUnit")}</p>
+      {side === "sell" && effectiveOwned > 0 && !sellError && (
+        <p className="text-gray-500 text-xs text-right">{t("trade.available")} {effectiveOwned} {t("trade.sharesUnit")}</p>
       )}
-      {side === "sell" && ownedQuantity === 0 && (
+      {side === "sell" && effectiveOwned === 0 && (
         <p className="text-gray-500 text-xs text-right">{t("trade.noShares")}</p>
       )}
 

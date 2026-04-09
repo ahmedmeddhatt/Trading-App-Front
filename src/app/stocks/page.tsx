@@ -29,10 +29,9 @@ interface StockItem {
   price?: number;
   change?: number;
   changePercent?: number;
-  sector?: string;
   marketCap?: number;
   pe?: number;
-  signal?: string;
+  recommendation?: string;
 }
 
 interface StocksResponse {
@@ -64,7 +63,7 @@ function saveWatchlist(set: Set<string>) {
 function SkeletonRow() {
   return (
     <tr className="border-b border-gray-800 animate-pulse">
-      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+      {[1, 2, 3, 4, 5, 6].map((i) => (
         <td key={i} className="px-4 py-3">
           <div className="h-4 bg-gray-800 rounded w-3/4" />
         </td>
@@ -247,23 +246,6 @@ function StocksPageInner() {
           </div>
 
           <button
-            onClick={() => setShowFilters((v) => !v)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border active:scale-95 transition-all duration-150 ${
-              showFilters
-                ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-500"
-                : "bg-gray-900 border-gray-800 text-gray-400 hover:text-white hover:border-gray-700"
-            }`}
-          >
-            <SlidersHorizontal size={14} />
-            {t("stocks.filters")}
-            {hasFilters && (
-              <span className="bg-blue-500 text-white rounded-full text-xs w-4 h-4 flex items-center justify-center">
-                !
-              </span>
-            )}
-          </button>
-
-          <button
             onClick={() => setWatchlistOnly((v) => !v)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border active:scale-95 transition-all duration-150 ${
               watchlistOnly
@@ -278,49 +260,9 @@ function StocksPageInner() {
             )}
           </button>
 
-          {hasFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-xs text-gray-500 hover:text-gray-300 underline"
-            >
-              {t("stocks.clearAll")}
-            </button>
-          )}
         </div>
 
-        {/* Filter panel */}
-        {showFilters && (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-gray-500 text-xs block mb-1">{t("stocks.minPe")}</label>
-              <input
-                type="number"
-                placeholder="0"
-                value={minPE}
-                onChange={(e) => { setMinPE(e.target.value); setPage(1); }}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-gray-500 text-xs block mb-1">{t("stocks.maxPe")}</label>
-              <input
-                type="number"
-                placeholder="100"
-                value={maxPE}
-                onChange={(e) => { setMaxPE(e.target.value); setPage(1); }}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white outline-none"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={clearFilters}
-                className="w-full bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150"
-              >
-                {t("stocks.resetFilters")}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Filter panel placeholder — P/E filters removed (no P/E data from source) */}
 
         {/* Table */}
         <div className="bg-gray-900 rounded-xl overflow-hidden">
@@ -342,8 +284,6 @@ function StocksPageInner() {
                   <th className="text-left px-4 py-3 hidden md:table-cell">{t("common.name")}</th>
                   <th className="text-right px-4 py-3">{t("common.price")}</th>
                   <th className="text-right px-4 py-3">{t("common.change")}</th>
-                  <th className="text-right px-4 py-3 hidden lg:table-cell">{t("common.sector")}</th>
-                  <th className="text-right px-4 py-3 hidden lg:table-cell">{t("stocks.pe")}</th>
                   <th className="text-center px-4 py-3 hidden lg:table-cell">{t("common.signal")}</th>
                   <th className="text-right px-4 py-3 w-16" />
                 </tr>
@@ -356,7 +296,7 @@ function StocksPageInner() {
 
                 {isError && (
                   <tr>
-                    <td colSpan={9} className="py-12">
+                    <td colSpan={7} className="py-12">
                       <div className="flex flex-col items-center gap-2">
                         <span className="text-amber-400 text-sm font-medium">{t("stocks.failed")}</span>
                         <button onClick={() => refetch()} className="text-xs text-blue-400 hover:text-blue-300 underline">
@@ -370,7 +310,7 @@ function StocksPageInner() {
                 {!isLoading && !isError && displayed.length === 0 && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={7}
                       className="text-center py-12 text-gray-600 text-sm"
                     >
                       {watchlistOnly
@@ -453,14 +393,8 @@ function StocksPageInner() {
                           "—"
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-500 hidden lg:table-cell">
-                        {stock.sector ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-500 hidden lg:table-cell">
-                        {stock.pe != null ? Number(stock.pe).toFixed(1) : "—"}
-                      </td>
                       <td className="px-4 py-3 text-center hidden lg:table-cell">
-                        <SignalBadge signal={stock.signal} />
+                        <SignalBadge signal={stock.recommendation} />
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Link

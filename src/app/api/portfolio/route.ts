@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const backendRes = await fetchBackend(`/portfolio/${userId}`, {}, cookieHeader);
+  const search = req.nextUrl.search;
+  const backendRes = await fetchBackend(`/portfolio/${userId}${search}`, {}, cookieHeader);
   if (!backendRes.ok) {
     const body = await backendRes.json();
     return NextResponse.json(body, { status: backendRes.status });

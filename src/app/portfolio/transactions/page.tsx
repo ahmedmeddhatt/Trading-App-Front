@@ -12,6 +12,7 @@ import { exportToCSV } from "@/lib/csvExport";
 import { useLanguage } from "@/context/LanguageContext";
 import AddTransactionModal from "@/features/trade/components/AddTransactionModal";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
+import { useAssetType, withAssetType } from "@/store/useTradingMode";
 
 interface TxRow {
   id: string; symbol: string; type: "BUY" | "SELL";
@@ -41,8 +42,10 @@ export default function TransactionsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { data: portfolio } = usePortfolio();
   const ownedPositions = (portfolio?.positions ?? []).map((p) => ({ symbol: p.symbol, quantity: p.quantity }));
+  const assetType = useAssetType();
 
   const qs = new URLSearchParams();
+  qs.set("assetType", assetType);
   if (symbolFilter) qs.set("symbol", symbolFilter);
   if (typeFilter) qs.set("type", typeFilter);
   if (from) qs.set("from", from);

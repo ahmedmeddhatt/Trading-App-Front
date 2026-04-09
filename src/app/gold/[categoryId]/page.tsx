@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Coins, TrendingUp, TrendingDown, Globe, AlertTriangle } from "lucide-react";
+import { Coins, TrendingUp, TrendingDown, Globe, AlertTriangle, RefreshCw } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
@@ -44,7 +44,7 @@ export default function GoldDetailPage() {
   const { lang } = useLanguage();
   const isAr = lang === "ar";
 
-  const { data: detail, isLoading } = useQuery<GoldDetail>({
+  const { data: detail, isLoading, isFetching, refetch } = useQuery<GoldDetail>({
     queryKey: ["gold", categoryId],
     queryFn: () => apiClient.get<GoldDetail>(`/api/gold/${categoryId}`),
     refetchInterval: 60_000,
@@ -104,14 +104,27 @@ export default function GoldDetailPage() {
                   </p>
                 </div>
               </div>
-              {detail.changePercent !== 0 && (
-                <span className={`text-sm font-medium flex items-center gap-1 px-2.5 py-1 rounded-lg ${
-                  detail.changePercent >= 0 ? "text-emerald-400 bg-emerald-900/30" : "text-red-400 bg-red-900/30"
-                }`}>
-                  {detail.changePercent >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                  {detail.changePercent >= 0 ? "+" : "−"}{Math.abs(detail.changePercent).toFixed(2)}%
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {detail.changePercent !== 0 && (
+                  <span className={`text-sm font-medium flex items-center gap-1 px-2.5 py-1 rounded-lg ${
+                    detail.changePercent >= 0 ? "text-emerald-400 bg-emerald-900/30" : "text-red-400 bg-red-900/30"
+                  }`}>
+                    {detail.changePercent >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                    {detail.changePercent >= 0 ? "+" : "−"}{Math.abs(detail.changePercent).toFixed(2)}%
+                  </span>
+                )}
+                <button
+                  onClick={async () => {
+                    try { await fetch("/api/gold/refresh", { method: "POST" }); } catch {}
+                    refetch();
+                  }}
+                  disabled={isFetching}
+                  className="p-2 text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg transition-colors disabled:opacity-50"
+                  title="Refresh prices"
+                >
+                  <RefreshCw size={16} className={isFetching ? "animate-spin" : ""} />
+                </button>
+              </div>
             </div>
 
             {/* Price Cards */}

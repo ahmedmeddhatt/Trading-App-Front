@@ -13,11 +13,14 @@ const RANGE_DAYS: Record<DateRange, number> = {
  * `?from=YYYY-MM-DD&to=YYYY-MM-DD` query params.
  */
 export function rangeToFromTo(range: DateRange): { from: string; to: string } {
-  const to = new Date();
-  const from = new Date(to);
+  const now = new Date();
+  const from = new Date(now);
   from.setDate(from.getDate() - RANGE_DAYS[range]);
-  return {
-    from: from.toISOString().slice(0, 10),
-    to: to.toISOString().slice(0, 10),
-  };
+
+  // Use local date parts to avoid UTC offset shifting the date back
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toLocal = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  return { from: toLocal(from), to: toLocal(now) };
 }
