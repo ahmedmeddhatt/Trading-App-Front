@@ -70,40 +70,40 @@ function ChartTooltip({
     <div style={{
       background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
       border: `1px solid ${lineColor}33`,
-      borderRadius: 12,
-      padding: "12px 16px",
+      borderRadius: 10,
+      padding: "8px 12px",
       boxShadow: `0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px ${lineColor}15, inset 0 1px 0 rgba(255,255,255,0.05)`,
-      minWidth: 200,
-      pointerEvents: "none",
+      minWidth: 160,
+      maxWidth: "calc(100vw - 40px)",
+      pointerEvents: "none" as const,
       backdropFilter: "blur(12px)",
     }}>
-      <p style={{ color: "#64748b", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
+      <p style={{ color: "#64748b", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
         {fullDate}
       </p>
-      <p style={{ color: "#f1f5f9", fontSize: 20, fontWeight: 800, marginBottom: 8, letterSpacing: "-0.02em" }}>
+      <p style={{ color: "#f1f5f9", fontSize: 16, fontWeight: 800, marginBottom: 4, letterSpacing: "-0.02em" }}>
         {fmt.format(value)}
       </p>
-      <div style={{ height: 1, background: "#1e293b", marginBottom: 8 }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{ height: 1, background: "#1e293b", marginBottom: 4 }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
         {isGain
-          ? <TrendingUp size={13} color={changeColor} />
-          : <TrendingDown size={13} color={changeColor} />
+          ? <TrendingUp size={11} color={changeColor} />
+          : <TrendingDown size={11} color={changeColor} />
         }
-        <span style={{ color: changeColor, fontSize: 13, fontWeight: 700 }}>
+        <span style={{ color: changeColor, fontSize: 12, fontWeight: 700 }}>
           {isGain ? "+" : "−"}{fmt.format(Math.abs(change))}
         </span>
         <span style={{
           color: changeColor,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 600,
           background: `${changeColor}18`,
           borderRadius: 4,
-          padding: "1px 5px",
+          padding: "1px 4px",
         }}>
           {isGain ? "+" : "−"}{Math.abs(changePct).toFixed(2)}%
         </span>
       </div>
-      <p style={{ color: "#475569", fontSize: 10, marginTop: 5 }}>vs period start</p>
     </div>
   );
 }
@@ -139,10 +139,10 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
   const minVal = numericValues.length >= 2 ? Math.min(...numericValues) : null;
 
   return (
-    <div className="bg-gray-900 rounded-xl p-5 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+          <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
             {mode === "value" ? t("analytics.portfolioOverTime") : t("analytics.revenueOverTime")}
           </h2>
           <div className="flex gap-0.5 bg-gray-800 rounded-lg p-0.5">
@@ -168,12 +168,12 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
             </button>
           </div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 range-btns">
           {RANGES.map((r) => (
             <button
               key={r}
               onClick={() => onRangeChange(r)}
-              className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+              className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium active:scale-95 transition-all duration-150 whitespace-nowrap ${
                 range === r
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-gray-400 hover:text-white hover:bg-gray-800"
@@ -185,7 +185,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
         </div>
       </div>
 
-      <div className="h-72">
+      <div className="h-52 sm:h-72">
         {loading ? (
           <div className="h-full bg-gray-800 rounded-lg animate-pulse" />
         ) : data.length < 2 ? (
@@ -195,23 +195,24 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
         ) : (
           <div dir="ltr" style={{ height: "100%" }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 8, right: dir === "rtl" ? 48 : 12, left: 0, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 4, right: dir === "rtl" ? 40 : 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis
                 dataKey="date"
-                tick={{ fill: "#6b7280", fontSize: 11 }}
+                tick={{ fill: "#6b7280", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
+                interval="preserveStartEnd"
               />
               <YAxis
                 orientation={dir === "rtl" ? "right" : "left"}
-                tick={{ fill: "#6b7280", fontSize: 11 }}
+                tick={{ fill: "#6b7280", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v: number) =>
                   Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v.toFixed(0)}`
                 }
-                width={44}
+                width={38}
               />
               <Tooltip
                 wrapperStyle={{ backgroundColor: "transparent" }}

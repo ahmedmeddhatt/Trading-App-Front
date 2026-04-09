@@ -410,15 +410,15 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
           )}
 
           {/* Price History Chart */}
-          <div className="bg-gray-900 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">Price History</h2>
-              <div className="flex gap-1">
+          <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">Price History</h2>
+              <div className="flex gap-1 range-btns">
                 {RANGES.map((r) => (
                   <button
                     key={r}
                     onClick={() => setRange(r)}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                    className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium transition-colors whitespace-nowrap ${
                       range === r
                         ? "bg-blue-600 text-white"
                         : "bg-gray-800 text-gray-400 hover:text-white"
@@ -439,7 +439,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="stockPriceGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={chartColor} stopOpacity={0.22} />
@@ -449,17 +449,17 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                     <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
                     <XAxis
                       dataKey="date"
-                      tick={{ fill: "#6b7280", fontSize: 10 }}
+                      tick={{ fill: "#6b7280", fontSize: 9 }}
                       tickLine={false}
                       axisLine={false}
                       interval="preserveStartEnd"
                     />
                     <YAxis
                       domain={["auto", "auto"]}
-                      tick={{ fill: "#6b7280", fontSize: 10 }}
+                      tick={{ fill: "#6b7280", fontSize: 9 }}
                       tickLine={false}
                       axisLine={false}
-                      width={66}
+                      width={52}
                       tickFormatter={(v) => fmtEGP(v)}
                     />
                     <Tooltip
@@ -666,11 +666,11 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
   return (
     <div className="space-y-6 py-4">
       {/* Overall Signal Card */}
-      <div className="bg-gray-900 rounded-xl p-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="bg-gray-900 rounded-xl p-3 sm:p-6">
+        <div className="flex items-start justify-between gap-3 sm:gap-4 flex-wrap">
           <div>
-            <p className="text-gray-500 text-xs mb-2 uppercase tracking-wider">Overall Signal</p>
-            <div className={`inline-flex px-4 py-2 rounded-xl text-xl font-bold ${ACTION_STYLES[overallSignal.action] ?? "bg-gray-700 text-white"}`}>
+            <p className="text-gray-500 text-[10px] sm:text-xs mb-2 uppercase tracking-wider">Overall Signal</p>
+            <div className={`inline-flex px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-base sm:text-xl font-bold ${ACTION_STYLES[overallSignal.action] ?? "bg-gray-700 text-white"}`}>
               {overallSignal.action}
             </div>
             <p className="text-gray-500 text-sm mt-2">
@@ -705,11 +705,11 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
       </div>
 
       {/* Indicator Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         {/* RSI */}
-        <div className="bg-gray-900 rounded-xl p-4">
-          <p className="text-gray-500 text-xs mb-1">RSI (14)</p>
-          <p className="text-xl font-bold text-white">{indicators.rsi14.value?.toFixed(1) ?? "—"}</p>
+        <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
+          <p className="text-gray-500 text-[10px] sm:text-xs mb-1">RSI (14)</p>
+          <p className="text-base sm:text-xl font-bold text-white">{indicators.rsi14.value?.toFixed(1) ?? "—"}</p>
           <span className={`text-xs font-medium ${ZONE_COLOR[indicators.rsi14.zone]}`}>
             {indicators.rsi14.zone.charAt(0).toUpperCase() + indicators.rsi14.zone.slice(1)}
           </span>
@@ -776,14 +776,14 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
 
       {/* Price + SMA + Bollinger Chart */}
       {priceChartData.length > 0 && (
-        <div className="bg-gray-900 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-gray-400 mb-4">Price + Moving Averages + Bollinger Bands</h3>
-          <ResponsiveContainer width="100%" height={380}>
-            <ComposedChart data={priceChartData} margin={{ top: 8, right: 56, left: 4, bottom: 0 }}>
+        <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-400 mb-3 sm:mb-4">Price + Moving Averages + Bollinger Bands</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart data={priceChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false}
-                tickFormatter={(v, i) => (i % Math.ceil(priceChartData.length / 8) === 0 ? v : "")} />
-              <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} domain={["auto", "auto"]} tickFormatter={(v) => fmtEGP(v)} width={72} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 9 }} axisLine={false} tickLine={false}
+                interval="preserveStartEnd" />
+              <YAxis tick={{ fill: "#6b7280", fontSize: 9 }} domain={["auto", "auto"]} tickFormatter={(v) => fmtEGP(v)} width={52} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, fontSize: 11 }}
                 formatter={(v: unknown, name: unknown) => [fmtEGP(v as number), name === "price" ? "Price" : name === "sma20" ? "SMA20" : name === "sma50" ? "SMA50" : name === "bollingerUpper" ? "BB Upper" : "BB Lower"]}
@@ -807,30 +807,30 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
               ))}
             </ComposedChart>
           </ResponsiveContainer>
-          <div className="flex gap-4 justify-center mt-2 text-xs text-gray-500 flex-wrap">
-            <span className="flex items-center gap-1"><span className="w-6 border-t-2 border-blue-500 inline-block" /> Price</span>
-            <span className="flex items-center gap-1"><span className="w-6 border-t-2 border-dashed border-amber-400 inline-block" /> SMA20</span>
-            <span className="flex items-center gap-1"><span className="w-6 border-t-2 border-dashed border-emerald-400 inline-block" /> SMA50</span>
-            <span className="flex items-center gap-1"><span className="w-6 border-t-2 border-purple-500 inline-block opacity-50" /> Bollinger Bands</span>
-            <span className="flex items-center gap-1"><span className="w-3 border-t border-dashed border-emerald-500 inline-block" /> Support</span>
-            <span className="flex items-center gap-1"><span className="w-3 border-t border-dashed border-orange-500 inline-block" /> Resistance</span>
+          <div className="flex gap-2 sm:gap-4 justify-center mt-2 text-[10px] sm:text-xs text-gray-500 flex-wrap">
+            <span className="flex items-center gap-1"><span className="w-4 sm:w-6 border-t-2 border-blue-500 inline-block" /> Price</span>
+            <span className="flex items-center gap-1"><span className="w-4 sm:w-6 border-t-2 border-dashed border-amber-400 inline-block" /> SMA20</span>
+            <span className="flex items-center gap-1"><span className="w-4 sm:w-6 border-t-2 border-dashed border-emerald-400 inline-block" /> SMA50</span>
+            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-6 border-t-2 border-purple-500 inline-block opacity-50" /> Bollinger</span>
+            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-3 border-t border-dashed border-emerald-500 inline-block" /> Support</span>
+            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-3 border-t border-dashed border-orange-500 inline-block" /> Resistance</span>
           </div>
         </div>
       )}
 
       {/* MACD Chart */}
       {macdChartData.filter((d) => d.macd != null).length > 0 && (
-        <div className="bg-gray-900 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-gray-400 mb-2">MACD (12, 26, 9)</h3>
-          <p className="text-xs text-gray-600 mb-4">
+        <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2">MACD (12, 26, 9)</h3>
+          <p className="text-[10px] sm:text-xs text-gray-600 mb-3 sm:mb-4">
             MACD: {indicators.macd.value?.toFixed(3) ?? "—"} &nbsp;|&nbsp;
             Signal: {indicators.macd.signal?.toFixed(3) ?? "—"} &nbsp;|&nbsp;
             Histogram: <span className={indicators.macd.histogram != null && indicators.macd.histogram >= 0 ? "text-emerald-400" : "text-orange-400"}>
               {indicators.macd.histogram?.toFixed(3) ?? "—"}
             </span>
           </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <ComposedChart data={macdChartData} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={macdChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false}
                 tickFormatter={(v, i) => (i % 10 === 0 ? v : "")} />
@@ -851,14 +851,14 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
 
       {/* RSI Chart */}
       {rsiChartData.filter((d) => d.rsi != null).length > 0 && (
-        <div className="bg-gray-900 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-gray-400 mb-2">RSI (14)</h3>
-          <p className="text-xs text-gray-600 mb-4">
+        <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2">RSI (14)</h3>
+          <p className="text-[10px] sm:text-xs text-gray-600 mb-3 sm:mb-4">
             Current: <span className={`font-bold ${ZONE_COLOR[indicators.rsi14.zone]}`}>{indicators.rsi14.value?.toFixed(2) ?? "—"}</span>
             &nbsp;— Zone: <span className={ZONE_COLOR[indicators.rsi14.zone]}>{indicators.rsi14.zone}</span>
           </p>
-          <ResponsiveContainer width="100%" height={210}>
-            <LineChart data={rsiChartData} margin={{ top: 8, right: 80, left: 4, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={rsiChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis dataKey="date" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false}
                 tickFormatter={(v, i) => (i % 10 === 0 ? v : "")} />

@@ -170,8 +170,8 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
 
   // ── Form step ────────────────────────────────────────────────────────────────
   return (
-    <div className="bg-gray-900 rounded-xl p-5 space-y-5">
-      <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+    <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-4 sm:space-y-5">
+      <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
         {t("trade.placeOrder")}
       </h2>
 

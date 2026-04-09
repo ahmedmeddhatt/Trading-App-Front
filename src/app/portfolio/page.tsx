@@ -253,10 +253,10 @@ const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 
 function SectionRangeBtns({ range, setRange }: { range: DateRange; setRange: (r: DateRange) => void }) {
   const RANGE_OPTIONS: DateRange[] = ["1W", "1M", "3M", "6M", "1Y", "ALL"];
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-1 range-btns">
       {RANGE_OPTIONS.map((r) => (
         <button key={r} onClick={() => setRange(r)}
-          className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+          className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium active:scale-95 transition-all duration-150 whitespace-nowrap ${
             range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
           }`}>{r}</button>
       ))}
@@ -774,27 +774,27 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
   return (
     <div className="bg-gray-900 rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-800">
-        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <div className="px-3 sm:px-4 py-3 border-b border-gray-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div>
-            <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+            <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
               {t("portfolio.realizedPnl")} — {t("realized.allTrades")}
             </h2>
-            <p className="text-gray-600 text-xs mt-0.5">
+            <p className="text-gray-600 text-[10px] sm:text-xs mt-0.5">
               {summary.count} {t("realized.trades")} · {summary.winCount}W / {summary.lossCount}L
             </p>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 range-btns">
             {RANGE_OPTIONS.map((r) => (
               <button key={r} onClick={() => onRangeChange(r)}
-                className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
+                className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium active:scale-95 transition-all duration-150 whitespace-nowrap ${
                   range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
                 }`}>{r}</button>
             ))}
           </div>
           <div className="flex gap-4 text-right">
             <div>
-              <p className="text-gray-500 text-xs">{t("common.profit")}</p>
+              <p className="text-gray-500 text-[10px] sm:text-xs">{t("common.profit")}</p>
               <p className={`text-sm font-bold ${isWin ? "text-emerald-400" : "text-red-400"}`}>
                 {isWin ? "+" : "−"}{fmt(Math.abs(totalProfit))}
               </p>
@@ -802,7 +802,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
           </div>
         </div>
         {/* Summary stat row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           <div className="bg-gray-800/50 rounded-lg px-3 py-2">
             <p className="text-gray-500 text-xs mb-0.5">Total Return</p>
             <p className={`text-sm font-bold ${totalReturn == null ? "text-gray-400" : totalReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
@@ -829,7 +829,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
       </div>
 
       {/* Quick-sort preset chips */}
-      <div className="px-4 py-2.5 border-b border-gray-800 flex flex-wrap gap-1.5">
+      <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-gray-800 flex gap-1.5 preset-chips">
         {RG_PRESETS.map((p) => (
           <button
             key={p.id}
@@ -844,7 +844,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
           </button>
         ))}
         {/* Wins / Losses filter toggles */}
-        <div className="ml-auto flex gap-1">
+        <div className="ml-auto flex gap-1 flex-shrink-0">
           {(["all", "wins", "losses"] as RGFilter[]).map((f) => (
             <button
               key={f}
@@ -1092,10 +1092,10 @@ export default function PortfolioPage() {
 
   return (
     <AppShell>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-6">
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4">
           <StatCard
             label={t("analytics.portfolioValue")}
             value={`EGP ${(currentInvested + unrealized).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
@@ -1197,18 +1197,18 @@ export default function PortfolioPage() {
           if (allocBySymbol.length === 0) return null;
           const fmtValue = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
           return (
-          <div className="bg-gray-900 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h2 className="text-white font-semibold text-sm">{t("analytics.symbolAlloc")}</h2>
-                <p className="text-gray-500 text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
+                <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
               </div>
               <SectionRangeBtns range={allocRange} setRange={setAllocRange} />
             </div>
 
-            <div dir="ltr" className="flex flex-col md:flex-row items-start gap-6">
+            <div dir="ltr" className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6">
               {/* Donut chart */}
-              <div className="relative flex-shrink-0 mx-auto md:mx-0" style={{ width: 220, height: 220 }}>
+              <div className="relative flex-shrink-0 mx-auto md:mx-0 w-[180px] h-[180px] sm:w-[220px] sm:h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1217,8 +1217,8 @@ export default function PortfolioPage() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      innerRadius={62}
-                      outerRadius={100}
+                      innerRadius="55%"
+                      outerRadius="90%"
                       paddingAngle={allocBySymbol.length > 1 ? 3 : 0}
                       stroke="none"
                       animationBegin={0}
@@ -1238,9 +1238,9 @@ export default function PortfolioPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-gray-600 text-[10px] uppercase tracking-wider">{t("common.total")}</span>
-                  <span className="text-white text-lg font-bold">EGP {fmtValue(allocTotal)}</span>
-                  <span className="text-gray-500 text-[11px]">{allocBySymbol.length} {t("analytics.symbols")}</span>
+                  <span className="text-gray-600 text-[8px] sm:text-[10px] uppercase tracking-wider">{t("common.total")}</span>
+                  <span className="text-white text-sm sm:text-lg font-bold">EGP {fmtValue(allocTotal)}</span>
+                  <span className="text-gray-500 text-[9px] sm:text-[11px]">{allocBySymbol.length} {t("analytics.symbols")}</span>
                 </div>
               </div>
 
@@ -1249,21 +1249,21 @@ export default function PortfolioPage() {
                 {(allocExpanded ? allocBySymbol : allocBySymbol.slice(0, 5)).map((item, i) => {
                   const color = ALLOC_COLORS[i % ALLOC_COLORS.length];
                   return (
-                    <div key={item.name} className="flex items-center gap-3 bg-gray-800/50 rounded-lg px-3 py-2.5 hover:bg-gray-800 transition-colors">
-                      <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+                    <div key={item.name} className="flex items-center gap-2 sm:gap-3 bg-gray-800/50 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 hover:bg-gray-800 transition-colors">
+                      <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white text-sm font-semibold">{item.symbol}</span>
-                          {item.isSold && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-gray-700 text-gray-400 uppercase">Sold</span>}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-white text-xs sm:text-sm font-semibold">{item.symbol}</span>
+                          {item.isSold && <span className="px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-gray-700 text-gray-400 uppercase">Sold</span>}
                         </div>
-                        <span className="text-gray-500 text-xs">{item.qty} shares · EGP {item.value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                        <span className="text-gray-500 text-[10px] sm:text-xs truncate block">{item.qty} shares · EGP {item.value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                       </div>
                       {/* Percentage bar */}
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden hidden sm:block">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+                        <div className="w-10 sm:w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                           <div className="h-full rounded-full transition-all duration-500" style={{ width: `${item.percentage}%`, backgroundColor: color }} />
                         </div>
-                        <span className="text-white text-sm font-semibold w-12 text-right">{item.percentage.toFixed(1)}%</span>
+                        <span className="text-white text-xs sm:text-sm font-semibold w-10 sm:w-12 text-right">{item.percentage.toFixed(1)}%</span>
                       </div>
                     </div>
                   );
@@ -1284,16 +1284,14 @@ export default function PortfolioPage() {
 
         {/* Positions table */}
         <div className="bg-gray-900 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-wrap gap-2">
-            <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b border-gray-800 gap-2">
+            <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
               {t("portfolio.positions")}
+              <span className="text-gray-600 ml-2">{filteredPositions.length}</span>
             </h2>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <SectionRangeBtns range={positionsRange} setRange={setPositionsRange} />
-              <span className="text-gray-600 text-xs">
-                {filteredPositions.length} {filteredPositions.length !== 1 ? t("portfolio.positionPlural") : t("portfolio.positionSingular")}
-              </span>
-              <Link href="/portfolio/transactions" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
+              <Link href="/portfolio/transactions" className="text-[11px] sm:text-xs text-blue-400 hover:text-blue-300 font-medium whitespace-nowrap">
                 {t("common.allTx")}
               </Link>
             </div>
@@ -1506,11 +1504,11 @@ export default function PortfolioPage() {
         {closedPositions.length > 0 && (
           <div className="space-y-4">
             {/* P&L bar chart */}
-            <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="bg-gray-900 rounded-xl p-3 sm:p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h2 className="text-white font-semibold text-sm">{t("closed.sectionTitle")}</h2>
-                  <p className="text-gray-500 text-xs mt-0.5">{t("closed.sectionSub")}</p>
+                  <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">{t("closed.sectionSub")}</p>
                 </div>
                 <SectionRangeBtns range={closedRange} setRange={setClosedRange} />
               </div>
