@@ -170,10 +170,11 @@ function useAllocation() {
 }
 
 function useStockHistory(symbol: string | null) {
+  const assetType = useAssetType();
   return useQuery<StockHistoryResponse>({
-    queryKey: ["portfolio", "stock-history", symbol],
+    queryKey: ["portfolio", "stock-history", symbol, assetType],
     queryFn: () =>
-      apiClient.get<StockHistoryResponse>(`/api/portfolio/stock/${symbol}/history`),
+      apiClient.get<StockHistoryResponse>(withAssetType(`/api/portfolio/stock/${symbol}/history`, assetType)),
     enabled: !!symbol,
     retry: 1,
   });
@@ -181,10 +182,11 @@ function useStockHistory(symbol: string | null) {
 
 // Fetch price history for all traded symbols (for portfolio-wide chart)
 function useAllPriceHistories(symbols: string[]) {
+  const assetType = useAssetType();
   const results = useQueries({
     queries: symbols.map(symbol => ({
-      queryKey: ["position-detail", symbol],
-      queryFn: () => apiClient.get<{ priceHistory: { timestamp: string; price: number }[] }>(`/api/portfolio/positions/${symbol}`),
+      queryKey: ["position-detail", symbol, assetType],
+      queryFn: () => apiClient.get<{ priceHistory: { timestamp: string; price: number }[] }>(withAssetType(`/api/portfolio/positions/${symbol}`, assetType)),
       retry: 1,
       staleTime: 5 * 60_000,
     })),

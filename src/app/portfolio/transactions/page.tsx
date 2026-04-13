@@ -52,7 +52,7 @@ export default function TransactionsPage() {
   if (to) qs.set("to", to);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["transactions-master", symbolFilter, typeFilter, from, to],
+    queryKey: ["transactions-master", assetType, symbolFilter, typeFilter, from, to],
     queryFn: () => apiClient.get<{ transactions: TxRow[]; summary: Summary }>(
       `/api/portfolio/transactions?${qs}`
     ),
@@ -253,7 +253,7 @@ export default function TransactionsPage() {
     </AppShell>
 
     {showAddModal && (
-      <AddTransactionModal onClose={() => setShowAddModal(false)} ownedPositions={ownedPositions} />
+      <AddTransactionModal onClose={() => setShowAddModal(false)} ownedPositions={ownedPositions} assetType={assetType} />
     )}
     </>
   );

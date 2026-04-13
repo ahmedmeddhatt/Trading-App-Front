@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Search, Coins, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { useLanguage } from "@/context/LanguageContext";
 import AppShell from "@/components/AppShell";
@@ -47,28 +47,163 @@ function useGoldDashboard() {
   });
 }
 
+/* ─── SVG Illustrations ───────────────────────────────────────────────────── */
+
+function GoldBarIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="none" className={className}>
+      <defs>
+        <linearGradient id="goldBar" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fbbf24" />
+          <stop offset="40%" stopColor="#f59e0b" />
+          <stop offset="70%" stopColor="#d97706" />
+          <stop offset="100%" stopColor="#b45309" />
+        </linearGradient>
+        <linearGradient id="goldBarTop" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fde68a" />
+          <stop offset="50%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#f59e0b" />
+        </linearGradient>
+        <linearGradient id="goldBarSide" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#d97706" />
+          <stop offset="100%" stopColor="#92400e" />
+        </linearGradient>
+      </defs>
+      {/* Front face */}
+      <path d="M8 42 L20 26 L44 26 L56 42 L8 42Z" fill="url(#goldBar)" />
+      {/* Top face */}
+      <path d="M20 26 L28 18 L52 18 L44 26 Z" fill="url(#goldBarTop)" />
+      {/* Right face */}
+      <path d="M44 26 L52 18 L56 28 L56 42 Z" fill="url(#goldBarSide)" />
+      {/* Shine line */}
+      <path d="M22 30 L40 30" stroke="#fde68a" strokeWidth="1" opacity="0.6" />
+      <path d="M14 38 L50 38" stroke="#92400e" strokeWidth="0.5" opacity="0.3" />
+    </svg>
+  );
+}
+
+function GoldCoinIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="none" className={className}>
+      <defs>
+        <linearGradient id="coinFace" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fde68a" />
+          <stop offset="30%" stopColor="#fbbf24" />
+          <stop offset="70%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#d97706" />
+        </linearGradient>
+        <linearGradient id="coinEdge" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#d97706" />
+          <stop offset="100%" stopColor="#92400e" />
+        </linearGradient>
+      </defs>
+      {/* Coin edge (3D) */}
+      <ellipse cx="32" cy="36" rx="22" ry="6" fill="url(#coinEdge)" />
+      {/* Coin face */}
+      <ellipse cx="32" cy="32" rx="22" ry="22" fill="url(#coinFace)" />
+      {/* Inner circle */}
+      <ellipse cx="32" cy="32" rx="16" ry="16" fill="none" stroke="#d97706" strokeWidth="1.5" opacity="0.5" />
+      {/* Pound sign */}
+      <text x="32" y="38" textAnchor="middle" fill="#92400e" fontSize="18" fontWeight="bold" opacity="0.6">£</text>
+      {/* Shine */}
+      <ellipse cx="24" cy="24" rx="4" ry="6" fill="#fef3c7" opacity="0.4" transform="rotate(-30 24 24)" />
+    </svg>
+  );
+}
+
+function GoldStackIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="none" className={className}>
+      <defs>
+        <linearGradient id="stackBar1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#d97706" />
+        </linearGradient>
+        <linearGradient id="stackBar2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fde68a" />
+          <stop offset="100%" stopColor="#f59e0b" />
+        </linearGradient>
+        <linearGradient id="stackBar3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fef3c7" />
+          <stop offset="100%" stopColor="#fbbf24" />
+        </linearGradient>
+      </defs>
+      {/* Bottom bar */}
+      <path d="M6 50 L16 40 L48 40 L58 50 Z" fill="url(#stackBar1)" />
+      <path d="M16 40 L22 34 L54 34 L48 40 Z" fill="#fde68a" opacity="0.7" />
+      <path d="M48 40 L54 34 L58 38 L58 50 Z" fill="#b45309" />
+      {/* Middle bar */}
+      <path d="M10 42 L20 32 L44 32 L54 42 Z" fill="url(#stackBar2)" />
+      <path d="M20 32 L26 26 L50 26 L44 32 Z" fill="#fef3c7" opacity="0.7" />
+      <path d="M44 32 L50 26 L54 30 L54 42 Z" fill="#d97706" />
+      {/* Top bar */}
+      <path d="M14 34 L24 24 L40 24 L50 34 Z" fill="url(#stackBar3)" />
+      <path d="M24 24 L30 18 L46 18 L40 24 Z" fill="#fef9c3" opacity="0.8" />
+      <path d="M40 24 L46 18 L50 22 L50 34 Z" fill="#f59e0b" />
+    </svg>
+  );
+}
+
+function GoldRingIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="none" className={className}>
+      <defs>
+        <linearGradient id="ringOuter" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fde68a" />
+          <stop offset="50%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#b45309" />
+        </linearGradient>
+      </defs>
+      {/* Outer ring */}
+      <ellipse cx="32" cy="34" rx="22" ry="18" fill="none" stroke="url(#ringOuter)" strokeWidth="6" />
+      {/* Inner highlight */}
+      <ellipse cx="32" cy="34" rx="22" ry="18" fill="none" stroke="#fde68a" strokeWidth="1" opacity="0.4" />
+      {/* Gem */}
+      <circle cx="32" cy="16" r="5" fill="#fbbf24" />
+      <circle cx="32" cy="16" r="3" fill="#fef3c7" opacity="0.6" />
+      {/* Shine */}
+      <path d="M18 26 Q 22 22, 26 24" stroke="#fef3c7" strokeWidth="1.5" fill="none" opacity="0.5" />
+    </svg>
+  );
+}
+
+/* Pick an illustration based on categoryId */
+function getGoldIllustration(categoryId: string): React.ReactNode {
+  const id = categoryId.toUpperCase();
+  if (id.includes("POUND") || id.includes("COIN") || id.includes("GUINEA"))
+    return <GoldCoinIcon className="w-12 h-12 sm:w-14 sm:h-14" />;
+  if (id.includes("OUNCE") || id.includes("OZ"))
+    return <GoldStackIcon className="w-12 h-12 sm:w-14 sm:h-14" />;
+  if (id.includes("18") || id.includes("RING") || id.includes("JEWELRY"))
+    return <GoldRingIcon className="w-12 h-12 sm:w-14 sm:h-14" />;
+  return <GoldBarIcon className="w-12 h-12 sm:w-14 sm:h-14" />;
+}
+
+/* ─── Main Dashboard ──────────────────────────────────────────────────────── */
+
 export default function GoldDashboard() {
   const [search, setSearch] = useState("");
   const { lang } = useLanguage();
   const isAr = lang === "ar";
 
   const { data, isLoading, isError, isFetching, refetch } = useGoldDashboard();
-
   const getName = (item: GoldCategoryItem) => isAr ? item.nameAr : item.nameEn;
 
   return (
     <AppShell>
-      {/* Gold price source indicator */}
+      {/* Gold price header bar */}
       {data?.categories?.[0]?.source && (
-        <div className="bg-amber-900/20 border-b border-amber-800/30 px-4 py-1.5 flex items-center justify-center gap-3">
-          <span className="text-amber-400 text-xs">
-            <Coins size={12} className="inline mr-1" />
+        <div className="bg-gradient-to-r from-amber-950/60 via-amber-900/30 to-amber-950/60 border-b border-amber-800/30 px-4 py-2 flex items-center justify-center gap-3">
+          <span className="text-amber-400/90 text-xs font-medium tracking-wide">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1.5 animate-pulse" />
             Gold prices via {data.categories[0].source}
             {data.categories[0].lastUpdate && (
-              <> · Updated {new Date(data.categories[0].lastUpdate).toLocaleTimeString()}</>
+              <> · {new Date(data.categories[0].lastUpdate).toLocaleTimeString()}</>
             )}
             {data.categories[0].globalSpotUsd && (
-              <> · XAU/USD ${data.categories[0].globalSpotUsd.toLocaleString()}</>
+              <span className="ml-2 px-2 py-0.5 rounded bg-amber-900/50 text-amber-300 font-bold">
+                XAU/USD ${data.categories[0].globalSpotUsd.toLocaleString()}
+              </span>
             )}
           </span>
           <button
@@ -77,7 +212,7 @@ export default function GoldDashboard() {
               refetch();
             }}
             disabled={isFetching}
-            className="text-amber-400 hover:text-amber-300 disabled:opacity-50 transition-colors p-1 rounded-md hover:bg-amber-500/10"
+            className="text-amber-400 hover:text-amber-300 disabled:opacity-50 transition-colors p-1.5 rounded-lg hover:bg-amber-500/10"
             title="Refresh prices"
           >
             <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
@@ -85,24 +220,26 @@ export default function GoldDashboard() {
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-8">
         {isError ? (
-          <div className="flex flex-col items-center gap-2 py-10 bg-gray-900/60 border border-amber-900/40 rounded-xl">
+          <div className="flex flex-col items-center gap-3 py-16 bg-gradient-to-b from-gray-900 to-gray-950 border border-amber-900/30 rounded-2xl">
+            <GoldBarIcon className="w-16 h-16 opacity-40" />
             <span className="text-amber-400 text-sm font-medium">Failed to load gold prices</span>
             <span className="text-gray-600 text-xs">Check your connection and try again</span>
           </div>
         ) : (
           <>
-            {/* Popular Categories (21K, 24K, Gold Pound) */}
-            <GoldSection
+            {/* Popular Categories */}
+            <GoldShowcase
               title={isAr ? "الأكثر تداولاً" : "Most Popular"}
               items={data?.popular ?? []}
               loading={isLoading}
               getName={getName}
+              featured
             />
 
-            {/* All Gold Categories */}
-            <GoldSection
+            {/* All Categories */}
+            <GoldGrid
               title={isAr ? "جميع الأعيرة" : "All Categories"}
               items={data?.categories ?? []}
               loading={isLoading}
@@ -111,7 +248,7 @@ export default function GoldDashboard() {
 
             {/* Top Movers */}
             {(data?.topMovers?.length ?? 0) > 0 && (
-              <GoldSection
+              <GoldGrid
                 title={isAr ? "الأكثر تحركاً" : "Top Movers"}
                 items={data?.topMovers ?? []}
                 loading={isLoading}
@@ -123,11 +260,14 @@ export default function GoldDashboard() {
 
         {/* My Gold Holdings */}
         {data?.myGold && data.myGold.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">
-                {isAr ? "ذهبي" : "My Gold"}
-              </h2>
+              <div className="flex items-center gap-2">
+                <GoldStackIcon className="w-6 h-6" />
+                <h2 className="text-amber-300/80 text-sm font-semibold uppercase tracking-widest">
+                  {isAr ? "ذهبي" : "My Gold"}
+                </h2>
+              </div>
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
@@ -135,11 +275,11 @@ export default function GoldDashboard() {
                   placeholder={isAr ? "بحث..." : "Filter..."}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="bg-gray-800 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-amber-500 w-28 sm:w-40"
+                  className="bg-gray-800/80 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-amber-500/50 w-28 sm:w-40 border border-gray-700/50"
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {data.myGold
                 .filter((g) => g.categoryId.toLowerCase().includes(search.toLowerCase()))
                 .map((mg) => {
@@ -149,25 +289,36 @@ export default function GoldDashboard() {
                   const pnl = (currentPrice - avgPrice) * qty;
                   const pnlPct = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
                   const isPos = pnl >= 0;
+                  const totalValue = currentPrice * qty;
                   const catInfo = data.categories.find((c) => c.categoryId === mg.categoryId);
                   return (
                     <Link key={mg.categoryId} href={`/gold/${mg.categoryId}`}>
-                      <div className="td-hover-card bg-gray-900 rounded-xl p-3 sm:p-4 space-y-1.5 border border-gray-800 hover:border-amber-800/50 transition-colors">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-amber-300 text-sm sm:text-base">
-                            {catInfo ? getName(catInfo) : mg.categoryId}
-                          </span>
-                          <span className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
-                            {isPos ? "+" : "−"}{Math.abs(pnlPct).toFixed(2)}%
-                          </span>
+                      <div className="group relative bg-gradient-to-br from-gray-900 via-gray-900 to-amber-950/20 rounded-2xl p-5 border border-amber-900/20 hover:border-amber-700/40 transition-all duration-300 overflow-hidden">
+                        {/* Shimmer overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+
+                        <div className="relative flex items-start gap-4">
+                          <div className="shrink-0 p-2 bg-amber-500/10 rounded-xl">
+                            {getGoldIllustration(mg.categoryId)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <h3 className="text-amber-200 font-bold text-base truncate">
+                                {catInfo ? getName(catInfo) : mg.categoryId}
+                              </h3>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPos ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"}`}>
+                                {isPos ? "+" : "−"}{Math.abs(pnlPct).toFixed(2)}%
+                              </span>
+                            </div>
+                            <p className="text-2xl font-bold text-white mb-2">{totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-sm text-gray-500">EGP</span></p>
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                              <span>{qty}g @ {avgPrice.toLocaleString()} EGP</span>
+                              <span className={`font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                                {isPos ? "+" : "−"}{Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })} EGP
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-lg sm:text-2xl font-bold text-white">{currentPrice.toLocaleString()} EGP</p>
-                        <p className="text-gray-500 text-xs truncate">
-                          {qty}g · {isAr ? "متوسط" : "Avg"} {avgPrice.toLocaleString()} EGP
-                        </p>
-                        <p className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
-                          {isPos ? "+" : "−"}{Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })} EGP
-                        </p>
                       </div>
                     </Link>
                   );
@@ -177,10 +328,13 @@ export default function GoldDashboard() {
         )}
 
         {!isLoading && !isError && (!data?.myGold || data.myGold.length === 0) && (
-          <div className="text-center py-12 text-gray-600 text-sm">
-            {isAr ? "لا تملك ذهب بعد." : "No gold positions yet."}{" "}
-            <Link href="/gold/GOLD_21K" className="text-amber-400 hover:text-amber-300">
-              {isAr ? "تصفح أسعار الذهب" : "Browse gold prices"}
+          <div className="flex flex-col items-center gap-4 py-16">
+            <GoldBarIcon className="w-20 h-20 opacity-30" />
+            <p className="text-gray-500 text-sm">
+              {isAr ? "لا تملك ذهب بعد." : "No gold positions yet."}
+            </p>
+            <Link href="/gold/GOLD_21K" className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-semibold text-sm rounded-xl transition-all duration-200">
+              {isAr ? "تصفح أسعار الذهب" : "Browse Gold Prices"}
             </Link>
           </div>
         )}
@@ -189,7 +343,103 @@ export default function GoldDashboard() {
   );
 }
 
-function GoldSection({
+/* ─── Featured showcase (popular items — larger cards) ─────────────────── */
+
+function GoldShowcase({
+  title,
+  items,
+  loading,
+  getName,
+  featured,
+}: {
+  title: string;
+  items: GoldCategoryItem[];
+  loading: boolean;
+  getName: (item: GoldCategoryItem) => string;
+  featured?: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-amber-300/80 text-sm font-semibold uppercase tracking-widest">{title}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-gray-900 rounded-2xl h-44 animate-pulse border border-gray-800" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-amber-300/80 text-sm font-semibold uppercase tracking-widest flex items-center gap-2">
+        <GoldBarIcon className="w-5 h-5" />
+        {title}
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map((item, idx) => {
+          const isPos = item.changePercent >= 0;
+          const spread = item.buyPrice && item.sellPrice
+            ? ((item.buyPrice - item.sellPrice) / item.sellPrice * 100).toFixed(1)
+            : null;
+
+          return (
+            <Link key={item.categoryId} href={`/gold/${item.categoryId}`}>
+              <div
+                className="group relative bg-gradient-to-br from-gray-900 via-gray-900/95 to-amber-950/30 rounded-2xl p-5 sm:p-6 border border-amber-900/20 hover:border-amber-600/40 transition-all duration-300 overflow-hidden"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              >
+                {/* Shimmer */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/[0.04] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                {/* Glow */}
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/[0.06] rounded-full blur-2xl group-hover:bg-amber-500/[0.1] transition-colors duration-500" />
+
+                <div className="relative flex items-start gap-4">
+                  <div className="shrink-0 p-2.5 bg-gradient-to-br from-amber-500/15 to-amber-600/5 rounded-xl group-hover:from-amber-500/25 group-hover:to-amber-600/10 transition-colors duration-300">
+                    {getGoldIllustration(item.categoryId)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-amber-200 font-bold text-lg truncate">{getName(item)}</h3>
+                      {item.changePercent !== 0 && (
+                        <span className={`text-xs font-bold flex items-center gap-0.5 px-2.5 py-1 rounded-full ${isPos ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"}`}>
+                          {isPos ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                          {isPos ? "+" : "−"}{Math.abs(item.changePercent).toFixed(2)}%
+                        </span>
+                      )}
+                    </div>
+
+                    {item.sellPrice != null && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl sm:text-3xl font-bold text-white">{item.sellPrice.toLocaleString()}</span>
+                          <span className="text-sm text-gray-500">EGP</span>
+                          <span className="text-xs text-gray-600">sell</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span>Buy: <span className="text-gray-400">{item.buyPrice?.toLocaleString()} EGP</span></span>
+                          {spread && <span className="text-amber-600">Spread {spread}%</span>}
+                          <span>/{item.unit}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Standard grid (all categories, top movers) ───────────────────────── */
+
+function GoldGrid({
   title,
   items,
   loading,
@@ -202,11 +452,11 @@ function GoldSection({
 }) {
   if (loading) {
     return (
-      <div className="space-y-3">
-        <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{title}</h2>
+      <div className="space-y-4">
+        <h2 className="text-amber-300/80 text-sm font-semibold uppercase tracking-widest">{title}</h2>
         <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-gray-900 rounded-xl p-4 h-32 animate-pulse" />
+            <div key={i} className="bg-gray-900 rounded-xl h-36 animate-pulse border border-gray-800" />
           ))}
         </div>
       </div>
@@ -216,8 +466,8 @@ function GoldSection({
   if (items.length === 0) return null;
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{title}</h2>
+    <div className="space-y-4">
+      <h2 className="text-amber-300/80 text-sm font-semibold uppercase tracking-widest">{title}</h2>
       <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
         {items.map((item) => {
           const isPos = item.changePercent >= 0;
@@ -227,45 +477,41 @@ function GoldSection({
 
           return (
             <Link key={item.categoryId} href={`/gold/${item.categoryId}`}>
-              <div className="td-hover-card bg-gray-900 rounded-xl p-4 space-y-2 border border-gray-800 hover:border-amber-800/50 transition-colors">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-1.5">
-                    <Coins size={14} className="text-amber-500" />
-                    <span className="font-bold text-amber-300 text-base sm:text-sm">{getName(item)}</span>
+              <div className="group relative bg-gray-900 rounded-xl p-4 border border-gray-800 hover:border-amber-800/40 transition-all duration-200 overflow-hidden">
+                {/* Subtle shimmer */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/[0.02] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="shrink-0">
+                        {getGoldIllustration(item.categoryId)}
+                      </div>
+                      <span className="font-bold text-amber-200 text-sm truncate">{getName(item)}</span>
+                    </div>
+                    {item.changePercent !== 0 && (
+                      <span className={`text-xs font-medium flex items-center gap-0.5 ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                        {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                        {isPos ? "+" : "−"}{Math.abs(item.changePercent).toFixed(2)}%
+                      </span>
+                    )}
                   </div>
-                  {item.changePercent !== 0 && (
-                    <span className={`text-xs font-medium flex items-center gap-0.5 ${isPos ? "text-emerald-400" : "text-red-400"}`}>
-                      {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                      {isPos ? "+" : "−"}{Math.abs(item.changePercent).toFixed(2)}%
-                    </span>
+
+                  {item.sellPrice != null && (
+                    <div className="space-y-1">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl font-bold text-white">{item.sellPrice.toLocaleString()}</span>
+                        <span className="text-xs text-gray-500">EGP</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>Buy: {item.buyPrice?.toLocaleString()}</span>
+                        {spread && <span className="text-amber-700">{spread}%</span>}
+                      </div>
+                    </div>
                   )}
+
+                  <div className="mt-1.5 text-xs text-gray-700">/{item.unit}</div>
                 </div>
-
-                {item.sellPrice != null && (
-                  <div className="space-y-0.5">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Sell</span>
-                      <span className="text-white font-semibold text-base sm:text-sm">
-                        {item.sellPrice.toLocaleString()} EGP
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Buy</span>
-                      <span className="text-gray-300 text-sm">
-                        {item.buyPrice?.toLocaleString()} EGP
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-between text-xs text-gray-600">
-                  <span>/{item.unit}</span>
-                  {spread && <span>Spread: {spread}%</span>}
-                </div>
-
-                {item.lastUpdate && (
-                  <p className="text-gray-700 text-xs">{new Date(item.lastUpdate).toLocaleTimeString()}</p>
-                )}
               </div>
             </Link>
           );

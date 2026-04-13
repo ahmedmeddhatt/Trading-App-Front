@@ -206,7 +206,7 @@ export default function TransactionDetailPage() {
                 {costBasis.beforeTrade ? (
                   <>
                     <p className="text-white font-medium">{formatEGP(costBasis.beforeTrade.avgPrice)} <span className="text-gray-500 text-xs">avg</span></p>
-                    <p className="text-gray-400 text-sm">{costBasis.beforeTrade.quantity} shares</p>
+                    <p className="text-gray-400 text-sm">{costBasis.beforeTrade.quantity} units</p>
                   </>
                 ) : (
                   <p className="text-gray-600 text-sm">No prior position</p>
@@ -217,7 +217,7 @@ export default function TransactionDetailPage() {
                 {costBasis.afterTrade ? (
                   <>
                     <p className="text-white font-medium">{formatEGP(costBasis.afterTrade.avgPrice)} <span className="text-gray-500 text-xs">avg</span></p>
-                    <p className="text-gray-400 text-sm">{costBasis.afterTrade.quantity} shares</p>
+                    <p className="text-gray-400 text-sm">{costBasis.afterTrade.quantity} units</p>
                   </>
                 ) : (
                   <p className="text-gray-600 text-sm">Position closed</p>

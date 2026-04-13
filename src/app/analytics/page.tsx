@@ -112,10 +112,11 @@ function useTimeline() {
 }
 
 function useStockHistory(symbol: string | null) {
+  const assetType = useAssetType();
   return useQuery<StockHistoryResponse>({
-    queryKey: ["portfolio", "stock-history", symbol],
+    queryKey: ["portfolio", "stock-history", symbol, assetType],
     queryFn: () =>
-      apiClient.get<StockHistoryResponse>(`/api/portfolio/stock/${symbol}/history`),
+      apiClient.get<StockHistoryResponse>(withAssetType(`/api/portfolio/stock/${symbol}/history`, assetType)),
     enabled: !!symbol,
     retry: 1,
   });
@@ -552,7 +553,8 @@ export default function AnalyticsPage() {
     );
   }
 
-  if (!analytics || allPositions.length === 0) {
+  const hasAnyData = allPositions.length > 0 || (analytics?.transactions?.length ?? 0) > 0 || totalRealized !== 0;
+  if (!analytics || !hasAnyData) {
     return (
       <AppShell>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 flex flex-col items-center gap-4 text-center">
@@ -1252,9 +1254,10 @@ const INSIGHT_COLOR: Record<string, string> = {
 
 function InsightsPanel() {
   const { t } = useLanguage();
+  const assetType = useAssetType();
   const { data, isLoading } = useQuery({
-    queryKey: ["insights"],
-    queryFn: () => apiClient.get<{ insights: Insight[] }>("/api/analytics/insights"),
+    queryKey: ["insights", assetType],
+    queryFn: () => apiClient.get<{ insights: Insight[] }>(withAssetType("/api/analytics/insights", assetType)),
   });
 
   if (isLoading) return null;
@@ -1291,12 +1294,13 @@ interface DayPnL { date: string; realizedPnL: number; tradeCount: number }
 
 function PnLCalendar() {
   const { t } = useLanguage();
+  const assetType = useAssetType();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["pnl-calendar", year],
-    queryFn: () => apiClient.get<{ dailyPnL: DayPnL[] }>(`/api/analytics/pnl-calendar?year=${year}`),
+    queryKey: ["pnl-calendar", year, assetType],
+    queryFn: () => apiClient.get<{ dailyPnL: DayPnL[] }>(withAssetType(`/api/analytics/pnl-calendar?year=${year}`, assetType)),
   });
 
   const dailyMap = useMemo(() => {
@@ -1440,9 +1444,10 @@ const GRADE_BG: Record<string, string> = {
 
 function ClosedTradeScoring() {
   const { t, dir } = useLanguage();
+  const assetType = useAssetType();
   const { data, isLoading } = useQuery({
-    queryKey: ["closed-trades"],
-    queryFn: () => apiClient.get<{ trades: ClosedTrade[]; summary: ClosedTradesSummary }>("/api/analytics/closed-trades"),
+    queryKey: ["closed-trades", assetType],
+    queryFn: () => apiClient.get<{ trades: ClosedTrade[]; summary: ClosedTradesSummary }>(withAssetType("/api/analytics/closed-trades", assetType)),
   });
 
   if (isLoading) return null;

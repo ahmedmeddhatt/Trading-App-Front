@@ -6,6 +6,7 @@ import { Award, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/context/LanguageContext";
+import { useAssetType, withAssetType } from "@/store/useTradingMode";
 
 interface ClosedTrade {
   id: string; symbol: string; quantity: string;
@@ -32,9 +33,10 @@ const GRADE_BG: Record<string, string> = {
 
 export default function ClosedTradesPage() {
   const { t } = useLanguage();
+  const assetType = useAssetType();
   const { data, isLoading } = useQuery({
-    queryKey: ["closed-trades"],
-    queryFn: () => apiClient.get<{ trades: ClosedTrade[]; summary: ClosedTradesSummary }>("/api/analytics/closed-trades"),
+    queryKey: ["closed-trades", assetType],
+    queryFn: () => apiClient.get<{ trades: ClosedTrade[]; summary: ClosedTradesSummary }>(withAssetType("/api/analytics/closed-trades", assetType)),
   });
 
   const trades = data?.trades ?? [];

@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/apiClient";
 import { formatEGP, formatPct } from "@/lib/tradeCalcs";
 import { useLanguage } from "@/context/LanguageContext";
 import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
+import { useAssetType, withAssetType } from "@/store/useTradingMode";
 
 // Raw shape as returned by the backend (all numeric fields may be strings)
 interface RiskData {
@@ -55,11 +56,12 @@ function riskLevel(hhi: number): { labelKey: "risk.lowRisk" | "risk.moderateRisk
 
 export default function RiskPage() {
   const { t, dir } = useLanguage();
+  const assetType = useAssetType();
   const [range, setRange] = useState<DateRange>("3M");
   const allTo = new Date().toISOString().slice(0, 10);
   const { data, isLoading } = useQuery({
-    queryKey: ["risk-analytics", "ALL"],
-    queryFn: () => apiClient.get<RiskData>(`/api/analytics/risk?from=2000-01-01&to=${allTo}`),
+    queryKey: ["risk-analytics", "ALL", assetType],
+    queryFn: () => apiClient.get<RiskData>(withAssetType(`/api/analytics/risk?from=2000-01-01&to=${allTo}`, assetType)),
     staleTime: 60_000,
   });
 

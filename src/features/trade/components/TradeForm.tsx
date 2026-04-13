@@ -13,11 +13,13 @@ interface TradeFormProps {
   symbol: string;
   currentPrice: number | null;
   ownedQuantity?: number;
+  assetType?: "STOCK" | "GOLD";
+  unit?: string;
 }
 
 const FEE_RATE = 0.00175;
 
-export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: TradeFormProps) {
+export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0, assetType = "STOCK", unit }: TradeFormProps) {
   const { t } = useLanguage();
   const [step, setStep] = useState<Step>("form");
   const [side, setSide] = useState<Side>("buy");
@@ -62,7 +64,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
     : qty * parsedPrice + parsedFees;
 
   const sellError = side === "sell" && qty > effectiveOwned
-    ? `${t("trade.cantSell")} ${qty} — ${t("trade.youOnlyOwn")} ${effectiveOwned} ${t("trade.sharesUnit")}`
+    ? `${t("trade.cantSell")} ${qty} — ${t("trade.youOnlyOwn")} ${effectiveOwned} ${unit ?? t("trade.sharesUnit")}`
     : null;
 
   const canReview = qty > 0 && parsedPrice > 0 && !sellError;
@@ -81,6 +83,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
       quantity: qty,
       price: parsedPrice,
       fees: parsedFees,
+      assetType,
     };
     submit(payload, {
       onSuccess: () => {
@@ -231,7 +234,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
         <input
           type="number"
           min="0"
-          step="1"
+          step={assetType === "GOLD" ? "0.01" : "1"}
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
           className="w-full bg-gray-800 rounded-lg px-4 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
@@ -297,7 +300,7 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
 
       {/* Owned shares hint when selling */}
       {side === "sell" && effectiveOwned > 0 && !sellError && (
-        <p className="text-gray-500 text-xs text-right">{t("trade.available")} {effectiveOwned} {t("trade.sharesUnit")}</p>
+        <p className="text-gray-500 text-xs text-right">{t("trade.available")} {effectiveOwned} {unit ?? t("trade.sharesUnit")}</p>
       )}
       {side === "sell" && effectiveOwned === 0 && (
         <p className="text-gray-500 text-xs text-right">{t("trade.noShares")}</p>

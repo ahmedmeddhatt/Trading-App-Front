@@ -7,6 +7,8 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
+import TradeForm from "@/features/trade/components/TradeForm";
 
 interface GoldDetail {
   categoryId: string;
@@ -41,7 +43,7 @@ interface GoldSignal {
 export default function GoldDetailPage() {
   const params = useParams();
   const categoryId = params.categoryId as string;
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const isAr = lang === "ar";
 
   const { data: detail, isLoading, isFetching, refetch } = useQuery<GoldDetail>({
@@ -61,6 +63,13 @@ export default function GoldDetailPage() {
     queryFn: () => apiClient.get(`/api/gold/${categoryId}/history`),
     enabled: !!detail,
   });
+
+  const { data: goldPortfolio } = useQuery<{ positions: { symbol: string; quantity: number }[] }>({
+    queryKey: ["portfolio", "GOLD"],
+    queryFn: () => apiClient.get(`/api/portfolio?assetType=GOLD`),
+  });
+  const goldPosition = goldPortfolio?.positions.find((p) => p.symbol === categoryId);
+  const unitLabel = isAr ? "جرام" : "grams";
 
   const name = detail ? (isAr ? detail.nameAr : detail.nameEn) : categoryId;
   const chartData = (history ?? detail?.recentHistory ?? [])
@@ -88,7 +97,8 @@ export default function GoldDetailPage() {
             <div className="h-64 bg-gray-800 rounded" />
           </div>
         ) : detail ? (
-          <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
             {/* Header */}
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -234,7 +244,19 @@ export default function GoldDetailPage() {
                 Last updated: {new Date(detail.lastUpdate).toLocaleString()}
               </p>
             )}
-          </>
+          </div>
+
+          {/* Right column: Trade form */}
+          <div className="lg:col-span-1">
+            <TradeForm
+              symbol={categoryId}
+              currentPrice={detail.sellPrice ?? null}
+              ownedQuantity={goldPosition?.quantity ?? 0}
+              assetType="GOLD"
+              unit={unitLabel}
+            />
+          </div>
+          </div>
         ) : (
           <div className="text-center py-20 text-gray-500">
             Category not found

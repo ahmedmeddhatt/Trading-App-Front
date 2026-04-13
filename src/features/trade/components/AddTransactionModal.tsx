@@ -18,9 +18,17 @@ interface OwnedPosition {
   quantity: number;
 }
 
+interface GoldCategoryResult {
+  categoryId: string;
+  nameAr: string;
+  nameEn: string;
+  sellPrice: number | null;
+}
+
 interface AddTransactionModalProps {
   onClose: () => void;
   ownedPositions?: OwnedPosition[];
+  assetType?: "STOCK" | "GOLD";
 }
 
 const FEE_RATE = 0.00175;
@@ -49,7 +57,8 @@ function Row({
   );
 }
 
-export default function AddTransactionModal({ onClose, ownedPositions = [] }: AddTransactionModalProps) {
+export default function AddTransactionModal({ onClose, ownedPositions = [], assetType = "STOCK" }: AddTransactionModalProps) {
+  const isGold = assetType === "GOLD";
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [symbolInput, setSymbolInput] = useState("");
@@ -77,16 +86,31 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
       apiClient.get<{ stocks: StockResult[]; total: number }>(
         `/api/stocks?search=${encodeURIComponent(debouncedSearch)}&limit=8`
       ),
-    enabled: debouncedSearch.length >= 1 && !selectedSymbol && side === "buy",
+    enabled: !isGold && debouncedSearch.length >= 1 && !selectedSymbol && side === "buy",
   });
 
-  // When selling, only show owned stocks filtered by search input
+  // Gold categories for buy search
+  const { data: goldCategories } = useQuery({
+    queryKey: ["gold", "categories"],
+    queryFn: () => apiClient.get<GoldCategoryResult[]>("/api/gold/categories"),
+    enabled: isGold && side === "buy" && !selectedSymbol,
+  });
+
+  const goldFiltered = (goldCategories ?? [])
+    .filter((g) => !debouncedSearch || g.categoryId.includes(debouncedSearch.toUpperCase()) || g.nameEn.toUpperCase().includes(debouncedSearch.toUpperCase()) || g.nameAr.includes(debouncedSearch))
+    .map((g) => ({ symbol: g.categoryId, name: g.nameEn, sellPrice: g.sellPrice }));
+
+  // When selling, only show owned positions filtered by search input
   const ownedFiltered = ownedPositions
     .filter((p) => p.quantity > 0)
     .filter((p) => !debouncedSearch || p.symbol.includes(debouncedSearch.toUpperCase()))
     .map((p) => ({ symbol: p.symbol, name: null as string | null }));
 
-  const stocks = side === "sell" ? ownedFiltered : (stocksData?.stocks ?? []);
+  const stocks = side === "sell"
+    ? ownedFiltered
+    : isGold
+      ? goldFiltered
+      : (stocksData?.stocks ?? []);
 
   const ownedQtyForSelected = ownedPositions.find((p) => p.symbol === selectedSymbol)?.quantity ?? 0;
 
@@ -94,7 +118,7 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
   const parsedPrice = parseFloat(priceInput) || 0;
 
   const sellError = side === "sell" && qty > ownedQtyForSelected && selectedSymbol
-    ? `Cannot sell ${qty} — you only own ${ownedQtyForSelected} shares`
+    ? `Cannot sell ${qty} — you only own ${ownedQtyForSelected} ${isGold ? "grams" : "shares"}`
     : null;
 
   // Auto-calculate fees
@@ -112,6 +136,11 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
     setSelectedSymbol(symbol);
     setSymbolInput(symbol);
     setShowDropdown(false);
+    // Auto-fill gold price
+    if (isGold && side === "buy") {
+      const gold = goldFiltered.find((g) => g.symbol === symbol);
+      if (gold?.sellPrice) setPriceInput(gold.sellPrice.toFixed(2));
+    }
   };
 
   const handleReview = () => {
@@ -122,7 +151,7 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
 
   const handleConfirm = () => {
     submit(
-      { symbol: selectedSymbol, side, quantity: qty, price: parsedPrice, fees: parsedFees, date },
+      { symbol: selectedSymbol, side, quantity: qty, price: parsedPrice, fees: parsedFees, date, assetType },
       {
         onSuccess: () => {
           setShowSuccess(true);
@@ -178,7 +207,7 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
             <div className="w-5" />
           )}
           <h2 className="text-sm font-semibold uppercase tracking-widest text-gray-400">
-            {step === "confirm" ? "Review Transaction" : "Add Transaction"}
+            {step === "confirm" ? "Review Transaction" : isGold ? "Add Gold Transaction" : "Add Transaction"}
           </h2>
           <button
             onClick={onClose}
@@ -219,7 +248,7 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
                   })}
                 />
                 <Row label="Quantity" value={qty.toString()} />
-                <Row label="Price per Share" value={fmtEGP(parsedPrice)} />
+                <Row label={isGold ? "Price per Gram" : "Price per Share"} value={fmtEGP(parsedPrice)} />
                 <Row label="Brokerage Fee" value={fmtEGP(parsedFees)} />
                 <div className="border-t border-gray-700 pt-2 mt-2">
                   <Row label="Total" value={fmtEGP(total)} bold />
@@ -290,8 +319,8 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
                       setSelectedSymbol("");
                       setShowDropdown(true);
                     }}
-                    onFocus={() => { if ((symbolInput || side === "sell") && !selectedSymbol) setShowDropdown(true); }}
-                    placeholder="Search symbol..."
+                    onFocus={() => { if ((symbolInput || side === "sell" || isGold) && !selectedSymbol) setShowDropdown(true); }}
+                    placeholder={isGold ? "Search gold category..." : "Search symbol..."}
                     className="w-full bg-gray-800 rounded-lg pl-9 pr-4 py-2 text-white text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   {showDropdown && stocks.length > 0 && (
@@ -348,7 +377,7 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
                   type="number"
                   min="0"
                   max={side === "sell" && ownedQtyForSelected > 0 ? ownedQtyForSelected : undefined}
-                  step="1"
+                  step={isGold ? "0.01" : "1"}
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                   className="w-full bg-gray-800 rounded-lg px-4 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-blue-500"
@@ -363,7 +392,7 @@ export default function AddTransactionModal({ onClose, ownedPositions = [] }: Ad
 
               {/* Price */}
               <div className="space-y-1">
-                <label className="text-gray-500 text-xs">Price per Share (EGP)</label>
+                <label className="text-gray-500 text-xs">{isGold ? "Price per Gram (EGP)" : "Price per Share (EGP)"}</label>
                 <input
                   type="number"
                   min="0"

@@ -16,6 +16,7 @@ import { apiClient } from "@/lib/apiClient";
 import { formatEGP, formatSignedEGP, formatPct, pnlColor } from "@/lib/tradeCalcs";
 import { useLanguage } from "@/context/LanguageContext";
 import { DateRange, rangeToFromTo } from "@/lib/rangeToFromTo";
+import { useAssetType, withAssetType } from "@/store/useTradingMode";
 
 interface PositionDetail {
   position: { symbol: string; totalQuantity: string; averagePrice: string; totalInvested: string };
@@ -49,9 +50,10 @@ export default function PositionDetailPage() {
   const [gainSort, setGainSort] = useState<{ key: GainSortKey; dir: "asc" | "desc" }>({ key: "date", dir: "desc" });
   const [range, setRange] = useState<DateRange | "ALL">("ALL");
 
+  const assetType = useAssetType();
   const { data, isLoading } = useQuery({
-    queryKey: ["position-detail", symbol],
-    queryFn: () => apiClient.get<PositionDetail>(`/api/portfolio/positions/${symbol}`),
+    queryKey: ["position-detail", symbol, assetType],
+    queryFn: () => apiClient.get<PositionDetail>(withAssetType(`/api/portfolio/positions/${symbol}`, assetType)),
     enabled: !!symbol,
   });
 

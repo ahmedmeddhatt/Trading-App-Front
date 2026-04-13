@@ -13,6 +13,7 @@ export interface TradePayload {
   price: number;
   fees?: number;
   date?: string;
+  assetType?: "STOCK" | "GOLD";
 }
 
 export interface TradeResponse {

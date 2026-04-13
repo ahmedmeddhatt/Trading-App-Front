@@ -51,28 +51,37 @@ interface TooltipEntry {
 }
 
 function ChartTooltip({
-  active, payload, firstValue, lineColor,
+  active, payload, firstValue, lineColor, mode,
 }: {
   active?: boolean;
   payload?: TooltipEntry[];
   firstValue: number;
   lineColor: string;
+  mode: ChartMode;
 }) {
   if (!active || !payload?.length) return null;
   const value = payload[0].value;
   const fullDate = payload[0].payload.fullDate;
-  const change = value - firstValue;
-  const changePct = firstValue > 0 ? (change / firstValue) * 100 : 0;
-  const isGain = change >= 0;
-  const changeColor = isGain ? "#34d399" : "#f87171";
+  const revenue = payload[0].payload.revenue;
+
+  // In revenue mode, the value IS the gain/loss — color by its sign
+  // In value mode, compare against the first data point
+  const isRevenueMode = mode === "revenue";
+  const isGain = isRevenueMode ? value >= 0 : value >= firstValue;
+  const pointColor = isGain ? "#34d399" : value === 0 ? "#9ca3af" : "#f87171";
+
+  const change = isRevenueMode ? value : value - firstValue;
+  const changePct = isRevenueMode
+    ? 0 // not meaningful for revenue
+    : firstValue > 0 ? (change / firstValue) * 100 : 0;
 
   return (
     <div style={{
       background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-      border: `1px solid ${lineColor}33`,
+      border: `1px solid ${pointColor}33`,
       borderRadius: 10,
       padding: "8px 12px",
-      boxShadow: `0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px ${lineColor}15, inset 0 1px 0 rgba(255,255,255,0.05)`,
+      boxShadow: `0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px ${pointColor}15, inset 0 1px 0 rgba(255,255,255,0.05)`,
       minWidth: 160,
       maxWidth: "calc(100vw - 40px)",
       pointerEvents: "none" as const,
@@ -81,29 +90,33 @@ function ChartTooltip({
       <p style={{ color: "#64748b", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
         {fullDate}
       </p>
-      <p style={{ color: "#f1f5f9", fontSize: 16, fontWeight: 800, marginBottom: 4, letterSpacing: "-0.02em" }}>
-        {fmt.format(value)}
+      <p style={{ color: pointColor, fontSize: 16, fontWeight: 800, marginBottom: 4, letterSpacing: "-0.02em" }}>
+        {isRevenueMode ? `${value >= 0 ? "+" : "−"}${fmt.format(Math.abs(value))}` : fmt.format(value)}
       </p>
-      <div style={{ height: 1, background: "#1e293b", marginBottom: 4 }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-        {isGain
-          ? <TrendingUp size={11} color={changeColor} />
-          : <TrendingDown size={11} color={changeColor} />
-        }
-        <span style={{ color: changeColor, fontSize: 12, fontWeight: 700 }}>
-          {isGain ? "+" : "−"}{fmt.format(Math.abs(change))}
-        </span>
-        <span style={{
-          color: changeColor,
-          fontSize: 10,
-          fontWeight: 600,
-          background: `${changeColor}18`,
-          borderRadius: 4,
-          padding: "1px 4px",
-        }}>
-          {isGain ? "+" : "−"}{Math.abs(changePct).toFixed(2)}%
-        </span>
-      </div>
+      {!isRevenueMode && (
+        <>
+          <div style={{ height: 1, background: "#1e293b", marginBottom: 4 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+            {isGain
+              ? <TrendingUp size={11} color={pointColor} />
+              : <TrendingDown size={11} color={pointColor} />
+            }
+            <span style={{ color: pointColor, fontSize: 12, fontWeight: 700 }}>
+              {isGain ? "+" : "−"}{fmt.format(Math.abs(change))}
+            </span>
+            <span style={{
+              color: pointColor,
+              fontSize: 10,
+              fontWeight: 600,
+              background: `${pointColor}18`,
+              borderRadius: 4,
+              padding: "1px 4px",
+            }}>
+              {isGain ? "+" : "−"}{Math.abs(changePct).toFixed(2)}%
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -134,6 +147,13 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
       ? numericValues[numericValues.length - 1] >= numericValues[0]
       : true;
   const lineColor = isPositive ? "#34d399" : "#f87171";
+
+  // For revenue mode: compute gradient offset so green is above 0, red below, gray at 0
+  const revenueMax = Math.max(...numericValues, 0);
+  const revenueMin = Math.min(...numericValues, 0);
+  const revenueRange = revenueMax - revenueMin;
+  // zeroOffset = fraction from top where y=0 sits (0 = top, 1 = bottom)
+  const zeroOffset = revenueRange > 0 ? revenueMax / revenueRange : 0.5;
 
   const maxVal = numericValues.length >= 2 ? Math.max(...numericValues) : null;
   const minVal = numericValues.length >= 2 ? Math.min(...numericValues) : null;
@@ -196,6 +216,18 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
           <div dir="ltr" style={{ height: "100%" }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 4, right: dir === "rtl" ? 40 : 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="revenueFillGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#34d399" stopOpacity={0.95} />
+                  <stop offset={`${(zeroOffset * 100).toFixed(1)}%`} stopColor="#9ca3af" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="#f87171" stopOpacity={0.95} />
+                </linearGradient>
+                <linearGradient id="revenueStrokeGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#34d399" />
+                  <stop offset={`${(zeroOffset * 100).toFixed(1)}%`} stopColor="#9ca3af" />
+                  <stop offset="100%" stopColor="#f87171" />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
               <XAxis
                 dataKey="date"
@@ -224,25 +256,29 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
                     payload={props.payload as unknown as TooltipEntry[] | undefined}
                     firstValue={numericValues[0] ?? 0}
                     lineColor={lineColor}
+                    mode={mode}
                   />
                 )}
                 cursor={false}
               />
               {maxVal != null && (
-                <ReferenceLine y={maxVal} stroke={lineColor} strokeDasharray="3 3" strokeOpacity={0.4}
+                <ReferenceLine y={maxVal} stroke={lineColor} strokeDasharray="3 3" strokeOpacity={0.1}
                   label={{ value: `H: ${fmt.format(maxVal)}`, fill: lineColor, fontSize: 9, position: dir === "rtl" ? "left" : "right" }} />
               )}
               {minVal != null && (
-                <ReferenceLine y={minVal} stroke="#6b7280" strokeDasharray="3 3" strokeOpacity={0.4}
+                <ReferenceLine y={minVal} stroke="#6b7280" strokeDasharray="3 3" strokeOpacity={0.1}
                   label={{ value: `L: ${fmt.format(minVal)}`, fill: "#6b7280", fontSize: 9, position: dir === "rtl" ? "left" : "right" }} />
+              )}
+              {mode === "revenue" && (
+                <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="4 4" strokeOpacity={0.1} />
               )}
               <Area
                 type="monotone"
                 dataKey={dataKey}
-                stroke={lineColor}
+                stroke={mode === "revenue" ? "url(#revenueStrokeGradient)" : lineColor}
                 strokeWidth={2.5}
-                fill={lineColor}
-                fillOpacity={0.08}
+                fill={mode === "revenue" ? "url(#revenueFillGradient)" : lineColor}
+                fillOpacity={mode === "revenue" ? 1 : 0.08}
                 dot={false}
                 activeDot={{ r: 7, fill: lineColor, stroke: "#0f172a", strokeWidth: 2.5 }}
               />
