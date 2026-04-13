@@ -134,8 +134,8 @@ export default function TransactionsPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
               { label: t("tx.totalTrades"), value: summary.totalTrades },
-              { label: t("tx.buys"), value: summary.totalBuys, cls: "text-emerald-400" },
-              { label: t("tx.sells"), value: summary.totalSells, cls: "text-orange-400" },
+              { label: t("tx.buys"), value: summary.totalBuys, cls: "text-orange-400" },
+              { label: t("tx.sells"), value: summary.totalSells, cls: "text-emerald-400" },
               { label: t("tx.totalFees"), value: formatEGP(summary.totalFees) },
               { label: t("tx.realizedPnl"), value: formatSignedEGP(summary.totalRealizedPnL), cls: pnlColor(summary.totalRealizedPnL) },
             ].map(({ label, value, cls }) => (
@@ -214,7 +214,7 @@ export default function TransactionsPage() {
                       <Link href={`/portfolio/positions/${row.symbol}`} className="hover:text-blue-400">{row.symbol}</Link>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${row.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-orange-900/30 text-orange-400"}`}>
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${row.type === "BUY" ? "bg-orange-900/30 text-orange-400" : "bg-emerald-900/30 text-emerald-400"}`}>
                         {row.type}
                       </span>
                     </td>

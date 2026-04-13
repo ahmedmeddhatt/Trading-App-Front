@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
 import { useTrade, type TradePayload } from "../hooks/useTrade";
 import { useLanguage } from "@/context/LanguageContext";
+import ProgressSteps from "@/components/ui/ProgressSteps";
 
 type Side = "buy" | "sell";
 type Step = "form" | "confirm";
@@ -170,10 +171,15 @@ export default function TradeForm({ symbol, currentPrice, ownedQuantity = 0 }: T
 
   // ── Form step ────────────────────────────────────────────────────────────────
   return (
-    <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-4 sm:space-y-5">
+    <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-4 sm:space-y-5 animate-card-enter">
       <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
         {t("trade.placeOrder")}
       </h2>
+
+      <ProgressSteps
+        steps={[t("trade.orderDetails") ?? "Order Details", t("trade.reviewConfirm") ?? "Review & Confirm"]}
+        currentStep={step === "form" ? 0 : 1}
+      />
 
       {/* Side selector */}
       <div className="flex rounded-lg overflow-hidden border border-gray-700">

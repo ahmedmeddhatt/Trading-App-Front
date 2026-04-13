@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react";
@@ -68,6 +69,7 @@ const RG_PRESETS: { id: RGPreset; label: string; key: RGSortKey; dir: "asc" | "d
 ];
 
 export default function RealizedGainsPage() {
+  const router = useRouter();
   const { t } = useLanguage();
   const [range, setRange] = useState<DateRange>("1Y");
   const allTo = new Date().toISOString().slice(0, 10);
@@ -330,7 +332,7 @@ export default function RealizedGainsPage() {
                     const win = profit >= 0;
                     const retPct = g.returnPct != null ? parseFloat(g.returnPct) : null;
                     return (
-                      <tr key={g.id} className="border-b border-gray-800/60 hover:bg-gray-800/20 transition-colors">
+                      <tr key={g.id} className="border-b border-gray-800/60 hover:bg-gray-800/20 transition-colors cursor-pointer" onClick={() => router.push(`/portfolio/positions/${g.symbol}`)}>
                         <td className="px-3 py-2.5">
                           <span className="font-bold text-white font-mono text-xs">{g.symbol}</span>
                         </td>

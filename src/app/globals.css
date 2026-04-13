@@ -5,10 +5,94 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — Single source of truth for dark / light palettes
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Dark mode (default) */
 :root {
   --background: #030712;
   --foreground: #f9fafb;
+
+  --surface: #111827;
+  --surface-elevated: #1a1a2e;
+  --surface-hover: #1f2937;
+  --surface-active: #162338;
+
+  --border-default: #1f2937;
+  --border-strong: #374151;
+
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --text-muted: #4b5563;
+  --text-faint: #374151;
+
+  --accent-positive: #34d399;
+  --accent-negative: #ef4444;
+  --accent-warning: #fbbf24;
+  --accent-info: #3b82f6;
+
+  /* Semantic surface shades — used by overrides below */
+  --gray-950: #030712;
+  --gray-900: #111827;
+  --gray-800: #1f2937;
+  --gray-700: #374151;
+
+  --card-shadow: none;
+  --card-shadow-hover: 0 8px 24px -4px rgba(59,130,246,0.25), 0 4px 8px -2px rgba(0,0,0,0.4);
+
+  --input-bg: #111827;
+  --input-border: #374151;
+  --input-placeholder: #6b7280;
+
+  --scrollbar-thumb: #374151;
+  --scrollbar-thumb-hover: #4b5563;
 }
+
+/* Light mode */
+html:not(.dark) {
+  --background: #EEF2FB;
+  --foreground: #0C1A2E;
+
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-hover: #E8EEFA;
+  --surface-active: #DDE6F5;
+
+  --border-default: #D0DAF2;
+  --border-strong: #B8CCE8;
+
+  --text-primary: #0C1A2E;
+  --text-secondary: #334155;
+  --text-tertiary: #556B88;
+  --text-muted: #7A95B2;
+  --text-faint: #A0B8D0;
+
+  --accent-positive: #059669;
+  --accent-negative: #DC2626;
+  --accent-warning: #B45309;
+  --accent-info: #2563EB;
+
+  --gray-950: #EEF2FB;
+  --gray-900: #FFFFFF;
+  --gray-800: #E8EEFA;
+  --gray-700: #DDE6F5;
+
+  --card-shadow: 0 1px 4px rgba(14,30,60,0.07), 0 1px 2px rgba(14,30,60,0.05);
+  --card-shadow-hover: 0 8px 28px rgba(14,30,60,0.16), 0 2px 8px rgba(14,30,60,0.1);
+
+  --input-bg: #FFFFFF;
+  --input-border: #C8D8EE;
+  --input-placeholder: #A0B8D0;
+
+  --scrollbar-thumb: #C4D4EA;
+  --scrollbar-thumb-hover: #A8C0DC;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   BASE STYLES
+   ══════════════════════════════════════════════════════════════════════════════ */
 
 html {
   scroll-behavior: smooth;
@@ -37,70 +121,48 @@ body {
   unicode-bidi: embed;
 }
 
-/* ── RTL layout overrides ───────────────────────────────────────────────────
-   Most RTL corrections are automatic via dir=rtl on <html>.
-   These rules handle edge-cases where Tailwind outputs positional (l/r) values
-   that don't respond to the bidi direction.
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   RTL LAYOUT OVERRIDES
+   ══════════════════════════════════════════════════════════════════════════════ */
 
-/* Flip chart legend alignment */
 [dir="rtl"] .recharts-legend-wrapper { right: auto !important; left: 0 !important; }
-
-/* RTL: table text alignment — headers default left in LTR → right in RTL */
 [dir="rtl"] th.text-left  { text-align: right !important; }
 [dir="rtl"] th.text-right { text-align: left  !important; }
 [dir="rtl"] td.text-left  { text-align: right !important; }
 [dir="rtl"] td.text-right { text-align: left  !important; }
-
-/* RTL: flex row reverse for explicit row layouts that shouldn't flip via dir */
 [dir="rtl"] .items-center.justify-between { flex-direction: row-reverse; }
-
-/* RTL: chevron icons inside expanded rows */
 [dir="rtl"] .chevron-flip { transform: scaleX(-1); }
-
-/* RTL: recharts axis — mirror XAxis/YAxis positions */
 [dir="rtl"] .recharts-yAxis { left: auto !important; right: 0 !important; }
 
-/* ── Mobile — global fixes ───────────────────────────────────────────────────
-   Applies at ≤639px (below Tailwind's sm breakpoint).
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   MOBILE (≤639px)
+   ══════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 639px) {
-
-  /* All data tables must scroll horizontally, not clip */
   .overflow-x-auto { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-  table { min-width: 480px; }     /* force scroll before table shrinks text */
+  table { min-width: 480px; }
 
-  /* Cards: tighter padding on mobile */
   .rounded-xl.p-4 { padding: 12px !important; }
   .rounded-xl.p-5 { padding: 12px !important; }
 
-  /* Charts: better height on small screens — not too cramped */
-  .recharts-responsive-container { min-height: 180px; }
+  .recharts-responsive-container { min-height: 220px; }
 
-  /* Stat grids: always 2 cols on mobile */
   .grid-cols-3,
   .grid-cols-4,
   .grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 
-  /* Section text: scale down oversized headings */
   .text-3xl { font-size: 1.5rem !important; }
-  .text-2xl  { font-size: 1.25rem !important; }
+  .text-2xl { font-size: 1.25rem !important; }
 
-  /* Ensure px-4 on all main wrappers */
   .max-w-7xl,
   .max-w-5xl { padding-left: 10px !important; padding-right: 10px !important; }
 
-  /* Hide very-wide-only columns already marked as such */
   .hidden.xl\:table-cell { display: none !important; }
 
-  /* Position / transaction tables: reduce cell padding */
   td, th { padding-left: 6px !important; padding-right: 6px !important; }
   td.px-6, th.px-6 { padding-left: 10px !important; padding-right: 10px !important; }
 
-  /* KPI icon badges: smaller on mobile */
   .rounded-lg.p-2 { padding: 6px !important; }
 
-  /* Range buttons: horizontal scroll on mobile instead of wrapping */
   .range-btns {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -110,12 +172,8 @@ body {
   }
   .range-btns::-webkit-scrollbar { display: none; }
 
-  /* Chart tooltips: constrain to screen width */
-  .recharts-tooltip-wrapper {
-    max-width: calc(100vw - 32px) !important;
-  }
+  .recharts-tooltip-wrapper { max-width: calc(100vw - 32px) !important; }
 
-  /* Preset chips: scroll horizontally */
   .preset-chips {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -124,15 +182,15 @@ body {
   }
   .preset-chips::-webkit-scrollbar { display: none; }
 
-  /* Recharts axis text smaller on mobile */
+  .scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
   .recharts-cartesian-axis-tick-value { font-size: 9px !important; }
   .recharts-label { font-size: 8px !important; }
-
-  /* Reference line labels: hide on very small screens to declutter */
   .recharts-reference-line .recharts-label { display: none !important; }
 }
 
-/* Slightly larger phones (360-639px) — undo the harshest reductions */
+/* Slightly larger phones (360-639px) */
 @media (min-width: 360px) and (max-width: 639px) {
   table { min-width: 540px; }
 }
@@ -149,11 +207,13 @@ body {
 @media (min-width: 640px) {
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 }
 
-/* ── Interaction base — transitions defined here, overrides come at EOF ── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   INTERACTION BASE
+   ══════════════════════════════════════════════════════════════════════════════ */
 .td-hover-card {
   cursor: pointer;
   transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s cubic-bezier(0.4,0,0.2,1), outline-color 0.18s ease;
@@ -167,7 +227,9 @@ body {
   transition: box-shadow 0.14s ease;
 }
 
-/* ── Theme transition (fires only during the 300ms switch animation) ───────── */
+/* ══════════════════════════════════════════════════════════════════════════════
+   THEME TRANSITION (300ms switch animation)
+   ══════════════════════════════════════════════════════════════════════════════ */
 html.theme-transition,
 html.theme-transition *,
 html.theme-transition *::before,
@@ -181,42 +243,20 @@ html.theme-transition *::after {
     stroke           0.2s  ease !important;
 }
 
-/* ── Light mode ─────────────────────────────────────────────────────────────
-   Palette
-   ─────────────────────────────────────────────────────────────────────────
-   Page bg        #EEF2FB  (blue-tinted slate)
-   Card bg        #FFFFFF  (pure white + shadow)
-   Subtle bg      #E8EEFA  (hover / expanded rows)
-   Hover bg       #DDE6F5  (table row hover)
-   Border         #D0DAF2  (blue-tinted border)
-   Border strong  #B8CCE8  (stronger separator)
-
-   Text primary   #0C1A2E  (deep navy)
-   Text secondary #334155  (slate-700)
-   Text tertiary  #556B88  (medium blue-gray)
-   Text muted     #7A95B2  (muted blue-gray)
-   Text faint     #A0B8D0  (timestamps / hints)
-   ─────────────────────────────────────────────────────────────────────────  */
-
-html:not(.dark) {
-  --background: #EEF2FB;
-  --foreground: #0C1A2E;
-}
+/* ══════════════════════════════════════════════════════════════════════════════
+   LIGHT MODE — Tailwind class overrides via CSS custom properties
+   ══════════════════════════════════════════════════════════════════════════════ */
 
 html:not(.dark) body {
-  background: #EEF2FB;
-  color: #0C1A2E;
+  background: var(--background);
+  color: var(--foreground);
 }
 
-/* ── Scrollbar ── */
-html:not(.dark) ::-webkit-scrollbar-thumb { background: #C4D4EA; }
-html:not(.dark) ::-webkit-scrollbar-thumb:hover { background: #A8C0DC; }
-
 /* ── Surfaces ── */
-html:not(.dark) .bg-gray-950 { background-color: #EEF2FB !important; }
-html:not(.dark) .bg-gray-900 { background-color: #FFFFFF  !important; }
-html:not(.dark) .bg-gray-800 { background-color: #E8EEFA  !important; }
-html:not(.dark) .bg-gray-700 { background-color: #DDE6F5  !important; }
+html:not(.dark) .bg-gray-950 { background-color: var(--gray-950) !important; }
+html:not(.dark) .bg-gray-900 { background-color: var(--gray-900) !important; }
+html:not(.dark) .bg-gray-800 { background-color: var(--gray-800) !important; }
+html:not(.dark) .bg-gray-700 { background-color: var(--gray-700) !important; }
 
 /* Opacity variants */
 html:not(.dark) .bg-gray-800\/30 { background-color: rgba(216,228,244,0.40) !important; }
@@ -227,14 +267,14 @@ html:not(.dark) .bg-gray-900\/20 { background-color: rgba(255,255,255,0.55) !imp
 html:not(.dark) .bg-gray-900\/40 { background-color: rgba(255,255,255,0.75) !important; }
 html:not(.dark) .bg-gray-900\/60 { background-color: rgba(255,255,255,0.90) !important; }
 
-/* Card elevation — only rounded cards, not table rows */
+/* Card elevation */
 html:not(.dark) .bg-gray-900.rounded-xl,
 html:not(.dark) .bg-gray-900.rounded-2xl {
-  box-shadow: 0 1px 4px rgba(14,30,60,0.07), 0 1px 2px rgba(14,30,60,0.05) !important;
+  box-shadow: var(--card-shadow) !important;
 }
 html:not(.dark) .bg-gray-900.rounded-xl:hover,
 html:not(.dark) .bg-gray-900.rounded-2xl:hover {
-  box-shadow: 0 8px 28px rgba(14,30,60,0.16), 0 2px 8px rgba(14,30,60,0.1) !important;
+  box-shadow: var(--card-shadow-hover) !important;
 }
 
 /* ── Hover surfaces ── */
@@ -246,48 +286,47 @@ html:not(.dark) .hover\:bg-gray-800\/30:hover    { background-color: rgba(120,17
 html:not(.dark) .hover\:bg-gray-700:hover        { background-color: #8AAED4 !important; }
 
 /* ── Borders ── */
-html:not(.dark) .border-gray-800      { border-color: #D0DAF2 !important; }
+html:not(.dark) .border-gray-800      { border-color: var(--border-default) !important; }
 html:not(.dark) .border-gray-800\/40  { border-color: rgba(208,218,242,0.45) !important; }
 html:not(.dark) .border-gray-800\/60  { border-color: rgba(208,218,242,0.65) !important; }
-html:not(.dark) .border-gray-700      { border-color: #B8CCE8 !important; }
+html:not(.dark) .border-gray-700      { border-color: var(--border-strong) !important; }
 html:not(.dark) .border-gray-700\/50  { border-color: rgba(184,204,232,0.55) !important; }
 
 /* ── Text ── */
-html:not(.dark) .text-white   { color: #0C1A2E !important; }
+html:not(.dark) .text-white    { color: var(--text-primary) !important; }
 html:not(.dark) .text-gray-100 { color: #1a2f4a !important; }
 html:not(.dark) .text-gray-200 { color: #253d58 !important; }
-html:not(.dark) .text-gray-300 { color: #334155 !important; }
-html:not(.dark) .text-gray-400 { color: #556B88 !important; }
-html:not(.dark) .text-gray-500 { color: #7A95B2 !important; }
-html:not(.dark) .text-gray-600 { color: #A0B8D0 !important; }
+html:not(.dark) .text-gray-300 { color: var(--text-secondary) !important; }
+html:not(.dark) .text-gray-400 { color: var(--text-tertiary) !important; }
+html:not(.dark) .text-gray-500 { color: var(--text-muted) !important; }
+html:not(.dark) .text-gray-600 { color: var(--text-faint) !important; }
 html:not(.dark) .text-gray-700 { color: #C0D4E8 !important; }
 
 /* Hover text */
-html:not(.dark) .hover\:text-white:hover    { color: #0C1A2E !important; }
+html:not(.dark) .hover\:text-white:hover    { color: var(--text-primary) !important; }
 html:not(.dark) .hover\:text-gray-300:hover { color: #1E3A5F !important; }
-html:not(.dark) .hover\:text-gray-400:hover { color: #334155 !important; }
+html:not(.dark) .hover\:text-gray-400:hover { color: var(--text-secondary) !important; }
 
-/* ── Accent colors — shift -400 to -600 for WCAG contrast on white ── */
+/* ── Accent colors — WCAG contrast on white ── */
 html:not(.dark) .text-blue-400   { color: #2563EB !important; }
 html:not(.dark) .text-blue-500   { color: #1D4ED8 !important; }
 html:not(.dark) .hover\:text-blue-300:hover { color: #1D4ED8 !important; }
 html:not(.dark) .hover\:text-blue-400:hover { color: #1D4ED8 !important; }
 
-html:not(.dark) .text-emerald-400 { color: #059669 !important; }
+html:not(.dark) .text-emerald-400 { color: var(--accent-positive) !important; }
 html:not(.dark) .text-emerald-500 { color: #047857 !important; }
-html:not(.dark) .text-red-400     { color: #DC2626 !important; }
+html:not(.dark) .text-red-400     { color: var(--accent-negative) !important; }
 html:not(.dark) .text-red-500     { color: #B91C1C !important; }
-html:not(.dark) .text-amber-400   { color: #B45309 !important; }
+html:not(.dark) .text-amber-400   { color: var(--accent-warning) !important; }
 html:not(.dark) .text-amber-500   { color: #92400E !important; }
 html:not(.dark) .text-purple-400  { color: #7C3AED !important; }
 
-/* ── Colored badges / chips — flip dark-bg/light-text → light-bg/dark-text ── */
+/* ── Colored badges / chips ── */
 html:not(.dark) .bg-emerald-900\/50 { background-color: #D1FAE5 !important; }
 html:not(.dark) .bg-red-900\/50     { background-color: #FEE2E2 !important; }
 html:not(.dark) .bg-blue-900\/50    { background-color: #DBEAFE !important; }
 html:not(.dark) .bg-amber-900\/50   { background-color: #FEF3C7 !important; }
 
-/* Performer / feature cards */
 html:not(.dark) .bg-emerald-900\/20 { background-color: #ECFDF5 !important; }
 html:not(.dark) .bg-red-900\/20     { background-color: #FFF5F5 !important; }
 html:not(.dark) .bg-emerald-900\/30 { background-color: #D1FAE5 !important; }
@@ -298,7 +337,6 @@ html:not(.dark) .bg-blue-900\/30    { background-color: #DBEAFE !important; }
 html:not(.dark) .bg-amber-900\/30   { background-color: #FEF3C7 !important; }
 html:not(.dark) .bg-purple-900\/30  { background-color: #EDE9FE !important; }
 
-/* Performer card borders */
 html:not(.dark) .border-emerald-800\/40 { border-color: rgba(110,231,183,0.6) !important; }
 html:not(.dark) .border-red-800\/40     { border-color: rgba(252,165,165,0.6) !important; }
 
@@ -313,54 +351,144 @@ html:not(.dark) .text-emerald-400.bg-emerald-900\/30 { color: #047857 !important
 html:not(.dark) input,
 html:not(.dark) select,
 html:not(.dark) textarea {
-  background-color: #FFFFFF !important;
-  border-color: #C8D8EE !important;
-  color: #0C1A2E !important;
+  background-color: var(--input-bg) !important;
+  border-color: var(--input-border) !important;
+  color: var(--text-primary) !important;
 }
 html:not(.dark) input::placeholder,
-html:not(.dark) textarea::placeholder { color: #A0B8D0 !important; }
+html:not(.dark) textarea::placeholder { color: var(--input-placeholder) !important; }
 html:not(.dark) input:focus,
 html:not(.dark) select:focus,
 html:not(.dark) textarea:focus {
-  border-color: #3B82F6 !important;
+  border-color: var(--accent-info) !important;
   box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
   outline: none;
 }
 
 /* ── Focus ring utilities ── */
-html:not(.dark) .focus\:ring-gray-700:focus  { --tw-ring-color: #C8D8EE !important; }
-html:not(.dark) .focus\:border-gray-600:focus { border-color: #A0B8D0 !important; }
+html:not(.dark) .focus\:ring-gray-700:focus  { --tw-ring-color: var(--input-border) !important; }
+html:not(.dark) .focus\:border-gray-600:focus { border-color: var(--text-faint) !important; }
 html:not(.dark) .focus\:ring-blue-500:focus  { --tw-ring-color: rgba(59,130,246,0.4) !important; }
 
-/* ── Recharts — grid, axes, tooltips ── */
+/* ── Recharts — grid, axes ── */
 html:not(.dark) .recharts-cartesian-grid-horizontal line,
 html:not(.dark) .recharts-cartesian-grid-vertical line { stroke: #D8E8F8 !important; }
 
 html:not(.dark) .recharts-cartesian-axis-tick-value,
-html:not(.dark) .recharts-layer text { fill: #7A95B2 !important; }
-
-html:not(.dark) .recharts-default-tooltip {
-  background-color: #1e293b !important;
-  border: 1px solid #334155 !important;
-  border-radius: 10px !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35) !important;
-  color: #f1f5f9 !important;
-}
-html:not(.dark) .recharts-tooltip-label  { color: #94a3b8 !important; }
-html:not(.dark) .recharts-tooltip-item   { color: #f1f5f9 !important; }
+html:not(.dark) .recharts-layer text { fill: var(--text-muted) !important; }
 
 html:not(.dark) .recharts-area-dot circle,
 html:not(.dark) .recharts-dot circle { stroke: #FFFFFF !important; }
 
-/* ── Overflow tables — ensure they get card bg ── */
-html:not(.dark) .bg-gray-900.overflow-hidden { background-color: #FFFFFF !important; }
+/* ── Overflow tables ── */
+html:not(.dark) .bg-gray-900.overflow-hidden { background-color: var(--gray-900) !important; }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS & MICRO-INTERACTIONS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Shimmer skeleton */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface) 25%,
+    var(--surface-hover) 50%,
+    var(--surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Card entrance */
+.animate-card-enter {
+  animation: card-enter 0.35s ease-out both;
+}
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Staggered card entrance — use style="--delay: N" */
+.animate-card-enter-stagger {
+  animation: card-enter 0.35s ease-out both;
+  animation-delay: calc(var(--delay, 0) * 60ms);
+}
+
+/* Price flash animations */
+.flash-positive { animation: flash-pos 0.6s ease-out; }
+.flash-negative { animation: flash-neg 0.6s ease-out; }
+@keyframes flash-pos {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(16, 185, 129, 0.15); }
+}
+@keyframes flash-neg {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(239, 68, 68, 0.15); }
+}
+
+/* Button ripple on active */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.btn-ripple:active::after {
+  opacity: 1;
+}
+
+/* Focus visible — global */
+:focus-visible {
+  outline: 2px solid var(--accent-info);
+  outline-offset: 2px;
+}
+
+/* Skip to content link */
+.skip-to-content {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: var(--accent-info);
+  color: white;
+  border-radius: 0 0 8px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transform: translateX(-50%) translateY(-100%);
+  transition: transform 0.2s ease;
+  outline: none;
+}
+.skip-to-content:focus {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .skeleton-shimmer { animation: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    PRO HOVER SYSTEM — must stay at EOF so it wins every !important cascade
-   ═══════════════════════════════════════════════════════════════════════════ */
+   ══════════════════════════════════════════════════════════════════════════════ */
 
-/* ── Clickable cards ───────────────────────────────────────────────────────
-   Dark mode: blue-dark tint + strong glow ring + lift                       */
+/* ── Clickable cards ── */
 .td-hover-card:hover {
   background-color: #162338 !important;
   outline-color: rgba(59,130,246,0.5) !important;
@@ -371,7 +499,6 @@ html:not(.dark) .bg-gray-900.overflow-hidden { background-color: #FFFFFF !import
   transform: translateY(-3px);
 }
 
-/* Light mode cards: steel-blue tint — clearly NOT white */
 html:not(.dark) .td-hover-card:hover {
   background-color: #97bde0 !important;
   outline-color: rgba(37,99,235,0.5) !important;
@@ -382,7 +509,7 @@ html:not(.dark) .td-hover-card:hover {
   transform: translateY(-3px);
 }
 
-/* ── Table rows ─────────────────────────────────────────────────────────── */
+/* ── Table rows ── */
 .td-row:hover {
   background-color: rgba(59,130,246,0.09) !important;
 }
@@ -396,32 +523,32 @@ html:not(.dark) .td-row:hover td:first-child {
   box-shadow: inset 3px 0 0 #2563eb !important;
 }
 
-/* ── Buttons — active press scale (global fallback) ─────────────────────── */
+/* ── Buttons — active press scale ── */
 button:not([disabled]):active,
 a[role="button"]:not([disabled]):active {
   transform: scale(0.96) !important;
   transition: transform 0.08s ease !important;
 }
 
-/* ── Primary blue button glow ────────────────────────────────────────────── */
+/* ── Primary blue button glow ── */
 .bg-blue-600:not([disabled]):hover,
 .bg-blue-500:not([disabled]):hover {
   box-shadow: 0 0 0 3px rgba(59,130,246,0.25), 0 4px 14px rgba(59,130,246,0.35) !important;
 }
 
-/* ── Emerald / green button glow ────────────────────────────────────────── */
+/* ── Emerald / green button glow ── */
 .bg-emerald-500:not([disabled]):hover,
 .bg-green-600:not([disabled]):hover {
   box-shadow: 0 0 0 3px rgba(16,185,129,0.2), 0 4px 14px rgba(16,185,129,0.3) !important;
 }
 
-/* ── Orange / sell button glow ───────────────────────────────────────────── */
+/* ── Orange / sell button glow ── */
 .bg-orange-500:not([disabled]):hover,
 .bg-orange-600:not([disabled]):hover {
   box-shadow: 0 0 0 3px rgba(249,115,22,0.25), 0 4px 14px rgba(249,115,22,0.35) !important;
 }
 
-/* ── Recharts tooltips — dark on both modes, smooth transitions ───────────── */
+/* ── Recharts tooltips — dark on both modes ── */
 .recharts-tooltip-wrapper {
   background: transparent !important;
   transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -456,7 +583,6 @@ html:not(.dark) .recharts-tooltip-item-name,
 html:not(.dark) .recharts-tooltip-item { color: #e2e8f0 !important; }
 .recharts-tooltip-item-separator { color: #475569 !important; }
 .recharts-tooltip-item-list { padding: 0 !important; margin: 0 !important; }
-/* Hide the ugly cursor border */
 .recharts-tooltip-cursor {
   stroke: none !important;
   fill: none !important;

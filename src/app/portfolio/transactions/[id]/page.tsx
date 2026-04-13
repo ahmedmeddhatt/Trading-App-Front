@@ -106,7 +106,7 @@ export default function TransactionDetailPage() {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <span className="text-2xl font-bold font-mono">{tx.symbol}</span>
-                <span className={`px-2 py-0.5 rounded text-sm font-bold ${isBuy ? "bg-emerald-900/40 text-emerald-400" : "bg-orange-900/40 text-orange-400"}`}>
+                <span className={`px-2 py-0.5 rounded text-sm font-bold ${isBuy ? "bg-orange-900/40 text-orange-400" : "bg-emerald-900/40 text-emerald-400"}`}>
                   {tx.type}
                 </span>
               </div>
@@ -266,11 +266,11 @@ export default function TransactionDetailPage() {
                   <div className={`absolute left-0 top-1 w-3 h-3 rounded-full border-2 ${
                     entry.isCurrentTrade
                       ? "bg-blue-500 border-blue-400"
-                      : entry.type === "BUY" ? "bg-emerald-900 border-emerald-500" : "bg-orange-950 border-orange-500"
+                      : entry.type === "BUY" ? "bg-orange-950 border-orange-500" : "bg-emerald-900 border-emerald-500"
                   }`} />
                   <div className={`flex items-center gap-3 ${entry.isCurrentTrade ? "text-white" : "text-gray-400"}`}>
                     <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
-                      entry.type === "BUY" ? "bg-emerald-900/30 text-emerald-400" : "bg-orange-900/30 text-orange-400"
+                      entry.type === "BUY" ? "bg-orange-900/30 text-orange-400" : "bg-emerald-900/30 text-emerald-400"
                     }`}>{entry.type}</span>
                     <span className="text-sm">{new Date(entry.createdAt).toLocaleDateString()}</span>
                     <span className="text-sm">{entry.quantity} @ {formatEGP(entry.price)}</span>

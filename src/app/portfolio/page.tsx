@@ -3,7 +3,8 @@
 import React, { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import {
   TrendingUp,
   TrendingDown,
@@ -11,6 +12,8 @@ import {
   ChevronUp,
   Loader2,
   ChevronsUpDown,
+  ArrowDownRight,
+  ArrowUpRight,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import RangeSelector from "@/components/RangeSelector";
@@ -19,7 +22,7 @@ import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useTradingMode, useAssetType, withAssetType } from "@/store/useTradingMode";
-import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, LabelList } from "recharts";
+import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, LabelList, ComposedChart, Area, Scatter, ReferenceLine } from "recharts";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
 
 const TimelineChart = dynamic(
@@ -174,6 +177,36 @@ function useStockHistory(symbol: string | null) {
     enabled: !!symbol,
     retry: 1,
   });
+}
+
+// Fetch price history for all traded symbols (for portfolio-wide chart)
+function useAllPriceHistories(symbols: string[]) {
+  const results = useQueries({
+    queries: symbols.map(symbol => ({
+      queryKey: ["position-detail", symbol],
+      queryFn: () => apiClient.get<{ priceHistory: { timestamp: string; price: number }[] }>(`/api/portfolio/positions/${symbol}`),
+      retry: 1,
+      staleTime: 5 * 60_000,
+    })),
+  });
+  // Build symbol → priceHistory map
+  const priceMap = useMemo(() => {
+    const m = new Map<string, Map<string, number>>();
+    for (let i = 0; i < symbols.length; i++) {
+      const data = results[i]?.data;
+      if (!data?.priceHistory) continue;
+      const pm = new Map<string, number>();
+      for (const p of data.priceHistory) {
+        const d = new Date(p.timestamp).toISOString().slice(0, 10);
+        pm.set(d, p.price);
+      }
+      m.set(symbols[i], pm);
+    }
+    return m;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbols.join(","), results.map(r => r.dataUpdatedAt).join(",")]);
+  const isLoading = results.some(r => r.isLoading);
+  return { priceMap, isLoading };
 }
 
 interface ClosedPosition {
@@ -369,7 +402,11 @@ function reconstructPositionsForRange(analytics: Analytics | null, range: DateRa
     return closest ? parseFloat(closest.price) : null;
   }
 
-  return Array.from(relevantSymbols).map((symbol) => {
+  // Filter out fully sold positions — they belong in the Closed Positions section
+  return Array.from(relevantSymbols).filter((symbol) => {
+    const pos = posMap.get(symbol);
+    return (pos?.qty ?? 0) > 0.0001;
+  }).map((symbol) => {
     const currentPos = posMap.get(symbol);
     const startPos = posAtStart.get(symbol);
     const analyticPos = currentPosMap.get(symbol);
@@ -643,6 +680,7 @@ const RG_PRESETS: { id: RGPreset; label: string; key: RGSortKey; dir: "asc" | "d
 ];
 
 function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRangeChange: (r: DateRange) => void }) {
+  const rgRouter = useRouter();
   const { t } = useLanguage();
   const { data: allData, isLoading } = useRealizedGains();
 
@@ -897,7 +935,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
             const win = profit >= 0;
             const retPct = g.returnPct != null ? parseFloat(g.returnPct) : null;
             return (
-              <tr key={g.id} className="border-b border-gray-800/60 hover:bg-gray-800/20 transition-colors">
+              <tr key={g.id} className="td-row border-b border-gray-800/60 hover:bg-gray-800/20 cursor-pointer transition-colors" onClick={() => rgRouter.push(`/portfolio/positions/${g.symbol}`)}>
                 <td className="px-3 py-2.5">
                   <span className="font-bold text-white font-mono text-xs">{g.symbol}</span>
                 </td>
@@ -950,6 +988,7 @@ export default function PortfolioPage() {
   // Gold portfolio uses the same page — the backend filters by assetType via the user's positions
   // The portfolio API already returns positions; in gold mode, positions have assetType=GOLD and symbol like GOLD_21K
   const { t } = useLanguage();
+  const router = useRouter();
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
   // Per-section independent range states
@@ -959,6 +998,7 @@ export default function PortfolioPage() {
   const [positionsExpanded, setPositionsExpanded] = useState(false);
   const [positionsRange, setPositionsRange] = useState<DateRange>("1M");
   const [closedRange, setClosedRange] = useState<DateRange>("1M");
+  const [tradingHistoryRange, setTradingHistoryRange] = useState<DateRange>("ALL");
   const [realizedRange, setRealizedRange] = useState<DateRange>("1M");
 
   // Fetch ALL data once — no refetch on range change
@@ -970,74 +1010,182 @@ export default function PortfolioPage() {
   const positionSymbols = (portfolio?.positions ?? []).map((p) => p.symbol);
   const { prices } = usePriceStream(positionSymbols);
 
-  // Fallback timeline from graphData (when API returns < 2 points)
-  const fullTimeline = useMemo(() => {
-    if (allTimeline && allTimeline.length >= 2) return allTimeline;
+  // All unique symbols from transactions (for fetching price histories)
+  const allTradedSymbols = useMemo(() => {
+    const syms = new Set<string>();
+    for (const tx of analytics?.transactions ?? []) syms.add(tx.symbol);
+    return Array.from(syms);
+  }, [analytics?.transactions]);
+  const { priceMap: fetchedPriceMap, isLoading: priceHistoriesLoading } = useAllPriceHistories(allTradedSymbols);
 
-    // If we have active positions with graphData, build timeline from those
-    const activePositions = (analytics?.positions ?? []).filter(p => Number(p.totalQuantity) > 0);
-    if (activePositions.length > 0) {
-      const totalInvestedSum = activePositions.reduce((sum, pos) => sum + Number(pos.totalInvested), 0);
-      const byTs = new Map<string, number>();
-      for (const pos of activePositions) {
-        const qty = Number(pos.totalQuantity);
-        for (const g of pos.graphData ?? []) {
-          const ms = new Date(String(g.timestamp)).getTime();
-          if (isNaN(ms)) continue;
-          byTs.set(String(g.timestamp), (byTs.get(String(g.timestamp)) ?? 0) + Number(g.price) * qty);
-        }
-      }
-      const nowKey = new Date().toISOString();
-      const currentTotal = activePositions.reduce((sum, pos) => {
-        if (pos.currentPrice == null) return sum;
-        return sum + pos.currentPrice * Number(pos.totalQuantity);
-      }, 0);
-      if (currentTotal > 0) byTs.set(nowKey, currentTotal);
-      const pts = Array.from(byTs.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([timestamp, totalValue]) => ({ timestamp, totalValue, totalInvested: totalInvestedSum }));
-      if (pts.length >= 2) return pts;
+  // Build accurate timeline from transactions + real price history
+  const fullTimeline = useMemo(() => {
+    // Wait for price histories to load before computing
+    if (priceHistoriesLoading && fetchedPriceMap.size === 0) {
+      return allTimeline ?? [];
     }
 
-    // Fallback: build realized P&L timeline from transactions (for fully-closed portfolios)
+    const allPositions = analytics?.positions ?? [];
     const txs = analytics?.transactions ?? [];
-    if (txs.length >= 2) {
-      let runningInvested = 0;
-      let runningRealized = 0;
-      const posQty = new Map<string, { qty: number; totalCost: number }>();
-      const pts: TimelinePoint[] = [];
+    const sortedTxs = [...txs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      for (const tx of txs) {
+    // Build price history per symbol: fetched price history > graphData > transaction prices
+    const priceBySymbol = new Map<string, Map<string, number>>();
+
+    // 1. Start with fetched price histories (most complete — daily data)
+    for (const [symbol, pm] of fetchedPriceMap) {
+      priceBySymbol.set(symbol, new Map(pm));
+    }
+
+    // 2. Add graphData prices (fill gaps)
+    for (const pos of allPositions) {
+      if (!priceBySymbol.has(pos.symbol)) priceBySymbol.set(pos.symbol, new Map());
+      const pm = priceBySymbol.get(pos.symbol)!;
+      for (const g of pos.graphData ?? []) {
+        const d = new Date(String(g.timestamp)).toISOString().slice(0, 10);
+        if (!pm.has(d)) pm.set(d, Number(g.price));
+      }
+      if (pos.currentPrice != null) {
+        const today = new Date().toISOString().slice(0, 10);
+        if (!pm.has(today)) pm.set(today, pos.currentPrice);
+      }
+    }
+
+    // 3. Add transaction prices (last resort — fill remaining gaps)
+    for (const tx of sortedTxs) {
+      const d = new Date(tx.date).toISOString().slice(0, 10);
+      const price = parseFloat(tx.price);
+      if (!priceBySymbol.has(tx.symbol)) priceBySymbol.set(tx.symbol, new Map());
+      const pm = priceBySymbol.get(tx.symbol)!;
+      if (!pm.has(d)) pm.set(d, price);
+    }
+
+    // Sanity check: if API price is wildly different from tx price (>3x), discard that symbol's API data
+    // (means the API returned wrong data for that ticker)
+    const badSymbols = new Set<string>();
+    const symbolChecked = new Set<string>();
+    for (const tx of sortedTxs) {
+      if (symbolChecked.has(tx.symbol)) continue;
+      symbolChecked.add(tx.symbol);
+      const pm = priceBySymbol.get(tx.symbol);
+      if (!pm) continue;
+      const txDate = new Date(tx.date).toISOString().slice(0, 10);
+      const apiPrice = pm.get(txDate);
+      if (apiPrice != null && apiPrice > 0) {
+        const txP = parseFloat(tx.price);
+        const ratio = txP / apiPrice;
+        if (ratio > 3 || ratio < 0.33) {
+          badSymbols.add(tx.symbol);
+        }
+      }
+    }
+    // For bad symbols, replace API data with transaction-only prices
+    for (const sym of badSymbols) {
+      const pm = new Map<string, number>();
+      for (const tx of sortedTxs) {
+        if (tx.symbol !== sym) continue;
+        const d = new Date(tx.date).toISOString().slice(0, 10);
+        pm.set(d, parseFloat(tx.price));
+      }
+      priceBySymbol.set(sym, pm);
+    }
+
+    // Collect all unique dates
+    const allDatesSet = new Set<string>();
+    for (const [, pm] of priceBySymbol) {
+      for (const d of pm.keys()) allDatesSet.add(d);
+    }
+    for (const tx of sortedTxs) {
+      allDatesSet.add(new Date(tx.date).toISOString().slice(0, 10));
+    }
+    const allDates = Array.from(allDatesSet).sort();
+
+    if (allDates.length < 2 && sortedTxs.length < 2) return allTimeline ?? [];
+
+    // Walk through dates, tracking holdings and computing portfolio value
+    const holdings = new Map<string, { qty: number; totalCost: number }>(); // symbol → { qty, totalCost }
+    let txIdx = 0;
+
+    // Helper: get nearest known price for a symbol, preferring on/before the date
+    function getPrice(symbol: string, date: string): number | null {
+      const pm = priceBySymbol.get(symbol);
+      if (!pm) return null;
+      const exact = pm.get(date);
+      if (exact != null) return exact;
+      // Find closest date on or before target; if none, use closest after
+      let bestBefore: number | null = null;
+      let bestBeforeDiff = Infinity;
+      let bestAny: number | null = null;
+      let bestAnyDiff = Infinity;
+      const targetMs = new Date(date).getTime();
+      for (const [d, p] of pm) {
+        const dMs = new Date(d).getTime();
+        const diff = Math.abs(dMs - targetMs);
+        if (dMs <= targetMs && diff < bestBeforeDiff) { bestBeforeDiff = diff; bestBefore = p; }
+        if (diff < bestAnyDiff) { bestAnyDiff = diff; bestAny = p; }
+      }
+      return bestBefore ?? bestAny;
+    }
+
+    const pts: TimelinePoint[] = [];
+    for (const date of allDates) {
+      // Process all transactions on or before this date
+      while (txIdx < sortedTxs.length) {
+        const txDate = new Date(sortedTxs[txIdx].date).toISOString().slice(0, 10);
+        if (txDate > date) break;
+        const tx = sortedTxs[txIdx];
         const qty = parseFloat(tx.quantity);
         const price = parseFloat(tx.price);
+        const h = holdings.get(tx.symbol) ?? { qty: 0, totalCost: 0 };
         if (tx.type === "BUY") {
-          const p = posQty.get(tx.symbol) ?? { qty: 0, totalCost: 0 };
-          p.qty += qty;
-          p.totalCost += qty * price;
-          posQty.set(tx.symbol, p);
-          runningInvested += qty * price;
+          h.qty += qty;
+          h.totalCost += qty * price;
         } else {
-          const p = posQty.get(tx.symbol);
-          if (p && p.qty > 0) {
-            const avgCost = p.totalCost / p.qty;
-            runningRealized += (price - avgCost) * qty;
-            runningInvested -= avgCost * qty;
-            p.qty -= qty;
-            p.totalCost = p.qty * avgCost;
-            if (p.qty <= 0.001) { p.qty = 0; p.totalCost = 0; }
+          if (h.qty > 0) {
+            const avgCost = h.totalCost / h.qty;
+            h.qty = Math.max(0, h.qty - qty);
+            h.totalCost = h.qty * avgCost;
           }
         }
-        pts.push({
-          timestamp: tx.date,
-          totalValue: runningInvested + runningRealized,
-          totalInvested: Math.max(0, runningInvested),
-        });
+        holdings.set(tx.symbol, h);
+        txIdx++;
       }
-      if (pts.length >= 2) return pts;
+
+      // Compute portfolio value = sum(qty * currentPrice) for all held symbols
+      let totalValue = 0;
+      let totalInvested = 0;
+      for (const [symbol, h] of holdings) {
+        if (h.qty <= 0.001) continue;
+        totalInvested += h.totalCost;
+        const p = getPrice(symbol, date);
+        if (p != null) {
+          totalValue += h.qty * p;
+        } else {
+          // No price data — use cost basis as fallback
+          totalValue += h.totalCost;
+        }
+      }
+
+      if (totalValue > 0 || totalInvested > 0) {
+        pts.push({ timestamp: date, totalValue, totalInvested });
+      }
     }
 
+    // DEBUG: show price map state and timeline values
+    console.log("[TL3] fetchedPriceMap size:", fetchedPriceMap.size, "symbols:", Array.from(fetchedPriceMap.keys()));
+    for (const [sym, pm] of fetchedPriceMap) {
+      const prices = Array.from(pm.values());
+      console.log(`[TL3] ${sym}: ${pm.size} prices, range ${Math.min(...prices).toFixed(2)} - ${Math.max(...prices).toFixed(2)}`);
+    }
+    console.log("[TL3] bad symbols:", Array.from(badSymbols));
+    console.log("[TL3] Total pts:", pts.length);
+    // Show every 30th point to see value progression
+    const sampledPts = pts.filter((_, i) => i % 30 === 0 || i === pts.length - 1);
+    console.log("[TL3] Value progression:", sampledPts.map(p => `${p.timestamp}: v=${Number(p.totalValue).toFixed(0)} i=${Number(p.totalInvested).toFixed(0)}`));
+    if (pts.length >= 2) return pts;
+
     return allTimeline ?? [];
-  }, [allTimeline, analytics]);
+  }, [allTimeline, analytics, fetchedPriceMap, priceHistoriesLoading]);
 
   // Filter timeline by its own range (client-side)
   const effectiveTimeline = useMemo(() => {
@@ -1046,13 +1194,28 @@ export default function PortfolioPage() {
     return fullTimeline.filter(p => new Date(p.timestamp).getTime() >= cutoffMs);
   }, [fullTimeline, timelineRange]);
 
+  // Filter timeline for Trading History chart (separate range)
+  const tradingHistoryTimeline = useMemo(() => {
+    if (tradingHistoryRange === "ALL") return fullTimeline;
+    const cutoffMs = Date.now() - (RANGE_DAYS[tradingHistoryRange] ?? 30) * 86400000;
+    return fullTimeline.filter(p => new Date(p.timestamp).getTime() >= cutoffMs);
+  }, [fullTimeline, tradingHistoryRange]);
+
   // Filter closed positions by their own range
   const closedPositions = useMemo(() => {
-    if (closedRange === "ALL") return allClosedPositions;
+    if (closedRange === "ALL") return [...allClosedPositions].sort((a, b) => {
+      const da = new Date(a.closeDate ?? a.lastSellDate ?? 0).getTime();
+      const db = new Date(b.closeDate ?? b.lastSellDate ?? 0).getTime();
+      return db - da;
+    });
     const cutoffMs = Date.now() - (RANGE_DAYS[closedRange] ?? 30) * 86400000;
     return allClosedPositions.filter((cp) => {
       const d = cp.closeDate ?? cp.lastSellDate;
       return d && new Date(d).getTime() >= cutoffMs;
+    }).sort((a, b) => {
+      const da = new Date(a.closeDate ?? a.lastSellDate ?? 0).getTime();
+      const db = new Date(b.closeDate ?? b.lastSellDate ?? 0).getTime();
+      return db - da;
     });
   }, [allClosedPositions, closedRange]);
 
@@ -1172,6 +1335,334 @@ export default function PortfolioPage() {
           onRangeChange={setTimelineRange}
           loading={timelineLoading}
         />
+
+        {/* Trading History */}
+        {tradingHistoryTimeline.length >= 2 && (() => {
+          const txs = analytics?.transactions ?? [];
+          const sortedTxs = [...txs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+          // Find first buy and last sell per symbol
+          const firstBuyBySymbol = new Map<string, { date: string; symbol: string; qty: number; price: number; total: number }>();
+          const lastSellBySymbol = new Map<string, { date: string; symbol: string; qty: number; price: number; total: number }>();
+          for (const tx of sortedTxs) {
+            const qty = parseFloat(tx.quantity);
+            const price = parseFloat(tx.price);
+            const entry = { date: new Date(tx.date).toLocaleDateString(), symbol: tx.symbol, qty, price, total: qty * price };
+            if (tx.type === "BUY" && !firstBuyBySymbol.has(tx.symbol)) firstBuyBySymbol.set(tx.symbol, entry);
+            if (tx.type === "SELL") lastSellBySymbol.set(tx.symbol, entry);
+          }
+
+          // Build marker dates map
+          const markerByDate = new Map<string, { symbol: string; type: "BUY" | "SELL"; qty: number; price: number; total: number }[]>();
+          for (const [, m] of firstBuyBySymbol) {
+            if (!markerByDate.has(m.date)) markerByDate.set(m.date, []);
+            markerByDate.get(m.date)!.push({ symbol: m.symbol, type: "BUY", qty: m.qty, price: m.price, total: m.total });
+          }
+          for (const [, m] of lastSellBySymbol) {
+            if (!markerByDate.has(m.date)) markerByDate.set(m.date, []);
+            markerByDate.get(m.date)!.push({ symbol: m.symbol, type: "SELL", qty: m.qty, price: m.price, total: m.total });
+          }
+
+          // Interpolation for missing dates
+          const timelineDates = new Set(tradingHistoryTimeline.map(p => new Date(p.timestamp).toLocaleDateString()));
+          const missingDates: { date: string; ts: number }[] = [];
+          markerByDate.forEach((_, dateStr) => {
+            if (!timelineDates.has(dateStr)) {
+              const ts = new Date(dateStr).getTime();
+              if (!isNaN(ts)) missingDates.push({ date: dateStr, ts });
+            }
+          });
+
+          const sortedTL = tradingHistoryTimeline.map(p => ({ ts: new Date(p.timestamp).getTime(), val: Number(p.totalValue), inv: Number(p.totalInvested ?? 0) })).sort((a, b) => a.ts - b.ts);
+          function interpValue(ts: number): { val: number; inv: number } {
+            if (sortedTL.length === 0) return { val: 0, inv: 0 };
+            let closest = sortedTL[0];
+            let minDiff = Math.abs(ts - closest.ts);
+            for (const h of sortedTL) {
+              const diff = Math.abs(ts - h.ts);
+              if (diff < minDiff) { minDiff = diff; closest = h; }
+            }
+            return { val: closest.val, inv: closest.inv };
+          }
+
+          type HistPoint = { date: string; ts: number; value: number; invested: number };
+          const allPts: HistPoint[] = [
+            ...tradingHistoryTimeline.map(p => ({
+              date: new Date(p.timestamp).toLocaleDateString(),
+              ts: new Date(p.timestamp).getTime(),
+              value: Number(p.totalValue),
+              invested: Number(p.totalInvested ?? 0),
+            })),
+            ...missingDates.map(m => { const iv = interpValue(m.ts); return { date: m.date, ts: m.ts, value: iv.val, invested: iv.inv }; }),
+          ].sort((a, b) => a.ts - b.ts);
+
+          const seen = new Set<string>();
+          const dedupedPts = allPts.filter(p => { if (seen.has(p.date)) return false; seen.add(p.date); return true; });
+
+          // Track holding state
+          let runHoldingQty = 0;
+          const posQty = new Map<string, number>();
+          const txsByDateAll = new Map<string, typeof sortedTxs>();
+          for (const tx of sortedTxs) {
+            const d = new Date(tx.date).toLocaleDateString();
+            if (!txsByDateAll.has(d)) txsByDateAll.set(d, []);
+            txsByDateAll.get(d)!.push(tx);
+          }
+
+          const historyData = dedupedPts.map(p => {
+            const dayTxs = txsByDateAll.get(p.date);
+            if (dayTxs) {
+              for (const tx of dayTxs) {
+                const qty = parseFloat(tx.quantity);
+                const cur = posQty.get(tx.symbol) ?? 0;
+                if (tx.type === "BUY") { posQty.set(tx.symbol, cur + qty); runHoldingQty += qty; }
+                else { posQty.set(tx.symbol, Math.max(0, cur - qty)); runHoldingQty = Math.max(0, runHoldingQty - qty); }
+              }
+              txsByDateAll.delete(p.date);
+            }
+            const markers = markerByDate.get(p.date);
+            const val = p.value;
+            const inv = p.invested;
+            const holding = runHoldingQty > 0;
+            const isProfit = holding && inv > 0 && val > inv;
+            const isLoss = holding && inv > 0 && val < inv;
+            return {
+              date: p.date,
+              shortDate: new Date(p.ts).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              value: val,
+              invested: inv,
+              holdingProfit: isProfit ? val : null,
+              holdingLoss: isLoss ? val : null,
+              holdingNeutral: holding && !isProfit && !isLoss ? val : null,
+              tradeMarker: markers && markers.length > 0 ? val : null,
+              markers: markers ?? [],
+            };
+          });
+
+          // Y domain
+          const allValues = dedupedPts.map(p => p.value).filter(v => v > 0);
+          const allInvested = dedupedPts.map(p => p.invested).filter(v => v > 0);
+          const allNums = [...allValues, ...allInvested];
+          const yMin = allNums.length > 0 ? Math.min(...allNums) : 0;
+          const yMax = allNums.length > 0 ? Math.max(...allNums) : 1;
+          const yPad = (yMax - yMin) * 0.15 || yMax * 0.05;
+          const domainMin = Math.max(0, yMin - yPad);
+          const domainMax = yMax + yPad;
+
+          const latestInvested = dedupedPts.length > 0 ? dedupedPts[dedupedPts.length - 1].invested : 0;
+
+          // Summary stats for header
+          const latestValue = dedupedPts.length > 0 ? dedupedPts[dedupedPts.length - 1].value : 0;
+          const totalPnl = latestValue - latestInvested;
+          const totalPnlPct = latestInvested > 0 ? (totalPnl / latestInvested) * 100 : 0;
+          const totalBuysCount = Array.from(firstBuyBySymbol.values()).length;
+          const totalSellsCount = Array.from(lastSellBySymbol.values()).length;
+
+          return (
+            <div className="bg-gradient-to-b from-gray-900 to-gray-900/95 rounded-2xl border border-gray-800/60 overflow-hidden">
+              {/* Header */}
+              <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                      <TrendingUp className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm sm:text-base font-semibold text-white">{t("pos.tradingHistory")}</h2>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span className="text-[11px] text-gray-500">{totalBuysCount} {t("common.buy")}{totalBuysCount !== 1 ? "s" : ""} · {totalSellsCount} {t("common.sell")}{totalSellsCount !== 1 ? "s" : ""}</span>
+                        {latestInvested > 0 && (
+                          <span className={`text-[11px] font-semibold ${totalPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            {totalPnl >= 0 ? "+" : ""}{fmt(totalPnl)} ({totalPnl >= 0 ? "+" : ""}{totalPnlPct.toFixed(1)}%)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <RangeSelector range={tradingHistoryRange} onChange={setTradingHistoryRange} ranges={["1M", "3M", "6M", "1Y", "ALL"]} />
+                </div>
+              </div>
+
+              {/* Chart */}
+              <div className="px-2 sm:px-4 pb-2" dir="ltr">
+                <ResponsiveContainer width="100%" height={300} className="sm:!h-[420px]">
+                  <ComposedChart data={historyData} margin={{ top: 10, right: 56, left: 4, bottom: 4 }}>
+                    <defs>
+                      <linearGradient id="thValueGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="thProfitGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
+                        <stop offset="50%" stopColor="#10b981" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.1} />
+                      </linearGradient>
+                      <linearGradient id="thLossGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
+                        <stop offset="50%" stopColor="#ef4444" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.1} />
+                      </linearGradient>
+                      <linearGradient id="thNeutralGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6b7280" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="#6b7280" stopOpacity={0.02} />
+                      </linearGradient>
+                      <filter id="thGlow">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                      </filter>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" strokeOpacity={0.6} vertical={false} />
+                    <XAxis dataKey="shortDate" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false}
+                      tickFormatter={(v: string, i: number) => (i % Math.ceil(historyData.length / 8) === 0 ? v : "")} />
+                    <YAxis tick={{ fill: "#4b5563", fontSize: 10 }} axisLine={false} tickLine={false} width={52}
+                      domain={[domainMin, domainMax]}
+                      tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0)} />
+                    <Tooltip
+                      cursor={{ stroke: "#3b82f6", strokeWidth: 1, strokeDasharray: "4 4" }}
+                      content={({ active, payload: tp }) => {
+                        if (!active || !tp?.length) return null;
+                        const d = tp[0]?.payload;
+                        if (!d) return null;
+                        const markers = d.markers as { symbol: string; type: string; qty: number; price: number; total: number }[];
+                        const pnl = d.value - d.invested;
+                        const pnlPct = d.invested > 0 ? (pnl / d.invested) * 100 : 0;
+                        return (
+                          <div className="backdrop-blur-sm" style={{ background: "rgba(17,24,39,0.95)", border: markers.length > 0 ? "1px solid rgba(59,130,246,0.4)" : "1px solid rgba(55,65,81,0.6)", borderRadius: 12, padding: "12px 16px", minWidth: 190, maxWidth: "calc(100vw - 40px)", boxShadow: markers.length > 0 ? "0 4px 24px rgba(59,130,246,0.15)" : "0 4px 16px rgba(0,0,0,0.3)" }}>
+                            <p style={{ color: "#9ca3af", fontSize: 11, marginBottom: 6, fontWeight: 500 }}>{d.date}</p>
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+                              <span style={{ color: "#fff", fontSize: 16, fontWeight: 700 }}>{fmt(d.value)}</span>
+                              {d.invested > 0 && (
+                                <span style={{ color: pnl >= 0 ? "#6ee7b7" : "#fca5a5", fontSize: 12, fontWeight: 600 }}>
+                                  {pnl >= 0 ? "+" : ""}{fmt(pnl)} ({pnl >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%)
+                                </span>
+                              )}
+                            </div>
+                            {d.invested > 0 && (
+                              <p style={{ color: "#6b7280", fontSize: 10, marginBottom: markers.length > 0 ? 10 : 0 }}>
+                                {t("pos.costBasis")}: {fmt(d.invested)}
+                              </p>
+                            )}
+                            {markers.length > 0 && <div style={{ borderTop: "1px solid rgba(55,65,81,0.5)", marginBottom: 8 }} />}
+                            {markers.map((tr, i) => {
+                              const isBuy = tr.type === "BUY";
+                              return (
+                                <div key={i} style={{ background: isBuy ? "rgba(249,115,22,0.1)" : "rgba(16,185,129,0.1)", borderRadius: 8, padding: "8px 10px", marginBottom: i < markers.length - 1 ? 4 : 0, borderLeft: `3px solid ${isBuy ? "#f97316" : "#10b981"}` }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ color: isBuy ? "#fdba74" : "#6ee7b7", fontSize: 11, fontWeight: 700 }}>{isBuy ? "BUY" : "SELL"} {tr.symbol}</span>
+                                    <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>{fmt(tr.total)}</span>
+                                  </div>
+                                  <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>{tr.qty} × {fmt(tr.price)}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      }}
+                    />
+                    {/* Holding period shading */}
+                    <Area type="monotone" dataKey="holdingProfit" stroke="none" fill="url(#thProfitGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
+                    <Area type="monotone" dataKey="holdingLoss" stroke="none" fill="url(#thLossGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
+                    <Area type="monotone" dataKey="holdingNeutral" stroke="none" fill="url(#thNeutralGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
+                    {/* Portfolio value line */}
+                    <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="url(#thValueGrad)" strokeWidth={2} dot={false}
+                      activeDot={{ r: 5, fill: "#3b82f6", stroke: "#1e3a5f", strokeWidth: 3 }} filter="url(#thGlow)" />
+                    {/* Cost basis reference line */}
+                    {latestInvested > 0 && (
+                      <ReferenceLine y={latestInvested} stroke="#f59e0b" strokeDasharray="6 4" strokeWidth={1} strokeOpacity={0.6}
+                        label={{ value: `${t("pos.costBasis")}: ${fmt(latestInvested)}`, fill: "#f59e0b", fontSize: 10, position: "right" }} />
+                    )}
+                    {/* Trade markers — pill labels with smart layout */}
+                    <Scatter dataKey="tradeMarker" fill="transparent" shape={(props: { cx?: number; cy?: number; payload?: { tradeMarker: unknown; date: string; markers: { symbol: string; type: string; qty: number; price: number; total: number }[] } }) => {
+                      if (!props.payload?.tradeMarker) return <g />;
+                      const cx = props.cx ?? 0;
+                      const cy = props.cy ?? 0;
+                      const markers = props.payload.markers ?? [];
+                      const buys = markers.filter(m => m.type === "BUY");
+                      const sells = markers.filter(m => m.type === "SELL");
+                      const hasBuys = buys.length > 0;
+                      const hasSells = sells.length > 0;
+                      const pillH = 15;
+                      const pillGap = 2;
+
+                      // For buys: show up to 2 individual pills above, then "+N more"
+                      const maxShow = 2;
+                      const buyShow = buys.slice(0, maxShow);
+                      const buyExtra = buys.length - maxShow;
+                      const sellShow = sells.slice(0, maxShow);
+                      const sellExtra = sells.length - maxShow;
+
+                      return (
+                        <g>
+                          {/* Vertical line */}
+                          {hasBuys && <line x1={cx} y1={cy - 6} x2={cx} y2={Math.max(0, cy - 10 - buyShow.length * (pillH + pillGap) - (buyExtra > 0 ? pillH + pillGap : 0))} stroke="#f97316" strokeWidth={1} strokeDasharray="3 2" opacity={0.3} />}
+                          {hasSells && <line x1={cx} y1={cy + 6} x2={cx} y2={cy + 10 + sellShow.length * (pillH + pillGap) + (sellExtra > 0 ? pillH + pillGap : 0)} stroke="#10b981" strokeWidth={1} strokeDasharray="3 2" opacity={0.} />}
+                          {/* Dot */}
+                          <circle cx={cx} cy={cy} r={4} fill={hasBuys ? "#f97316" : "#10b981"} stroke="#111827" strokeWidth={1.5} />
+                          {/* Buy pills — stacked above the dot */}
+                          {buyShow.map((b, i) => {
+                            const w = Math.min(42, Math.max(30, b.symbol.length * 6.5 + 8));
+                            const py = cy - 10 - (i + 1) * (pillH + pillGap) + pillGap;
+                            return (
+                              <g key={`b${i}`}>
+                                <rect x={cx - w / 2} y={py} width={w} height={pillH} rx={4} fill="#f97316" opacity={0.85} />
+                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={8} fontWeight="bold">
+                                  {b.symbol.length > 5 ? b.symbol.slice(0, 5) : b.symbol}
+                                </text>
+                              </g>
+                            );
+                          })}
+                          {buyExtra > 0 && (() => {
+                            const py = cy - 10 - (maxShow + 1) * (pillH + pillGap) + pillGap;
+                            return (
+                              <g>
+                                <rect x={cx - 16} y={py} width={32} height={pillH} rx={4} fill="#f97316" opacity={0.5} />
+                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={7} fontWeight="bold">+{buyExtra}</text>
+                              </g>
+                            );
+                          })()}
+                          {/* Sell pills — stacked below the dot */}
+                          {sellShow.map((s, i) => {
+                            const w = Math.min(42, Math.max(30, s.symbol.length * 6.5 + 8));
+                            const py = cy + 10 + i * (pillH + pillGap);
+                            return (
+                              <g key={`s${i}`}>
+                                <rect x={cx - w / 2} y={py} width={w} height={pillH} rx={4} fill="#10b981" opacity={0.85} />
+                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={8} fontWeight="bold">
+                                  {s.symbol.length > 5 ? s.symbol.slice(0, 5) : s.symbol}
+                                </text>
+                              </g>
+                            );
+                          })}
+                          {sellExtra > 0 && (() => {
+                            const py = cy + 10 + maxShow * (pillH + pillGap);
+                            return (
+                              <g>
+                                <rect x={cx - 16} y={py} width={32} height={pillH} rx={4} fill="#10b981" opacity={0.5} />
+                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={7} fontWeight="bold">+{sellExtra}</text>
+                              </g>
+                            );
+                          })()}
+                        </g>
+                      );
+                    }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Chart Legend */}
+              <div className="px-4 sm:px-6 pb-4 pt-1">
+                <div className="flex flex-wrap gap-x-5 gap-y-1.5 justify-center text-[11px] text-gray-500">
+                  <span className="flex items-center gap-1.5"><span className="w-5 h-[2px] bg-blue-500 inline-block rounded-full" /> {t("analytics.portfolioOverTime")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-3 bg-orange-500 inline-block rounded text-[7px] text-white font-bold text-center leading-3">B</span> {t("common.buy")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-3 bg-emerald-500 inline-block rounded text-[7px] text-white font-bold text-center leading-3">S</span> {t("common.sell")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-2 bg-emerald-500/30 inline-block rounded-sm" /> {t("common.profit")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-2 bg-red-500/30 inline-block rounded-sm" /> {t("common.loss")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-4 h-0 border-t border-dashed border-yellow-500/60 inline-block" /> {t("pos.costBasis")}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Portfolio Weight by Symbol — Enhanced */}
         {(() => {
@@ -1332,8 +1823,7 @@ export default function PortfolioPage() {
                   <th className="text-right px-3 sm:px-4 py-3 hidden xl:table-cell">{t("common.fees")}</th>
                   <th className="text-right px-3 sm:px-4 py-3 hidden xl:table-cell">{t("portfolio.portfolioPct")}</th>
                   <th className="text-center px-3 sm:px-4 py-3 hidden lg:table-cell">{t("portfolio.30d")}</th>
-                  <th className="text-center px-3 sm:px-4 py-3">{t("common.details")}</th>
-                  <th className="w-8" />
+                  <th className="w-10" />
                 </tr>
               </thead>
               <tbody>
@@ -1369,9 +1859,7 @@ export default function PortfolioPage() {
                     <React.Fragment key={pos.symbol}>
                       <tr
                         className={`td-row border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer ${isSold ? "opacity-60" : ""}`}
-                        onClick={() =>
-                          setExpandedSymbol(isExpanded ? null : pos.symbol)
-                        }
+                        onClick={() => router.push(`/portfolio/positions/${pos.symbol}`)}
                       >
                         <td className="px-3 sm:px-4 py-3 font-bold text-white">
                           <div className="flex items-center gap-2">
@@ -1457,17 +1945,14 @@ export default function PortfolioPage() {
                         <td className="px-4 py-3 text-center hidden lg:table-cell">
                           <Sparkline symbol={pos.symbol} />
                         </td>
-                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                          <Link href={`/portfolio/positions/${pos.symbol}`} className="text-blue-400 hover:text-blue-300 text-xs whitespace-nowrap">
-                            {t("portfolio.details")}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-600">
-                          {isExpanded ? (
-                            <ChevronUp size={14} />
-                          ) : (
-                            <ChevronDown size={14} />
-                          )}
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setExpandedSymbol(isExpanded ? null : pos.symbol); }}
+                            className="text-gray-600 hover:text-gray-300 transition-colors p-1"
+                            aria-label={isExpanded ? "Collapse" : "Expand"}
+                          >
+                            {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          </button>
                         </td>
                       </tr>
                       {isExpanded && (
@@ -1562,7 +2047,6 @@ export default function PortfolioPage() {
                     <th className="text-center px-4 py-3 hidden lg:table-cell">{t("closed.winLoss")}</th>
                     <th className="text-right px-4 py-3 hidden xl:table-cell">{t("closed.openDate")}</th>
                     <th className="text-right px-4 py-3 hidden xl:table-cell">{t("closed.closeDate")}</th>
-                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
@@ -1572,7 +2056,7 @@ export default function PortfolioPage() {
                     const retPct = cp.returnPct != null ? parseFloat(cp.returnPct) : null;
                     const displayDate = cp.isClosed ? cp.closeDate : cp.lastSellDate;
                     return (
-                      <tr key={cp.symbol} className="td-row border-b border-gray-800/60">
+                      <tr key={cp.symbol} className="td-row border-b border-gray-800/60 cursor-pointer" onClick={() => router.push(`/portfolio/positions/${cp.symbol}`)}>
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-0.5">
                             <span className="font-bold text-white font-mono">{cp.symbol}</span>
@@ -1604,11 +2088,6 @@ export default function PortfolioPage() {
                         </td>
                         <td className="px-4 py-3 text-right text-gray-500 text-xs hidden xl:table-cell">
                           {displayDate ? new Date(displayDate).toLocaleDateString() : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <Link href={`/portfolio/positions/${cp.symbol}`} className="text-blue-400 hover:text-blue-300 text-xs whitespace-nowrap">
-                            {t("portfolio.details")}
-                          </Link>
                         </td>
                       </tr>
                     );

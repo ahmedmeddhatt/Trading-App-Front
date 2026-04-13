@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb, ArrowUpRight, ArrowDownRight, BarChart2 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
@@ -11,6 +11,9 @@ import PriceFreshnessBanner from "@/components/PriceFreshnessBanner";
 import MarketStatusBar from "@/components/MarketStatusBar";
 import AppShell from "@/components/AppShell";
 import GoldDashboard from "@/components/GoldDashboard";
+import WeeklyPicksSection from "@/features/recommendations/WeeklyPicksSection";
+import EmptyState from "@/components/ui/EmptyState";
+import { SkeletonCard } from "@/components/ui/Skeleton";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTradingMode } from "@/store/useTradingMode";
 
@@ -177,6 +180,9 @@ function StocksDashboard() {
           </div>
         )}
 
+        {/* AI Weekly Recommendations */}
+        <WeeklyPicksSection />
+
         {dashError ? (
           <div className="flex flex-col items-center gap-2 py-10 bg-gray-900/60 border border-amber-900/40 rounded-xl">
             <span className="text-amber-400 text-sm font-medium">{t("dashboard.failed")}</span>
@@ -206,7 +212,7 @@ function StocksDashboard() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
               {dashData.myStocks
                 .filter((s) => s.symbol.toLowerCase().includes(search.toLowerCase()))
                 .map((ms) => {
@@ -241,10 +247,16 @@ function StocksDashboard() {
         )}
 
         {!dashLoading && !dashError && (!dashData?.myStocks || dashData.myStocks.length === 0) && (
-          <div className="text-center py-12 text-gray-600 text-sm">
-            {t("dashboard.noPositions")}{" "}
-            <Link href="/stocks/COMI" className="text-blue-400 hover:text-blue-300">{t("dashboard.browseStocks")}</Link>
-          </div>
+          <EmptyState
+            icon={BarChart2}
+            title={t("dashboard.noPositions")}
+            description={t("dashboard.browseStocks")}
+            action={
+              <Link href="/stocks/COMI" className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors btn-ripple">
+                {t("dashboard.browseStocks")}
+              </Link>
+            }
+          />
         )}
       </main>
 
@@ -283,9 +295,9 @@ function Section({
     return (
       <div className="space-y-3">
         <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{title}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-gray-900 rounded-xl p-4 h-24 animate-pulse" />
+            <SkeletonCard key={i} />
           ))}
         </div>
       </div>
@@ -297,7 +309,7 @@ function Section({
   return (
     <div className="space-y-3">
       <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{title}</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
         {stocks.map((stock) => {
           const live = prices[stock.symbol];
           const price = live?.price ?? stock.price;
@@ -306,7 +318,7 @@ function Section({
 
           return (
             <Link key={stock.symbol} href={`/stocks/${stock.symbol}`}>
-              <div className="td-hover-card bg-gray-900 rounded-xl p-4 space-y-1">
+              <div className="td-hover-card bg-gray-900 rounded-xl p-4 space-y-1 animate-card-enter-stagger" style={{ "--delay": stocks.indexOf(stock) } as React.CSSProperties}>
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-white text-lg sm:text-sm">{stock.symbol}</span>
                   {change != null && (

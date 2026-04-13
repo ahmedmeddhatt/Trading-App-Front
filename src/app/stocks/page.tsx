@@ -13,10 +13,14 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import AppShell from "@/components/AppShell";
 import SignalBadge from "@/components/SignalBadge";
+import EmptyState from "@/components/ui/EmptyState";
+import { SkeletonCard, SkeletonRow } from "@/components/ui/Skeleton";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTradingMode } from "@/store/useTradingMode";
 import GoldListPage from "@/app/gold/page";
@@ -58,19 +62,7 @@ function saveWatchlist(set: Set<string>) {
   localStorage.setItem(WATCHLIST_KEY, JSON.stringify([...set]));
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function SkeletonRow() {
-  return (
-    <tr className="border-b border-gray-800 animate-pulse">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="h-4 bg-gray-800 rounded w-3/4" />
-        </td>
-      ))}
-    </tr>
-  );
-}
+// ─── (Skeleton moved to @/components/ui/Skeleton) ───
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
@@ -117,6 +109,7 @@ function StocksPageInner() {
   const [showFilters, setShowFilters] = useState(false);
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
   const [watchlistOnly, setWatchlistOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -260,185 +253,247 @@ function StocksPageInner() {
             )}
           </button>
 
+          {/* View toggle — cards/table */}
+          <div className="flex items-center border border-gray-800 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode("table")}
+              className={`p-2 transition-colors ${viewMode === "table" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-gray-300"}`}
+              aria-label="Table view"
+            >
+              <List size={16} />
+            </button>
+            <button
+              onClick={() => setViewMode("cards")}
+              className={`p-2 transition-colors ${viewMode === "cards" ? "bg-gray-800 text-white" : "text-gray-500 hover:text-gray-300"}`}
+              aria-label="Card view"
+            >
+              <LayoutGrid size={16} />
+            </button>
+          </div>
+
         </div>
 
         {/* Filter panel placeholder — P/E filters removed (no P/E data from source) */}
 
-        {/* Table */}
-        <div className="bg-gray-900 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-gray-800">
-            <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
-              {watchlistOnly ? t("stocks.watchlist") : t("stocks.allStocks")}
-            </h2>
-            <span className="text-gray-600 text-xs">
-              {t("stocks.showing")} {displayed.length} {t("stocks.of")} {watchlistOnly ? watchlist.size : total} {t("stocks.stocks2")}
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-500 text-xs border-b border-gray-800">
-                  <th className="text-left px-4 py-3 w-8" />
-                  <th className="text-left px-4 py-3">{t("common.symbol")}</th>
-                  <th className="text-left px-4 py-3 hidden md:table-cell">{t("common.name")}</th>
-                  <th className="text-right px-4 py-3">{t("common.price")}</th>
-                  <th className="text-right px-4 py-3">{t("common.change")}</th>
-                  <th className="text-center px-4 py-3 hidden lg:table-cell">{t("common.signal")}</th>
-                  <th className="text-right px-4 py-3 w-16" />
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading &&
-                  Array.from({ length: 8 }).map((_, i) => (
-                    <SkeletonRow key={i} />
-                  ))}
-
-                {isError && (
-                  <tr>
-                    <td colSpan={7} className="py-12">
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="text-amber-400 text-sm font-medium">{t("stocks.failed")}</span>
-                        <button onClick={() => refetch()} className="text-xs text-blue-400 hover:text-blue-300 underline">
-                          {t("common.retry")}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {!isLoading && !isError && displayed.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="text-center py-12 text-gray-600 text-sm"
-                    >
-                      {watchlistOnly
-                        ? t("stocks.watchlistEmpty")
-                        : t("stocks.noStocks")}
-                    </td>
-                  </tr>
-                )}
-
-                {displayed.map((stock) => {
-                  const live = prices[stock.symbol];
-                  const price = live?.price ?? stock.price;
-                  const changePct =
-                    live?.changePercent ?? stock.changePercent ?? null;
-                  const isPos = (changePct ?? 0) >= 0;
-                  const inWatchlist = watchlist.has(stock.symbol);
-
-                  return (
-                    <tr
-                      key={stock.symbol}
-                      className="td-row border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer"
-                      onClick={() => router.push(`/stocks/${stock.symbol}`)}
-                    >
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={(e) => toggleWatchlist(stock.symbol, e)}
-                          className={`hover:scale-125 active:scale-90 transition-transform duration-150 ${
-                            inWatchlist
-                              ? "text-amber-400"
-                              : "text-gray-600 hover:text-amber-400"
-                          }`}
-                          title={
-                            inWatchlist
-                              ? t("stocks.removeWatchlist")
-                              : t("stocks.addWatchlist")
-                          }
-                        >
-                          <Star
-                            size={14}
-                            fill={inWatchlist ? "currentColor" : "none"}
-                          />
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 font-bold text-white">
-                        {stock.symbol}
-                      </td>
-                      <td className="px-4 py-3 text-gray-400 hidden md:table-cell truncate max-w-48">
-                        {stock.name ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right text-white font-medium">
-                        {price != null
-                          ? new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", minimumFractionDigits: 2 }).format(price)
-                          : "—"}
-                        {live && (
-                          <span className="block text-xs text-emerald-500 font-normal">
-                            {t("stocks.live")}
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-right font-medium ${
-                          changePct == null
-                            ? "text-gray-500"
-                            : isPos
-                            ? "text-emerald-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {changePct != null ? (
-                          <span className="flex items-center justify-end gap-1">
-                            {isPos ? (
-                              <TrendingUp size={12} />
-                            ) : (
-                              <TrendingDown size={12} />
-                            )}
-                            {isPos ? "+" : "−"}
-                            {Math.abs(changePct).toFixed(2)}%
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center hidden lg:table-cell">
-                        <SignalBadge signal={stock.recommendation} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/stocks/${stock.symbol}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded text-xs text-gray-300 hover:text-white active:scale-95 transition-all duration-150"
-                        >
-                          {t("stocks.view")}
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {!isLoading && !isError && !watchlistOnly && totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
-              <span className="text-gray-600 text-xs">
-                {t("stocks.page")} {page} {t("stocks.of")} {totalPages}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft size={14} />
-                  {t("stocks.prev")}
-                </button>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {t("stocks.next")}
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+            {watchlistOnly ? t("stocks.watchlist") : t("stocks.allStocks")}
+          </h2>
+          <span className="text-gray-600 text-xs">
+            {t("stocks.showing")} {displayed.length} {t("stocks.of")} {watchlistOnly ? watchlist.size : total} {t("stocks.stocks2")}
+          </span>
         </div>
+
+        {/* Loading */}
+        {isLoading && viewMode === "cards" && (
+          <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        )}
+
+        {/* Error */}
+        {isError && (
+          <div className="flex flex-col items-center gap-2 py-12">
+            <span className="text-amber-400 text-sm font-medium">{t("stocks.failed")}</span>
+            <button onClick={() => refetch()} className="text-xs text-blue-400 hover:text-blue-300 underline">
+              {t("common.retry")}
+            </button>
+          </div>
+        )}
+
+        {/* Empty */}
+        {!isLoading && !isError && displayed.length === 0 && (
+          <EmptyState
+            icon={watchlistOnly ? Star : Search}
+            title={watchlistOnly ? t("stocks.watchlistEmpty") : t("stocks.noStocks")}
+            description={watchlistOnly ? "Star stocks to add them to your watchlist" : undefined}
+          />
+        )}
+
+        {/* Card View */}
+        {viewMode === "cards" && !isLoading && !isError && displayed.length > 0 && (
+          <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
+            {displayed.map((stock, idx) => {
+              const live = prices[stock.symbol];
+              const price = live?.price ?? stock.price;
+              const changePct = live?.changePercent ?? stock.changePercent ?? null;
+              const isPos = (changePct ?? 0) >= 0;
+              const inWatchlist = watchlist.has(stock.symbol);
+
+              return (
+                <Link key={stock.symbol} href={`/stocks/${stock.symbol}`}>
+                  <div
+                    className="td-hover-card bg-gray-900 rounded-xl p-3 sm:p-4 space-y-1.5 animate-card-enter-stagger"
+                    style={{ "--delay": idx } as React.CSSProperties}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-white text-sm">{stock.symbol}</span>
+                      <button
+                        onClick={(e) => toggleWatchlist(stock.symbol, e)}
+                        className={`transition-transform hover:scale-125 ${inWatchlist ? "text-amber-400" : "text-gray-600"}`}
+                      >
+                        <Star size={13} fill={inWatchlist ? "currentColor" : "none"} />
+                      </button>
+                    </div>
+                    <p className="text-lg font-bold text-white">
+                      {price != null
+                        ? new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", minimumFractionDigits: 2 }).format(price)
+                        : "—"}
+                    </p>
+                    {changePct != null && (
+                      <div className={`flex items-center gap-1 text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                        {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                        {isPos ? "+" : "−"}{Math.abs(changePct).toFixed(2)}%
+                      </div>
+                    )}
+                    {stock.name && <p className="text-gray-500 text-xs truncate">{stock.name}</p>}
+                    <SignalBadge signal={stock.recommendation} />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Table View */}
+        {viewMode === "table" && (
+          <div className="bg-gray-900 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-gray-500 text-xs border-b border-gray-800">
+                    <th className="text-left px-4 py-3 w-8" />
+                    <th className="text-left px-4 py-3">{t("common.symbol")}</th>
+                    <th className="text-left px-4 py-3 hidden md:table-cell">{t("common.name")}</th>
+                    <th className="text-right px-4 py-3">{t("common.price")}</th>
+                    <th className="text-right px-4 py-3">{t("common.change")}</th>
+                    <th className="text-center px-4 py-3 hidden lg:table-cell">{t("common.signal")}</th>
+                    <th className="text-right px-4 py-3 w-16" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading &&
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <SkeletonRow key={i} cols={7} />
+                    ))}
+
+                  {!isLoading && !isError && displayed.map((stock) => {
+                    const live = prices[stock.symbol];
+                    const price = live?.price ?? stock.price;
+                    const changePct = live?.changePercent ?? stock.changePercent ?? null;
+                    const isPos = (changePct ?? 0) >= 0;
+                    const inWatchlist = watchlist.has(stock.symbol);
+
+                    return (
+                      <tr
+                        key={stock.symbol}
+                        className="td-row border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer"
+                        onClick={() => router.push(`/stocks/${stock.symbol}`)}
+                      >
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={(e) => toggleWatchlist(stock.symbol, e)}
+                            className={`hover:scale-125 active:scale-90 transition-transform duration-150 ${
+                              inWatchlist ? "text-amber-400" : "text-gray-600 hover:text-amber-400"
+                            }`}
+                            title={inWatchlist ? t("stocks.removeWatchlist") : t("stocks.addWatchlist")}
+                          >
+                            <Star size={14} fill={inWatchlist ? "currentColor" : "none"} />
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-white">{stock.symbol}</td>
+                        <td className="px-4 py-3 text-gray-400 hidden md:table-cell truncate max-w-48">{stock.name ?? "—"}</td>
+                        <td className="px-4 py-3 text-right text-white font-medium">
+                          {price != null
+                            ? new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", minimumFractionDigits: 2 }).format(price)
+                            : "—"}
+                          {live && <span className="block text-xs text-emerald-500 font-normal">{t("stocks.live")}</span>}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-medium ${changePct == null ? "text-gray-500" : isPos ? "text-emerald-400" : "text-red-400"}`}>
+                          {changePct != null ? (
+                            <span className="flex items-center justify-end gap-1">
+                              {isPos ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                              {isPos ? "+" : "−"}{Math.abs(changePct).toFixed(2)}%
+                            </span>
+                          ) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-center hidden lg:table-cell">
+                          <SignalBadge signal={stock.recommendation} />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Link
+                            href={`/stocks/${stock.symbol}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded text-xs text-gray-300 hover:text-white active:scale-95 transition-all duration-150"
+                          >
+                            {t("stocks.view")}
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {!isLoading && !isError && !watchlistOnly && totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
+                <span className="text-gray-600 text-xs">
+                  {t("stocks.page")} {page} {t("stocks.of")} {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={14} />
+                    {t("stocks.prev")}
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {t("stocks.next")}
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Card view pagination */}
+        {viewMode === "cards" && !isLoading && !isError && !watchlistOnly && totalPages > 1 && (
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 text-xs">
+              {t("stocks.page")} {page} {t("stocks.of")} {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} />
+                {t("stocks.prev")}
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sm text-gray-400 hover:text-white active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {t("stocks.next")}
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </AppShell>
   );

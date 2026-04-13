@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { apiClient } from "@/lib/apiClient";
 import SignalBadge from "@/components/SignalBadge";
+import { useLanguage } from "@/context/LanguageContext";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import TradeForm from "@/features/trade/components/TradeForm";
@@ -159,6 +160,7 @@ const RANGES: DateRange[] = ["1W", "1M", "3M", "6M", "1Y"];
 export default function StockPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol: rawSymbol } = use(params);
   const symbol = rawSymbol.toUpperCase();
+  const { t } = useLanguage();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [range, setRange] = useState<DateRange>("1M");
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -217,7 +219,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
       <div className="border-b border-gray-800 px-4 py-2 flex items-center justify-between">
         <Link href="/stocks" className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors p-1 -ml-1 rounded-lg hover:bg-gray-800">
           <ChevronLeft size={18} />
-          <span className="text-sm">Stocks</span>
+          <span className="text-sm">{t("nav.stocks")}</span>
         </Link>
         {position && (
           <button
@@ -225,7 +227,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
           >
             <History size={14} />
-            <span>History</span>
+            <span>{t("stock.history")}</span>
           </button>
         )}
       </div>
@@ -240,8 +242,8 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
             </div>
           ) : stockError ? (
             <div className="flex items-center gap-3 bg-amber-900/20 border border-amber-900/40 rounded-xl px-4 py-3">
-              <span className="text-amber-400 text-sm font-medium">Failed to load stock.</span>
-              <button onClick={() => refetchStock()} className="text-xs text-blue-400 hover:text-blue-300 underline">Retry</button>
+              <span className="text-amber-400 text-sm font-medium">{t("stock.loadFailed")}</span>
+              <button onClick={() => refetchStock()} className="text-xs text-blue-400 hover:text-blue-300 underline">{t("common.retry")}</button>
             </div>
           ) : (
             <div className="flex items-start justify-between gap-3">
@@ -260,7 +262,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                         : "bg-gray-800 text-gray-500"
                     }`}
                   >
-                    {marketStatus.isOpen ? "Market Open" : "Market Closed"}
+                    {marketStatus.isOpen ? t("stock.marketOpen") : t("stock.marketClosed")}
                   </span>
                 </div>
               </div>
@@ -289,8 +291,8 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
       <div className="border-b border-gray-800 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex gap-1">
           {[
-            { id: "overview", label: "Overview", icon: Activity },
-            { id: "technical", label: "Technical Analysis", icon: BarChart2 },
+            { id: "overview", label: t("stock.overview"), icon: Activity },
+            { id: "technical", label: t("stock.technicalAnalysis"), icon: BarChart2 },
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -320,9 +322,9 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
           {aiSignal && (
             <div className="bg-gray-900 rounded-xl p-4 sm:p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">AI Analysis</h3>
+                <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{t("stock.aiAnalysis")}</h3>
                 <span className="text-[10px] text-gray-600">
-                  {aiSignal.source === "ai" ? "Powered by Gemini" : "Technical Analysis"}
+                  {aiSignal.source === "ai" ? t("stock.poweredByGemini") : t("stock.technicalAnalysis")}
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -347,7 +349,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
               )}
               {aiSignal.risks.length > 0 && (
                 <div className="border-t border-gray-800 pt-2">
-                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">Risks</p>
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">{t("stock.risks")}</p>
                   <ul className="text-xs text-amber-400/80 space-y-0.5">
                     {aiSignal.risks.map((r, i) => (
                       <li key={i}>⚠ {r}</li>
@@ -357,7 +359,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
               )}
               {aiSignal.targetAction && (
                 <div className="bg-gray-800/50 rounded-lg px-3 py-2 text-xs text-gray-300">
-                  <span className="text-gray-500">Action: </span>{aiSignal.targetAction}
+                  <span className="text-gray-500">{t("stock.action")}: </span>{aiSignal.targetAction}
                 </div>
               )}
             </div>
@@ -377,9 +379,9 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
           {stock && (stock.signals?.daily || stock.signals?.weekly || stock.signals?.monthly || stock.recommendation) && (
             <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-3">
               {[
-                { label: "Daily Signal", value: stock.signals?.daily ?? stock.recommendation },
-                { label: "Weekly Signal", value: stock.signals?.weekly },
-                { label: "Monthly Signal", value: stock.signals?.monthly },
+                { label: t("stock.dailySignal"), value: stock.signals?.daily ?? stock.recommendation },
+                { label: t("stock.weeklySignal"), value: stock.signals?.weekly },
+                { label: t("stock.monthlySignal"), value: stock.signals?.monthly },
               ].map(({ label, value }) => (
                 <div key={label} className="bg-gray-900 rounded-xl p-3 sm:p-4 text-center">
                   <p className="text-gray-500 text-xs mb-2">{label}</p>
@@ -395,14 +397,14 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
 
               {stock.marketCap && (
                 <InfoCard
-                  label="Market Cap"
+                  label={t("stock.marketCap")}
                   value={`EGP ${(stock.marketCap / 1e9).toFixed(2)}B`}
                 />
               )}
-              {stock.pe != null && <InfoCard label="P/E Ratio" value={Number(stock.pe).toFixed(2)} />}
+              {stock.pe != null && <InfoCard label={t("stock.peRatio")} value={Number(stock.pe).toFixed(2)} />}
               {stock.recommendation && (
                 <div className="bg-gray-900 rounded-xl px-4 py-3">
-                  <p className="text-gray-500 text-xs">Recommendation</p>
+                  <p className="text-gray-500 text-xs">{t("stock.recommendation")}</p>
                   <div className="mt-1"><SignalBadge signal={stock.recommendation} /></div>
                 </div>
               )}
@@ -412,7 +414,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
           {/* Price History Chart */}
           <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-3 sm:space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">Price History</h2>
+              <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">{t("stock.priceHistory")}</h2>
               <div className="flex gap-1 range-btns">
                 {RANGES.map((r) => (
                   <button
@@ -435,7 +437,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
                 <div className="h-full bg-gray-800 rounded animate-pulse" />
               ) : chartData.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-gray-700 text-sm border border-dashed border-gray-800 rounded-lg">
-                  No price history available
+                  {t("stock.noPriceHistory")}
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -488,7 +490,7 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
               <div className="flex items-center gap-2">
                 <Calendar size={14} className="text-gray-500" />
                 <label className="text-gray-500 text-xs font-semibold uppercase tracking-widest">
-                  Day Snapshot
+                  {t("stock.daySnapshot")}
                 </label>
               </div>
               <input
@@ -501,13 +503,13 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
               {selectedDate && (
                 dayData ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <InfoCard label="Open" value={fmtEGP(dayData.open)} />
-                    <InfoCard label="Close" value={fmtEGP(dayData.close)} />
-                    <InfoCard label="High" value={fmtEGP(dayData.high)} />
-                    <InfoCard label="Low" value={fmtEGP(dayData.low)} />
+                    <InfoCard label={t("stock.open")} value={fmtEGP(dayData.open)} />
+                    <InfoCard label={t("stock.close")} value={fmtEGP(dayData.close)} />
+                    <InfoCard label={t("stock.high")} value={fmtEGP(dayData.high)} />
+                    <InfoCard label={t("stock.low")} value={fmtEGP(dayData.low)} />
                   </div>
                 ) : (
-                  <p className="text-gray-600 text-sm">No data available for this date.</p>
+                  <p className="text-gray-600 text-sm">{t("stock.noDateData")}</p>
                 )
               )}
             </div>
@@ -517,24 +519,24 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
           {position && (
             <div className="bg-gray-900 rounded-xl p-5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">My Position</h2>
+                <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{t("stock.myPosition")}</h2>
                 <button
                   onClick={() => setHistoryOpen(true)}
                   className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
                 >
                   <History size={13} />
-                  View full history
+                  {t("stock.viewHistory")}
                 </button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <PositionStat label="Shares" value={position.quantity.toString()} />
-                <PositionStat label="Avg Cost" value={fmtEGP(position.avgCost)} />
+                <PositionStat label={t("stock.shares")} value={position.quantity.toString()} />
+                <PositionStat label={t("stock.avgCost")} value={fmtEGP(position.avgCost)} />
                 <PositionStat
-                  label="Market Value"
+                  label={t("stock.marketValue")}
                   value={fmtEGP((priceData?.price ?? position.currentPrice) * position.quantity)}
                 />
                 <PositionStat
-                  label="Unrealized P&L"
+                  label={t("stock.unrealizedPnl")}
                   value={`${position.pnl >= 0 ? "+" : "−"}${fmtEGP(Math.abs(position.pnl))} (${position.pnl >= 0 ? "+" : "−"}${Math.abs(position.pnlPercent).toFixed(2)}%)`}
                   positive={position.pnl >= 0}
                 />
@@ -614,12 +616,13 @@ const ZONE_COLOR: Record<string, string> = {
 };
 
 function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData | undefined; isLoading: boolean; symbol: string }) {
+  const { t } = useLanguage();
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Computing technical indicators...</p>
+          <p className="text-gray-500 text-sm">{t("stock.computing")}</p>
         </div>
       </div>
     );
@@ -630,8 +633,8 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
       <div className="flex items-center justify-center py-24 text-center">
         <div>
           <BarChart2 size={40} className="text-gray-700 mx-auto mb-3" />
-          <p className="text-gray-400 font-medium">{data?.error ?? "No technical data available"}</p>
-          <p className="text-gray-600 text-sm mt-1">Price history data is still accumulating for {symbol}</p>
+          <p className="text-gray-400 font-medium">{data?.error ?? t("stock.noTechnicalData")}</p>
+          <p className="text-gray-600 text-sm mt-1">{t("stock.dataAccumulating")} {symbol}</p>
         </div>
       </div>
     );
@@ -669,23 +672,23 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
       <div className="bg-gray-900 rounded-xl p-3 sm:p-6">
         <div className="flex items-start justify-between gap-3 sm:gap-4 flex-wrap">
           <div>
-            <p className="text-gray-500 text-[10px] sm:text-xs mb-2 uppercase tracking-wider">Overall Signal</p>
+            <p className="text-gray-500 text-[10px] sm:text-xs mb-2 uppercase tracking-wider">{t("stock.overallSignal")}</p>
             <div className={`inline-flex px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-base sm:text-xl font-bold ${ACTION_STYLES[overallSignal.action] ?? "bg-gray-700 text-white"}`}>
               {overallSignal.action}
             </div>
             <p className="text-gray-500 text-sm mt-2">
-              Confidence: <span className={`font-medium ${overallSignal.confidence === "High" ? "text-emerald-400" : overallSignal.confidence === "Medium" ? "text-amber-400" : "text-gray-400"}`}>
+              {t("stock.confidence")}: <span className={`font-medium ${overallSignal.confidence === "High" ? "text-emerald-400" : overallSignal.confidence === "Medium" ? "text-amber-400" : "text-gray-400"}`}>
                 {overallSignal.confidence}
               </span>
             </p>
           </div>
           <div className="flex-1 min-w-48">
             <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>Sell −100</span>
+              <span>{t("stock.sell")} −100</span>
               <span className={`font-bold ${score > 0 ? "text-emerald-400" : score < 0 ? "text-red-400" : "text-gray-400"}`}>
-                Score: {score > 0 ? "+" : score < 0 ? "−" : ""}{Math.abs(score)}
+                {t("stock.score")}: {score > 0 ? "+" : score < 0 ? "−" : ""}{Math.abs(score)}
               </span>
-              <span>Buy +100</span>
+              <span>{t("stock.buy")} +100</span>
             </div>
             <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
               <div
@@ -748,12 +751,12 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
 
       {/* Trend Analysis */}
       <div className="bg-gray-900 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-gray-400 mb-4">Trend Analysis</h3>
+        <h3 className="text-sm font-semibold text-gray-400 mb-4">{t("stock.trendAnalysis")}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {[
-            { label: "Short Term (SMA20)", trend: trendAnalysis.shortTerm },
-            { label: "Medium Term (SMA50)", trend: trendAnalysis.mediumTerm },
-            { label: "Long Term (SMA200)", trend: trendAnalysis.longTerm },
+            { label: `${t("stock.shortTerm")} (SMA20)`, trend: trendAnalysis.shortTerm },
+            { label: `${t("stock.mediumTerm")} (SMA50)`, trend: trendAnalysis.mediumTerm },
+            { label: `${t("stock.longTerm")} (SMA200)`, trend: trendAnalysis.longTerm },
           ].map(({ label, trend }) => (
             <div key={label} className="flex sm:flex-col items-center sm:text-center justify-between bg-gray-800/40 sm:bg-transparent rounded-lg px-3 py-2 sm:p-0">
               <p className="text-gray-500 text-xs mb-2">{label}</p>
@@ -768,7 +771,7 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
           <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${trendAnalysis.goldenCross ? "bg-emerald-900/20 border border-emerald-800/40" : "bg-amber-900/20 border border-amber-800/40"}`}>
             <span className="text-lg">{trendAnalysis.goldenCross ? "✨" : "💀"}</span>
             <p className={`text-sm font-medium ${trendAnalysis.goldenCross ? "text-emerald-400" : "text-amber-400"}`}>
-              {trendAnalysis.goldenCross ? "Golden Cross" : "Death Cross"} — SMA50 recently crossed {trendAnalysis.goldenCross ? "above" : "below"} SMA200
+              {trendAnalysis.goldenCross ? t("stock.goldenCross") : t("stock.deathCross")} — SMA50 {trendAnalysis.goldenCross ? t("stock.crossedAbove") : t("stock.crossedBelow")} SMA200
             </p>
           </div>
         )}
@@ -777,7 +780,7 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
       {/* Price + SMA + Bollinger Chart */}
       {priceChartData.length > 0 && (
         <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
-          <h3 className="text-xs sm:text-sm font-semibold text-gray-400 mb-3 sm:mb-4">Price + Moving Averages + Bollinger Bands</h3>
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-400 mb-3 sm:mb-4">{t("stock.priceMABollinger")}</h3>
           <ResponsiveContainer width="100%" height={260}>
             <ComposedChart data={priceChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
@@ -808,12 +811,12 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
             </ComposedChart>
           </ResponsiveContainer>
           <div className="flex gap-2 sm:gap-4 justify-center mt-2 text-[10px] sm:text-xs text-gray-500 flex-wrap">
-            <span className="flex items-center gap-1"><span className="w-4 sm:w-6 border-t-2 border-blue-500 inline-block" /> Price</span>
+            <span className="flex items-center gap-1"><span className="w-4 sm:w-6 border-t-2 border-blue-500 inline-block" /> {t("stock.price")}</span>
             <span className="flex items-center gap-1"><span className="w-4 sm:w-6 border-t-2 border-dashed border-amber-400 inline-block" /> SMA20</span>
             <span className="flex items-center gap-1"><span className="w-4 sm:w-6 border-t-2 border-dashed border-emerald-400 inline-block" /> SMA50</span>
-            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-6 border-t-2 border-purple-500 inline-block opacity-50" /> Bollinger</span>
-            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-3 border-t border-dashed border-emerald-500 inline-block" /> Support</span>
-            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-3 border-t border-dashed border-orange-500 inline-block" /> Resistance</span>
+            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-6 border-t-2 border-purple-500 inline-block opacity-50" /> {t("stock.bollinger")}</span>
+            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-3 border-t border-dashed border-emerald-500 inline-block" /> {t("stock.supportLabel")}</span>
+            <span className="flex items-center gap-1 hidden sm:flex"><span className="w-3 border-t border-dashed border-orange-500 inline-block" /> {t("stock.resistanceLabel")}</span>
           </div>
         </div>
       )}
@@ -866,9 +869,9 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
               <Tooltip contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, fontSize: 11 }}
                 formatter={(v: unknown) => [(v as number).toFixed(2), "RSI"]} />
               <ReferenceLine y={70} stroke="#f59e0b" strokeDasharray="4 4"
-                label={{ value: "Overbought (70)", fill: "#f59e0b", fontSize: 9, position: "right" }} />
+                label={{ value: `${t("stock.overbought")} (70)`, fill: "#f59e0b", fontSize: 9, position: "right" }} />
               <ReferenceLine y={30} stroke="#10b981" strokeDasharray="4 4"
-                label={{ value: "Oversold (30)", fill: "#10b981", fontSize: 9, position: "right" }} />
+                label={{ value: `${t("stock.oversold")} (30)`, fill: "#10b981", fontSize: 9, position: "right" }} />
               <Line type="monotone" dataKey="rsi" stroke="#a78bfa" strokeWidth={2.5} dot={false}
                 activeDot={{ r: 5, fill: "#a78bfa", stroke: "#111827", strokeWidth: 2 }} />
             </LineChart>
@@ -879,10 +882,10 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
       {/* Support & Resistance */}
       {(supportResistance.supports.length > 0 || supportResistance.resistances.length > 0) && (
         <div className="bg-gray-900 rounded-xl p-4">
-          <h3 className="text-sm font-semibold text-gray-400 mb-4">Support & Resistance Levels</h3>
+          <h3 className="text-sm font-semibold text-gray-400 mb-4">{t("stock.supportResistance")}</h3>
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <p className="text-xs text-emerald-400 font-medium mb-2 uppercase tracking-wider">Support Levels</p>
+              <p className="text-xs text-emerald-400 font-medium mb-2 uppercase tracking-wider">{t("stock.supportLevels")}</p>
               {supportResistance.supports.map((s, i) => (
                 <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-800 last:border-0">
                   <span className="text-xs text-gray-500">S{i + 1}</span>
@@ -894,7 +897,7 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
               ))}
             </div>
             <div>
-              <p className="text-xs text-orange-400 font-medium mb-2 uppercase tracking-wider">Resistance Levels</p>
+              <p className="text-xs text-orange-400 font-medium mb-2 uppercase tracking-wider">{t("stock.resistanceLevels")}</p>
               {supportResistance.resistances.map((r, i) => (
                 <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-800 last:border-0">
                   <span className="text-xs text-gray-500">R{i + 1}</span>
@@ -911,7 +914,7 @@ function TechnicalAnalysisTab({ data, isLoading, symbol }: { data: TechnicalData
 
       {/* All indicators summary table */}
       <div className="bg-gray-900 rounded-xl p-4">
-        <h3 className="text-sm font-semibold text-gray-400 mb-4">All Indicators</h3>
+        <h3 className="text-sm font-semibold text-gray-400 mb-4">{t("stock.allIndicators")}</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
           {[
             { label: "SMA 20", value: indicators.sma20 ? fmtEGP(indicators.sma20) : "—" },

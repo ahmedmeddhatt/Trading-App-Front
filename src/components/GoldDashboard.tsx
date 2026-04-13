@@ -139,7 +139,7 @@ export default function GoldDashboard() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
               {data.myGold
                 .filter((g) => g.categoryId.toLowerCase().includes(search.toLowerCase()))
                 .map((mg) => {
@@ -204,7 +204,7 @@ function GoldSection({
     return (
       <div className="space-y-3">
         <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{title}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="bg-gray-900 rounded-xl p-4 h-32 animate-pulse" />
           ))}
@@ -218,7 +218,7 @@ function GoldSection({
   return (
     <div className="space-y-3">
       <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{title}</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 tablet:grid-cols-3 lg:grid-cols-4 gap-3">
         {items.map((item) => {
           const isPos = item.changePercent >= 0;
           const spread = item.buyPrice && item.sellPrice
