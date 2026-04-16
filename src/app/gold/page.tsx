@@ -71,7 +71,7 @@ export default function GoldListPage() {
             {lastUpdate && (
               <span className="text-gray-500 text-sm">
                 · {isAr ? "آخر تحديث" : "Last updated"}{" "}
-                {new Date(lastUpdate).toLocaleTimeString(isAr ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+                {new Date(lastUpdate).toLocaleTimeString(isAr ? "ar-EG" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
               </span>
             )}
           </div>

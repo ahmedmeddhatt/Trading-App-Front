@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb, ArrowUpRight, ArrowDownRight, BarChart2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
@@ -12,10 +12,9 @@ import MarketStatusBar from "@/components/MarketStatusBar";
 import AppShell from "@/components/AppShell";
 import GoldDashboard from "@/components/GoldDashboard";
 import WeeklyPicksSection from "@/features/recommendations/WeeklyPicksSection";
-import EmptyState from "@/components/ui/EmptyState";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { useLanguage } from "@/context/LanguageContext";
-import { useTradingMode } from "@/store/useTradingMode";
+import { useTradingMode, useAssetType, withAssetType } from "@/store/useTradingMode";
 
 /* ─── SVG Stock Illustrations ────────────────────────────────────────────── */
 
@@ -213,9 +212,10 @@ function useDashboardStocks() {
 }
 
 function useRecentTransactions() {
+  const assetType = useAssetType();
   return useQuery<{ transactions: RecentTransaction[] }>({
-    queryKey: ["portfolio", "transactions", "recent"],
-    queryFn: () => apiClient.get<{ transactions: RecentTransaction[] }>("/api/portfolio/transactions?limit=3&sort=desc"),
+    queryKey: ["portfolio", "transactions", "recent", assetType],
+    queryFn: () => apiClient.get<{ transactions: RecentTransaction[] }>(withAssetType("/api/portfolio/transactions?limit=3&sort=desc", assetType)),
     retry: 1,
   });
 }
@@ -274,21 +274,21 @@ function StocksDashboard() {
         {/* Quick Access — mobile only (these pages are hidden from mobile bottom nav) */}
         <div className="grid grid-cols-3 gap-2 sm:hidden">
           <Link href="/analytics">
-            <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
-              <LineChart size={20} className="text-blue-400" />
-              <span className="text-base text-gray-300 font-medium">{t("nav.analytics")}</span>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5">
+              <LineChart size={20} className="text-blue-500 dark:text-blue-400" />
+              <span className="text-base text-gray-700 dark:text-gray-300 font-medium">{t("nav.analytics")}</span>
             </div>
           </Link>
           <Link href="/analytics/risk">
-            <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
-              <ShieldAlert size={20} className="text-amber-400" />
-              <span className="text-base text-gray-300 font-medium">{t("nav.risk")}</span>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5">
+              <ShieldAlert size={20} className="text-amber-500 dark:text-amber-400" />
+              <span className="text-base text-gray-700 dark:text-gray-300 font-medium">{t("nav.risk")}</span>
             </div>
           </Link>
           <Link href="/strategies">
-            <div className="bg-gray-900 rounded-xl p-3 flex flex-col items-center gap-1.5">
-              <Lightbulb size={20} className="text-emerald-400" />
-              <span className="text-base text-gray-300 font-medium">{t("nav.strategies")}</span>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5">
+              <Lightbulb size={20} className="text-emerald-500 dark:text-emerald-400" />
+              <span className="text-base text-gray-700 dark:text-gray-300 font-medium">{t("nav.strategies")}</span>
             </div>
           </Link>
         </div>
@@ -297,12 +297,12 @@ function StocksDashboard() {
         {recentTxData?.transactions && recentTxData.transactions.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{t("dashboard.recentTx") ?? "Recent Transactions"}</h2>
+              <h2 className="text-gray-500 dark:text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest">{t("dashboard.recentTx") ?? "Recent Transactions"}</h2>
               <Link href="/portfolio/transactions" className="text-base sm:text-xs text-blue-400 hover:text-blue-300 font-medium">
                 {t("common.viewAll") ?? "View All"}
               </Link>
             </div>
-            <div className="bg-gray-900 rounded-xl divide-y divide-gray-800">
+            <div className="bg-white dark:bg-gray-900 rounded-xl divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-transparent">
               {recentTxData.transactions.slice(0, 3).map((tx) => {
                 const isBuy = tx.type === "BUY";
                 const total = Number(tx.total ?? tx.price * tx.quantity);
@@ -314,7 +314,7 @@ function StocksDashboard() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <Link href={`/stocks/${tx.symbol}`} className="text-white font-bold text-base sm:text-base hover:text-blue-400 transition-colors">{tx.symbol}</Link>
+                          <Link href={tx.symbol.startsWith("GOLD_") ? `/gold/${tx.symbol}` : `/stocks/${tx.symbol}`} className="text-gray-900 dark:text-white font-bold text-base sm:text-base hover:text-blue-500 dark:hover:text-blue-400 transition-colors">{tx.symbol}</Link>
                           <span className={`text-sm sm:text-xs font-bold px-1.5 py-0.5 rounded ${isBuy ? "bg-emerald-900/50 text-emerald-400" : "bg-orange-900/50 text-orange-400"}`}>
                             {tx.type}
                           </span>
@@ -323,7 +323,7 @@ function StocksDashboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-white text-lg sm:text-sm font-medium">${total.toFixed(2)}</p>
+                      <p className="text-gray-900 dark:text-white text-lg sm:text-sm font-medium">${total.toFixed(2)}</p>
                       <p className="text-gray-600 text-base sm:text-xs">{new Date(tx.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
                     </div>
                   </div>
@@ -354,7 +354,7 @@ function StocksDashboard() {
         {dashData?.myStocks && dashData.myStocks.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+              <h2 className="text-gray-500 dark:text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
                 <StockPieIcon className="w-5 h-5" />
                 {t("dashboard.myStocks")}
               </h2>
@@ -365,7 +365,7 @@ function StocksDashboard() {
                   placeholder={t("dashboard.filter")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="bg-gray-800/80 rounded-lg pl-8 pr-3 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-blue-500/50 w-28 sm:w-40 border border-gray-700/50"
+                  className="bg-gray-100 dark:bg-gray-800/80 rounded-lg pl-8 pr-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none focus:ring-1 focus:ring-blue-500/50 w-28 sm:w-40 border border-gray-300 dark:border-gray-700/50"
                 />
               </div>
             </div>
@@ -381,8 +381,8 @@ function StocksDashboard() {
                   const pnlPct = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
                   const isPos = pnl >= 0;
                   return (
-                    <Link key={ms.symbol} href={`/stocks/${ms.symbol}`}>
-                      <div className="group relative bg-gradient-to-br from-gray-900 via-gray-900 to-blue-950/20 rounded-xl p-3 sm:p-4 space-y-1.5 sm:space-y-2 border border-gray-800/50 hover:border-blue-700/30 transition-all duration-300 overflow-hidden">
+                    <Link key={ms.symbol} href={ms.symbol.startsWith("GOLD_") ? `/gold/${ms.symbol}` : `/stocks/${ms.symbol}`}>
+                      <div className="group relative bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-900 dark:to-blue-950/20 rounded-xl p-3 sm:p-4 space-y-1.5 sm:space-y-2 border border-gray-200 dark:border-gray-800/50 hover:border-blue-300 dark:hover:border-blue-700/30 transition-all duration-300 overflow-hidden shadow-sm dark:shadow-none">
                         {/* Shimmer overlay */}
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                         {/* PnL-colored corner glow */}
@@ -390,17 +390,17 @@ function StocksDashboard() {
 
                         <div className="relative">
                           <div className="flex justify-between items-center">
-                            <span className="font-bold text-white text-sm sm:text-base">{ms.symbol}</span>
+                            <span className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">{ms.symbol}</span>
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPos ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"}`}>
                               {isPos ? "+" : "−"}{Math.abs(pnlPct).toFixed(2)}%
                             </span>
                           </div>
-                          <p className="text-lg sm:text-2xl font-bold text-white">${currentPrice.toFixed(2)}</p>
+                          <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">${currentPrice.toFixed(2)}</p>
                           <p className="text-gray-500 text-xs truncate">{qty} {t("dashboard.shares")} · {t("dashboard.avg")} ${avgPrice.toFixed(2)}</p>
                           <p className={`text-xs font-medium ${isPos ? "text-emerald-400" : "text-red-400"}`}>
                             {isPos ? "+" : "−"}${Math.abs(pnl).toFixed(2)} {t("dashboard.unrealizedLabel")}
                           </p>
-                          {live && <p className="text-gray-600 text-xs">{new Date(live.timestamp).toLocaleTimeString()}</p>}
+                          {live && <p className="text-gray-600 text-xs">{new Date(live.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</p>}
                         </div>
                       </div>
                     </Link>
@@ -432,13 +432,13 @@ function StocksDashboard() {
 
 function StatCard({ label, value, positive, icon }: { label: string; value: string; positive?: boolean; icon?: React.ReactNode }) {
   return (
-    <div className="group relative bg-gradient-to-br from-gray-900 via-gray-900 to-blue-950/20 rounded-xl p-3 sm:p-4 border border-gray-800/50 hover:border-blue-800/30 transition-all duration-300 overflow-hidden">
+    <div className="group relative bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-900 dark:to-blue-950/20 rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-gray-800/50 hover:border-blue-300 dark:hover:border-blue-800/30 transition-all duration-300 overflow-hidden shadow-sm dark:shadow-none">
       {/* Shimmer */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
       {icon && <div className="absolute top-2 right-2 sm:top-3 sm:right-3">{icon}</div>}
       <div className="relative">
         <p className="text-gray-500 text-sm sm:text-xs mb-0.5 sm:mb-1 truncate">{label}</p>
-        <p className={`text-xl sm:text-2xl font-bold truncate ${positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"}`}>
+        <p className={`text-xl sm:text-2xl font-bold truncate ${positive === undefined ? "text-gray-900 dark:text-white" : positive ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
           {value}
         </p>
       </div>
@@ -462,7 +462,7 @@ function Section({
   if (loading) {
     return (
       <div className="space-y-3">
-        <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+        <h2 className="text-gray-500 dark:text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
           {getStockSectionIllustration(sectionType)}
           {title}
         </h2>
@@ -479,7 +479,7 @@ function Section({
 
   return (
     <div className="space-y-3">
-      <h2 className="text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+      <h2 className="text-gray-500 dark:text-gray-400 text-base sm:text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
         {getStockSectionIllustration(sectionType)}
         {title}
       </h2>
@@ -492,7 +492,7 @@ function Section({
 
           return (
             <Link key={stock.symbol} href={`/stocks/${stock.symbol}`}>
-              <div className="group relative bg-gradient-to-br from-gray-900 via-gray-900 to-blue-950/15 rounded-xl p-4 space-y-1 border border-gray-800/50 hover:border-blue-700/30 transition-all duration-300 overflow-hidden animate-card-enter-stagger" style={{ "--delay": idx } as React.CSSProperties}>
+              <div className="group relative bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-900 dark:to-blue-950/15 rounded-xl p-4 space-y-1 border border-gray-200 dark:border-gray-800/50 hover:border-blue-300 dark:hover:border-blue-700/30 transition-all duration-300 overflow-hidden animate-card-enter-stagger shadow-sm dark:shadow-none" style={{ "--delay": idx } as React.CSSProperties}>
                 {/* Shimmer */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                 {/* Corner glow */}
@@ -500,17 +500,17 @@ function Section({
 
                 <div className="relative">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-white text-lg sm:text-sm">{stock.symbol}</span>
+                    <span className="font-bold text-gray-900 dark:text-white text-lg sm:text-sm">{stock.symbol}</span>
                     {change != null && (
-                      <span className={`text-base sm:text-xs font-medium flex items-center gap-0.5 ${isPos ? "text-emerald-400" : "text-red-400"}`}>
+                      <span className={`text-base sm:text-xs font-medium flex items-center gap-0.5 ${isPos ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                         {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
                         {isPos ? "+" : "−"}{Math.abs(change).toFixed(2)}%
                       </span>
                     )}
                   </div>
-                  {price != null && <p className="text-2xl sm:text-lg font-bold">${price.toFixed(2)}</p>}
+                  {price != null && <p className="text-2xl sm:text-lg font-bold text-gray-900 dark:text-white">${price.toFixed(2)}</p>}
                   {stock.name && <p className="text-gray-500 text-base sm:text-xs truncate">{stock.name}</p>}
-                  {live && <p className="text-gray-700 text-base sm:text-xs">{new Date(live.timestamp).toLocaleTimeString()}</p>}
+                  {live && <p className="text-gray-400 dark:text-gray-700 text-base sm:text-xs">{new Date(live.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</p>}
                 </div>
               </div>
             </Link>

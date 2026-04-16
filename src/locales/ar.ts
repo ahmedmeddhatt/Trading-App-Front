@@ -53,6 +53,7 @@ const ar: Record<string, string> = {
   "common.allSectors":  "كل القطاعات",
   "common.gainers":     "الرابحون",
   "common.losers":      "الخاسرون",
+  "common.loss":        "خسارة",
 
   // ── Portfolio ────────────────────────────────────────────────────────────────
   "portfolio.title":          "المحفظة",
@@ -291,6 +292,8 @@ const ar: Record<string, string> = {
   "trade.cantSell":        "لا يمكن بيع",
   "trade.youOnlyOwn":      "لديك فقط",
   "trade.sharesUnit":      "سهم",
+  "trade.orderDetails":    "تفاصيل الأمر",
+  "trade.reviewConfirm":   "مراجعة وتأكيد",
 
   // ── Portfolio extras ──────────────────────────────────────────────────────────
   "portfolio.positionSingular": "مركز",

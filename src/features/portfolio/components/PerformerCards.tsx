@@ -33,7 +33,7 @@ function PerformerCard({
   const { t } = useLanguage();
   const pnl = parseFloat(performer.unrealizedPnL);
   return (
-    <Link href={`/stocks/${performer.symbol}`} className="flex-1">
+    <Link href={performer.symbol.startsWith("GOLD_") ? `/gold/${performer.symbol}` : `/stocks/${performer.symbol}`} className="flex-1">
       <div
         className={`td-hover-card bg-gray-900 rounded-xl p-3 sm:p-5 border ${
           positive ? "border-emerald-900/50" : "border-red-900/50"

@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useState, useMemo } from "react";
+import { use, useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, ChevronLeft, History, Calendar, BarChart2, Activity,
@@ -160,8 +161,18 @@ const RANGES: DateRange[] = ["1W", "1M", "3M", "6M", "1Y"];
 export default function StockPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol: rawSymbol } = use(params);
   const symbol = rawSymbol.toUpperCase();
+  const router = useRouter();
   const { t } = useLanguage();
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  // Redirect gold symbols to the gold page
+  useEffect(() => {
+    if (symbol.startsWith("GOLD_")) {
+      router.replace(`/gold/${symbol}`);
+    }
+  }, [symbol, router]);
+
+  if (symbol.startsWith("GOLD_")) return null;
   const [range, setRange] = useState<DateRange>("1M");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"overview" | "technical">("overview");

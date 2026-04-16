@@ -103,7 +103,7 @@ export default function DashboardPage() {
           {symbol}
           {priceData && (
             <span className="ml-2 text-xs text-gray-600">
-              {new Date(priceData.timestamp).toLocaleTimeString()}
+              {new Date(priceData.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
             </span>
           )}
         </span>

@@ -69,6 +69,7 @@ export default function GoldDetailPage() {
     queryFn: () => apiClient.get(`/api/portfolio?assetType=GOLD`),
   });
   const goldPosition = goldPortfolio?.positions.find((p) => p.symbol === categoryId);
+  const ownedQty = goldPosition ? parseFloat(String(goldPosition.quantity)) : 0;
   const unitLabel = isAr ? "جرام" : "grams";
 
   const name = detail ? (isAr ? detail.nameAr : detail.nameEn) : categoryId;
@@ -90,7 +91,7 @@ export default function GoldDetailPage() {
 
   return (
     <AppShell>
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {isLoading ? (
           <div className="space-y-4 animate-pulse">
             <div className="h-10 bg-gray-800 rounded w-64" />
@@ -98,74 +99,88 @@ export default function GoldDetailPage() {
           </div>
         ) : detail ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-5">
             {/* Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-amber-500/20 rounded-xl">
-                  <Coins size={28} className="text-amber-400" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-amber-500/15 border border-amber-500/25 rounded-2xl flex items-center justify-center">
+                  <Coins size={26} className="text-amber-400" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">{name}</h1>
-                  <p className="text-gray-500 text-sm">
+                  <div className="flex items-center gap-2.5">
+                    <h1 className="text-xl font-bold text-white">{name}</h1>
+                    {detail.changePercent !== 0 && (
+                      <span className={`text-xs font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md ${
+                        detail.changePercent >= 0 ? "text-emerald-400 bg-emerald-500/15" : "text-red-400 bg-red-500/15"
+                      }`}>
+                        {detail.changePercent >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                        {detail.changePercent >= 0 ? "+" : "−"}{Math.abs(detail.changePercent).toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-500 text-sm mt-0.5">
                     {detail.purity && `${(parseFloat(detail.purity) * 100).toFixed(1)}% purity`}
                     {detail.weightGrams && ` · ${detail.weightGrams}g`}
                     {` · per ${detail.unit}`}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {detail.changePercent !== 0 && (
-                  <span className={`text-sm font-medium flex items-center gap-1 px-2.5 py-1 rounded-lg ${
-                    detail.changePercent >= 0 ? "text-emerald-400 bg-emerald-900/30" : "text-red-400 bg-red-900/30"
-                  }`}>
-                    {detail.changePercent >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                    {detail.changePercent >= 0 ? "+" : "−"}{Math.abs(detail.changePercent).toFixed(2)}%
-                  </span>
-                )}
-                <button
-                  onClick={async () => {
-                    try { await fetch("/api/gold/refresh", { method: "POST" }); } catch {}
-                    refetch();
-                  }}
-                  disabled={isFetching}
-                  className="p-2 text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg transition-colors disabled:opacity-50"
-                  title="Refresh prices"
-                >
-                  <RefreshCw size={16} className={isFetching ? "animate-spin" : ""} />
-                </button>
-              </div>
+              <button
+                onClick={async () => {
+                  try { await fetch("/api/gold/refresh", { method: "POST" }); } catch {}
+                  refetch();
+                }}
+                disabled={isFetching}
+                className="w-9 h-9 flex items-center justify-center text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl transition-colors disabled:opacity-50"
+                title="Refresh prices"
+              >
+                <RefreshCw size={15} className={isFetching ? "animate-spin" : ""} />
+              </button>
             </div>
 
             {/* Price Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <PriceCard label={isAr ? "سعر البيع" : "Sell Price"} value={detail.sellPrice} unit="EGP" accent />
-              <PriceCard label={isAr ? "سعر الشراء" : "Buy Price"} value={detail.buyPrice} unit="EGP" />
+              <PriceCard label={isAr ? "سعر البيع" : "Sell Price"} value={detail.sellPrice} unit="EGP" accent="amber" />
+              <PriceCard label={isAr ? "سعر الشراء" : "Buy Price"} value={detail.buyPrice} unit="EGP" accent="white" />
               <PriceCard label={isAr ? "هامش الربح" : "Spread"} value={detail.spread != null ? `${detail.spread}%` : null} />
               <PriceCard
                 label="XAU/USD"
                 value={detail.globalSpotUsd != null ? `$${detail.globalSpotUsd.toLocaleString()}` : null}
-                icon={<Globe size={14} className="text-blue-400" />}
+                icon={<Globe size={13} className="text-blue-400" />}
+                accent="blue"
               />
             </div>
 
             {/* Price Chart */}
             {chartData.length > 1 && (
-              <div className="bg-gray-900 rounded-xl p-4 sm:p-5">
-                <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-4">
-                  {isAr ? "تاريخ الأسعار" : "Price History"}
-                </h2>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#6b7280" }} />
-                    <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} domain={["auto", "auto"]} />
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-gray-300 text-sm font-semibold">
+                    {isAr ? "تاريخ الأسعار" : "Price History"}
+                  </h2>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-4 h-0.5 bg-amber-400 inline-block rounded" />
+                      {isAr ? "بيع" : "Sell"}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-4 h-0.5 bg-amber-600 inline-block rounded" style={{ borderTop: "2px dashed #d97706", background: "none" }} />
+                      {isAr ? "شراء" : "Buy"}
+                    </span>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={chartData} margin={{ left: -10, right: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#4b5563" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#4b5563" }} domain={["auto", "auto"]} axisLine={false} tickLine={false} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: "#111827", border: "1px solid #374151", borderRadius: 8, fontSize: 12 }}
+                      contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #1e293b", borderRadius: 10, fontSize: 12 }}
                       labelStyle={{ color: "#9ca3af" }}
+                      itemStyle={{ color: "#e5e7eb" }}
                     />
-                    <Line type="monotone" dataKey="sell" stroke="#f59e0b" strokeWidth={2} dot={false} name={isAr ? "بيع" : "Sell"} />
-                    <Line type="monotone" dataKey="buy" stroke="#d97706" strokeWidth={1.5} dot={false} name={isAr ? "شراء" : "Buy"} strokeDasharray="4 4" />
+                    <Line type="monotone" dataKey="sell" stroke="#f59e0b" strokeWidth={2.5} dot={false} name={isAr ? "بيع" : "Sell"} />
+                    <Line type="monotone" dataKey="buy" stroke="#d97706" strokeWidth={1.5} dot={false} name={isAr ? "شراء" : "Buy"} strokeDasharray="5 4" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -173,9 +188,9 @@ export default function GoldDetailPage() {
 
             {/* AI Signal */}
             {signalLoading ? (
-              <div className="bg-gray-900 rounded-xl p-5 animate-pulse h-40" />
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 animate-pulse h-40" />
             ) : signal ? (
-              <div className="bg-gray-900 rounded-xl p-5 space-y-4">
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
                     {isAr ? "تحليل ذكي" : "AI Analysis"}
@@ -251,7 +266,7 @@ export default function GoldDetailPage() {
             <TradeForm
               symbol={categoryId}
               currentPrice={detail.sellPrice ?? null}
-              ownedQuantity={goldPosition?.quantity ?? 0}
+              ownedQuantity={ownedQty}
               assetType="GOLD"
               unit={unitLabel}
             />
@@ -277,17 +292,22 @@ function PriceCard({
   label: string;
   value: number | string | null;
   unit?: string;
-  accent?: boolean;
+  accent?: "amber" | "white" | "blue";
   icon?: React.ReactNode;
 }) {
+  const valueColor =
+    accent === "amber" ? "text-amber-400" :
+    accent === "blue" ? "text-blue-400" :
+    "text-white";
+
   return (
-    <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
-      <p className="text-gray-500 text-xs mb-1 flex items-center gap-1">{icon}{label}</p>
-      <p className={`text-xl sm:text-2xl font-bold ${accent ? "text-amber-400" : "text-white"}`}>
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3 sm:p-4 hover:border-gray-700 transition-colors">
+      <p className="text-gray-500 text-xs mb-2 flex items-center gap-1 font-medium">{icon}{label}</p>
+      <p className={`text-lg sm:text-xl font-bold ${valueColor} leading-tight`}>
         {value != null ? (
           <>
             {typeof value === "number" ? value.toLocaleString() : value}
-            {unit && <span className="text-sm text-gray-500 ml-1">{unit}</span>}
+            {unit && <span className="text-xs text-gray-500 ml-1 font-normal">{unit}</span>}
           </>
         ) : (
           <span className="text-gray-600">—</span>

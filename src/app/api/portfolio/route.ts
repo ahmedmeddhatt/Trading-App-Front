@@ -38,9 +38,10 @@ export async function GET(req: NextRequest) {
   // currentPrice uses avgCost as placeholder; live prices arrive via SSE usePriceStream
   const positions = rawPositions.map((p) => {
     const avgCost = parseFloat(String(p.averagePrice));
+    const quantity = parseFloat(String(p.totalQuantity));
     return {
       symbol: p.symbol,
-      quantity: p.totalQuantity,
+      quantity,
       avgCost,
       currentPrice: avgCost,
       pnl: 0,

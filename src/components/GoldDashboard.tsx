@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TrendingUp, TrendingDown, Search, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { useLanguage } from "@/context/LanguageContext";
@@ -185,6 +185,18 @@ export default function GoldDashboard() {
   const [search, setSearch] = useState("");
   const { lang } = useLanguage();
   const isAr = lang === "ar";
+  const queryClient = useQueryClient();
+
+  // On first mount, fix any GOLD_ positions/transactions incorrectly saved as STOCK
+  useEffect(() => {
+    fetch("/api/portfolio/fix-asset-types", { method: "POST" })
+      .then(() => {
+        // Invalidate portfolio queries so they re-fetch with correct assetType data
+        queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      })
+      .catch(() => {/* silent — non-critical */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data, isLoading, isError, isFetching, refetch } = useGoldDashboard();
   const getName = (item: GoldCategoryItem) => isAr ? item.nameAr : item.nameEn;
@@ -198,7 +210,7 @@ export default function GoldDashboard() {
             <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1.5 animate-pulse" />
             Gold prices via {data.categories[0].source}
             {data.categories[0].lastUpdate && (
-              <> · {new Date(data.categories[0].lastUpdate).toLocaleTimeString()}</>
+              <> · {new Date(data.categories[0].lastUpdate).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</>
             )}
             {data.categories[0].globalSpotUsd && (
               <span className="ml-2 px-2 py-0.5 rounded bg-amber-900/50 text-amber-300 font-bold">

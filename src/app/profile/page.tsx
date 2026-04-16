@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Target, TrendingUp, Clock, Check, BarChart3, Coins } from "lucide-react";
 import AppShell from "@/components/AppShell";
@@ -57,6 +58,7 @@ const TRADING_MODES: { value: TradingMode; label: string; description: string; i
 export default function ProfilePage() {
   const queryClient = useQueryClient();
   const setGlobalMode = useTradingModeStore((s) => s.setMode);
+  const router = useRouter();
 
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["auth", "me"],
@@ -97,8 +99,7 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["stocks"] });
       queryClient.invalidateQueries({ queryKey: ["gold"] });
       queryClient.invalidateQueries({ queryKey: ["portfolio"] });
-      setModeSaved(true);
-      setTimeout(() => setModeSaved(false), 2000);
+      router.push("/dashboard");
     },
   });
 

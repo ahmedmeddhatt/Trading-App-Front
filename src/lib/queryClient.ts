@@ -1,10 +1,13 @@
 import { QueryClient, QueryCache } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ApiError } from "./apiClient";
+import { triggerSessionExpired } from "@/components/SessionExpiredOverlay";
 
 function handleQueryError(error: unknown) {
-  // 401 is handled by apiClient redirect — skip toast
-  if (error instanceof ApiError && error.status === 401) return;
+  if (error instanceof ApiError && error.status === 401) {
+    triggerSessionExpired();
+    return;
+  }
 
   const msg = error instanceof ApiError ? error.message : "An error occurred";
   const correlationId = error instanceof ApiError ? error.correlationId : undefined;

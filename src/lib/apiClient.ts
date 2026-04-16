@@ -43,10 +43,13 @@ async function request<T>(
     },
   });
 
-  // Auto-redirect to login on session expiry
+  // Show session-expired overlay on 401 instead of hard redirect
   if (res.status === 401 && typeof window !== "undefined") {
-    window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
-    throw new ApiError("Session expired — redirecting to login", "UNAUTHORIZED", undefined, 401);
+    // Dynamically import to avoid circular deps; overlay is triggered imperatively
+    import("@/components/SessionExpiredOverlay").then(({ triggerSessionExpired }) => {
+      triggerSessionExpired();
+    });
+    throw new ApiError("Session expired", "UNAUTHORIZED", undefined, 401);
   }
 
   // Parse body regardless of status so we can surface backend error details

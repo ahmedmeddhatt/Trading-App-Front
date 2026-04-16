@@ -377,6 +377,9 @@ html:not(.dark) .recharts-cartesian-grid-vertical line { stroke: #D8E8F8 !import
 html:not(.dark) .recharts-cartesian-axis-tick-value,
 html:not(.dark) .recharts-layer text { fill: var(--text-muted) !important; }
 
+/* Pill labels inside custom Scatter shapes must stay white */
+html:not(.dark) .recharts-layer.recharts-scatter text { fill: #ffffff !important; }
+
 html:not(.dark) .recharts-area-dot circle,
 html:not(.dark) .recharts-dot circle { stroke: #FFFFFF !important; }
 

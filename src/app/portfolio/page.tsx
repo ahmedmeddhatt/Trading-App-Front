@@ -22,6 +22,7 @@ import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useTradingMode, useAssetType, withAssetType } from "@/store/useTradingMode";
+import { useTheme } from "@/context/ThemeContext";
 import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, LabelList, ComposedChart, Area, Scatter, ReferenceLine } from "recharts";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
 
@@ -292,7 +293,7 @@ function SectionRangeBtns({ range, setRange }: { range: DateRange; setRange: (r:
       {RANGE_OPTIONS.map((r) => (
         <button key={r} onClick={() => setRange(r)}
           className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium active:scale-95 transition-all duration-150 whitespace-nowrap ${
-            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
           }`}>{r}</button>
       ))}
     </div>
@@ -540,25 +541,25 @@ function StatCard({
   sub?: string;
   valueClass?: string;
 }) {
-  const autoClass = positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400";
+  const autoClass = positive === undefined ? "text-gray-900 dark:text-white" : positive ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400";
   return (
-    <div className="bg-gray-900 rounded-xl p-3 sm:p-4">
-      <p className="text-gray-500 text-[10px] sm:text-xs mb-0.5 sm:mb-1 truncate">{label}</p>
+    <div className="bg-white dark:bg-gray-900 rounded-xl p-2.5 sm:p-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+      <p className="text-gray-500 text-[9px] sm:text-xs mb-0.5 sm:mb-1 truncate font-medium">{label}</p>
       {(() => {
         const match = value.match(/^([A-Z]{3})\s*(.+)$/);
         if (match) {
           return (
             <div>
-              <span className="text-gray-500 text-[10px] font-medium tracking-wider uppercase">{match[1]}</span>
-              <p className={`text-sm sm:text-xl font-bold leading-tight ${valueClass ?? autoClass}`}>{match[2]}</p>
+              <span className="text-gray-400 text-[9px] font-medium tracking-wider uppercase">{match[1]}</span>
+              <p className={`text-xs sm:text-lg font-bold leading-tight truncate ${valueClass ?? autoClass}`}>{match[2]}</p>
             </div>
           );
         }
         return (
-          <p className={`text-sm sm:text-xl font-bold truncate ${valueClass ?? autoClass}`}>{value}</p>
+          <p className={`text-xs sm:text-lg font-bold truncate ${valueClass ?? autoClass}`}>{value}</p>
         );
       })()}
-      {sub && <p className="text-gray-600 text-xs mt-0.5">{sub}</p>}
+      {sub && <p className="text-gray-400 text-[9px] sm:text-xs mt-0.5 truncate">{sub}</p>}
     </div>
   );
 }
@@ -798,7 +799,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
   const summary = data?.summary;
   if (isLoading) {
     return (
-      <div className="bg-gray-900 rounded-xl p-4 flex justify-center py-8">
+      <div className="bg-white dark:bg-gray-900 rounded-xl p-4 flex justify-center py-8 border border-gray-200 dark:border-transparent">
         <Loader2 className="animate-spin text-gray-500" size={20} />
       </div>
     );
@@ -812,9 +813,9 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
   const totalReturn = summary.totalReturn != null ? parseFloat(summary.totalReturn) : null;
 
   return (
-    <div className="bg-gray-900 rounded-xl overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
       {/* Header */}
-      <div className="px-3 sm:px-4 py-3 border-b border-gray-800">
+      <div className="px-3 sm:px-4 py-3 border-b border-gray-200 dark:border-gray-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
           <div>
             <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
@@ -828,7 +829,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
             {RANGE_OPTIONS.map((r) => (
               <button key={r} onClick={() => onRangeChange(r)}
                 className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium active:scale-95 transition-all duration-150 whitespace-nowrap ${
-                  range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+                  range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}>{r}</button>
             ))}
           </div>
@@ -843,33 +844,33 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
         </div>
         {/* Summary stat row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-          <div className="bg-gray-800/50 rounded-lg px-3 py-2">
+          <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg px-3 py-2">
             <p className="text-gray-500 text-xs mb-0.5">Total Return</p>
             <p className={`text-sm font-bold ${totalReturn == null ? "text-gray-400" : totalReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
               {totalReturn != null ? `${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%` : "—"}
             </p>
           </div>
-          <div className="bg-gray-800/50 rounded-lg px-3 py-2">
+          <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg px-3 py-2">
             <p className="text-gray-500 text-xs mb-0.5">Total Shares</p>
-            <p className="text-sm font-bold text-white">
+            <p className="text-sm font-bold text-gray-900 dark:text-white">
               {parseFloat(summary.totalQuantity).toLocaleString("en-US", { maximumFractionDigits: 0 })}
             </p>
           </div>
-          <div className="bg-gray-800/50 rounded-lg px-3 py-2">
+          <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg px-3 py-2">
             <p className="text-gray-500 text-xs mb-0.5">Avg Hold Days</p>
-            <p className="text-sm font-bold text-white">
+            <p className="text-sm font-bold text-gray-900 dark:text-white">
               {summary.avgHoldDays != null ? `${summary.avgHoldDays}d` : "—"}
             </p>
           </div>
-          <div className="bg-gray-800/50 rounded-lg px-3 py-2">
+          <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg px-3 py-2">
             <p className="text-gray-500 text-xs mb-0.5">Positions</p>
-            <p className="text-sm font-bold text-white">{summary.uniqueSymbols}</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">{summary.uniqueSymbols}</p>
           </div>
         </div>
       </div>
 
       {/* Quick-sort preset chips */}
-      <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-gray-800 flex gap-1.5 preset-chips">
+      <div className="px-3 sm:px-4 py-2 sm:py-2.5 border-b border-gray-200 dark:border-gray-800 flex gap-1.5 preset-chips">
         {RG_PRESETS.map((p) => (
           <button
             key={p.id}
@@ -907,7 +908,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
       <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-gray-500 text-xs border-b border-gray-800">
+          <tr className="text-gray-500 text-xs border-b border-gray-200 dark:border-gray-800">
             <th className="text-left px-3 py-3 cursor-pointer select-none group whitespace-nowrap" onClick={() => toggleSort("symbol")}>
               <span className={`inline-flex items-center gap-1 ${sortKey === "symbol" && !preset ? "text-blue-400" : "text-gray-500 group-hover:text-gray-300"}`}>
                 {t("common.symbol")}
@@ -937,9 +938,9 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
             const win = profit >= 0;
             const retPct = g.returnPct != null ? parseFloat(g.returnPct) : null;
             return (
-              <tr key={g.id} className="td-row border-b border-gray-800/60 hover:bg-gray-800/20 cursor-pointer transition-colors" onClick={() => rgRouter.push(`/portfolio/positions/${g.symbol}`)}>
+              <tr key={g.id} className="td-row border-b border-gray-100 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-800/20 cursor-pointer transition-colors" onClick={() => rgRouter.push(`/portfolio/positions/${g.symbol}`)}>
                 <td className="px-3 py-2.5">
-                  <span className="font-bold text-white font-mono text-xs">{g.symbol}</span>
+                  <span className="font-bold text-gray-900 dark:text-white font-mono text-xs">{g.symbol}</span>
                 </td>
                 <td className="px-3 py-2.5 text-right text-gray-500 text-xs whitespace-nowrap">
                   {new Date(g.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -959,7 +960,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
           })}
         </tbody>
         <tfoot>
-          <tr className="border-t border-gray-700 bg-gray-800/30">
+          <tr className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30">
             <td colSpan={5} className="px-3 py-2.5 text-gray-500 text-xs font-semibold uppercase tracking-wide">
               {t("common.total")} {filter !== "all" && <span className="text-gray-600 normal-case font-normal">({sorted.length} shown)</span>}
             </td>
@@ -973,7 +974,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
       </table>
       </div>
       {sorted.length > 5 && (
-        <div className="px-4 py-3 border-t border-gray-800 text-center">
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 text-center">
           <Link href="/portfolio/realized-gains" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
             {t("common.viewAll")} ({sorted.length})
           </Link>
@@ -990,6 +991,8 @@ export default function PortfolioPage() {
   // Gold portfolio uses the same page — the backend filters by assetType via the user's positions
   // The portfolio API already returns positions; in gold mode, positions have assetType=GOLD and symbol like GOLD_21K
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const router = useRouter();
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
@@ -1260,7 +1263,7 @@ export default function PortfolioPage() {
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-6">
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
           <StatCard
             label={t("analytics.portfolioValue")}
             value={`EGP ${(currentInvested + unrealized).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
@@ -1461,21 +1464,21 @@ export default function PortfolioPage() {
           const totalSellsCount = Array.from(lastSellBySymbol.values()).length;
 
           return (
-            <div className="bg-gradient-to-b from-gray-900 to-gray-900/95 rounded-2xl border border-gray-800/60 overflow-hidden">
+            <div className="bg-white dark:bg-gradient-to-b dark:from-gray-900 dark:to-gray-900/95 rounded-2xl border border-gray-200 dark:border-gray-800/60 overflow-hidden shadow-sm dark:shadow-none">
               {/* Header */}
-              <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-blue-400" />
+              <div className="px-3 sm:px-6 pt-3 sm:pt-5 pb-2 sm:pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                      <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
                     </div>
-                    <div>
-                      <h2 className="text-sm sm:text-base font-semibold text-white">{t("pos.tradingHistory")}</h2>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-[11px] text-gray-500">{totalBuysCount} {t("common.buy")}{totalBuysCount !== 1 ? "s" : ""} · {totalSellsCount} {t("common.sell")}{totalSellsCount !== 1 ? "s" : ""}</span>
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{t("pos.tradingHistory")}</h2>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] sm:text-[11px] text-gray-500">{totalBuysCount}B · {totalSellsCount}S</span>
                         {latestInvested > 0 && (
-                          <span className={`text-[11px] font-semibold ${totalPnl >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                            {totalPnl >= 0 ? "+" : ""}{fmt(totalPnl)} ({totalPnl >= 0 ? "+" : ""}{totalPnlPct.toFixed(1)}%)
+                          <span className={`text-[10px] sm:text-[11px] font-semibold ${totalPnl >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                            {totalPnl >= 0 ? "+" : ""}{fmt(totalPnl)} ({totalPnlPct.toFixed(1)}%)
                           </span>
                         )}
                       </div>
@@ -1486,37 +1489,37 @@ export default function PortfolioPage() {
               </div>
 
               {/* Chart */}
-              <div className="px-2 sm:px-4 pb-2" dir="ltr">
-                <ResponsiveContainer width="100%" height={300} className="sm:!h-[420px]">
-                  <ComposedChart data={historyData} margin={{ top: 10, right: 56, left: 4, bottom: 4 }}>
+              <div className="px-1 sm:px-4 pb-2" dir="ltr">
+                <ResponsiveContainer width="100%" height={240} className="sm:!h-[340px]">
+                  <ComposedChart data={historyData} margin={{ top: 8, right: 48, left: -8, bottom: 0 }}>
                     <defs>
                       <linearGradient id="thValueGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={isDark ? 0.2 : 0.12} />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
                       </linearGradient>
                       <linearGradient id="thProfitGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
-                        <stop offset="50%" stopColor="#10b981" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.1} />
+                        <stop offset="0%" stopColor={isDark ? "#10b981" : "#34d399"} stopOpacity={isDark ? 0.9 : 0.75} />
+                        <stop offset="40%" stopColor={isDark ? "#10b981" : "#6ee7b7"} stopOpacity={isDark ? 0.5 : 0.45} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={isDark ? 0.1 : 0.1} />
                       </linearGradient>
                       <linearGradient id="thLossGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.9} />
-                        <stop offset="50%" stopColor="#ef4444" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.1} />
+                        <stop offset="0%" stopColor={isDark ? "#ef4444" : "#f87171"} stopOpacity={isDark ? 0.9 : 0.7} />
+                        <stop offset="40%" stopColor={isDark ? "#ef4444" : "#fca5a5"} stopOpacity={isDark ? 0.5 : 0.4} />
+                        <stop offset="100%" stopColor="#ef4444" stopOpacity={isDark ? 0.1 : 0.08} />
                       </linearGradient>
                       <linearGradient id="thNeutralGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6b7280" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#6b7280" stopOpacity={0.02} />
+                        <stop offset="0%" stopColor="#6b7280" stopOpacity={isDark ? 0.25 : 0.15} />
+                        <stop offset="100%" stopColor="#6b7280" stopOpacity={0.01} />
                       </linearGradient>
                       <filter id="thGlow">
                         <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
                         <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
                       </filter>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" strokeOpacity={0.6} vertical={false} />
-                    <XAxis dataKey="shortDate" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false}
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1f2937" : "#e5e7eb"} strokeOpacity={isDark ? 0.6 : 1} vertical={false} />
+                    <XAxis dataKey="shortDate" tick={{ fill: isDark ? "#6b7280" : "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false}
                       tickFormatter={(v: string, i: number) => (i % Math.ceil(historyData.length / 8) === 0 ? v : "")} />
-                    <YAxis tick={{ fill: "#4b5563", fontSize: 10 }} axisLine={false} tickLine={false} width={52}
+                    <YAxis tick={{ fill: isDark ? "#4b5563" : "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} width={52}
                       domain={[domainMin, domainMax]}
                       tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0)} />
                     <Tooltip
@@ -1529,10 +1532,10 @@ export default function PortfolioPage() {
                         const pnl = d.value - d.invested;
                         const pnlPct = d.invested > 0 ? (pnl / d.invested) * 100 : 0;
                         return (
-                          <div className="backdrop-blur-sm" style={{ background: "rgba(17,24,39,0.95)", border: markers.length > 0 ? "1px solid rgba(59,130,246,0.4)" : "1px solid rgba(55,65,81,0.6)", borderRadius: 12, padding: "12px 16px", minWidth: 190, maxWidth: "calc(100vw - 40px)", boxShadow: markers.length > 0 ? "0 4px 24px rgba(59,130,246,0.15)" : "0 4px 16px rgba(0,0,0,0.3)" }}>
-                            <p style={{ color: "#9ca3af", fontSize: 11, marginBottom: 6, fontWeight: 500 }}>{d.date}</p>
+                          <div className="backdrop-blur-sm" style={{ background: isDark ? "rgba(17,24,39,0.97)" : "rgba(255,255,255,0.98)", border: markers.length > 0 ? `1px solid ${isDark ? "rgba(59,130,246,0.4)" : "rgba(59,130,246,0.3)"}` : `1px solid ${isDark ? "rgba(55,65,81,0.6)" : "rgba(229,231,235,0.9)"}`, borderRadius: 12, padding: "12px 16px", minWidth: 190, maxWidth: "calc(100vw - 40px)", boxShadow: markers.length > 0 ? "0 4px 24px rgba(59,130,246,0.15)" : isDark ? "0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.1)" }}>
+                            <p style={{ color: isDark ? "#9ca3af" : "#6b7280", fontSize: 11, marginBottom: 6, fontWeight: 500 }}>{d.date}</p>
                             <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                              <span style={{ color: "#fff", fontSize: 16, fontWeight: 700 }}>{fmt(d.value)}</span>
+                              <span style={{ color: isDark ? "#fff" : "#111827", fontSize: 16, fontWeight: 700 }}>{fmt(d.value)}</span>
                               {d.invested > 0 && (
                                 <span style={{ color: pnl >= 0 ? "#6ee7b7" : "#fca5a5", fontSize: 12, fontWeight: 600 }}>
                                   {pnl >= 0 ? "+" : ""}{fmt(pnl)} ({pnl >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%)
@@ -1540,20 +1543,20 @@ export default function PortfolioPage() {
                               )}
                             </div>
                             {d.invested > 0 && (
-                              <p style={{ color: "#6b7280", fontSize: 10, marginBottom: markers.length > 0 ? 10 : 0 }}>
+                              <p style={{ color: isDark ? "#6b7280" : "#9ca3af", fontSize: 10, marginBottom: markers.length > 0 ? 10 : 0 }}>
                                 {t("pos.costBasis")}: {fmt(d.invested)}
                               </p>
                             )}
-                            {markers.length > 0 && <div style={{ borderTop: "1px solid rgba(55,65,81,0.5)", marginBottom: 8 }} />}
+                            {markers.length > 0 && <div style={{ borderTop: `1px solid ${isDark ? "rgba(55,65,81,0.5)" : "rgba(229,231,235,0.9)"}`, marginBottom: 8 }} />}
                             {markers.map((tr, i) => {
                               const isBuy = tr.type === "BUY";
                               return (
                                 <div key={i} style={{ background: isBuy ? "rgba(249,115,22,0.1)" : "rgba(16,185,129,0.1)", borderRadius: 8, padding: "8px 10px", marginBottom: i < markers.length - 1 ? 4 : 0, borderLeft: `3px solid ${isBuy ? "#f97316" : "#10b981"}` }}>
                                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <span style={{ color: isBuy ? "#fdba74" : "#6ee7b7", fontSize: 11, fontWeight: 700 }}>{isBuy ? "BUY" : "SELL"} {tr.symbol}</span>
-                                    <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>{fmt(tr.total)}</span>
+                                    <span style={{ color: isBuy ? "#f97316" : "#10b981", fontSize: 11, fontWeight: 700 }}>{isBuy ? "BUY" : "SELL"} {tr.symbol}</span>
+                                    <span style={{ color: isDark ? "#fff" : "#111827", fontSize: 12, fontWeight: 600 }}>{fmt(tr.total)}</span>
                                   </div>
-                                  <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 2 }}>{tr.qty} × {fmt(tr.price)}</div>
+                                  <div style={{ fontSize: 10, color: isDark ? "#9ca3af" : "#6b7280", marginTop: 2 }}>{tr.qty} × {fmt(tr.price)}</div>
                                 </div>
                               );
                             })}
@@ -1567,7 +1570,7 @@ export default function PortfolioPage() {
                     <Area type="monotone" dataKey="holdingNeutral" stroke="none" fill="url(#thNeutralGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
                     {/* Portfolio value line */}
                     <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="url(#thValueGrad)" strokeWidth={2} dot={false}
-                      activeDot={{ r: 5, fill: "#3b82f6", stroke: "#1e3a5f", strokeWidth: 3 }} filter="url(#thGlow)" />
+                      activeDot={{ r: 5, fill: "#3b82f6", stroke: isDark ? "#1e3a5f" : "#bfdbfe", strokeWidth: 3 }} filter="url(#thGlow)" />
                     {/* Cost basis reference line */}
                     {latestInvested > 0 && (
                       <ReferenceLine y={latestInvested} stroke="#f59e0b" strokeDasharray="6 4" strokeWidth={1} strokeOpacity={0.6}
@@ -1583,7 +1586,7 @@ export default function PortfolioPage() {
                       const sells = markers.filter(m => m.type === "SELL");
                       const hasBuys = buys.length > 0;
                       const hasSells = sells.length > 0;
-                      const pillH = 15;
+                      const pillH = 14;
                       const pillGap = 2;
 
                       // For buys: show up to 2 individual pills above, then "+N more"
@@ -1593,21 +1596,26 @@ export default function PortfolioPage() {
                       const sellShow = sells.slice(0, maxShow);
                       const sellExtra = sells.length - maxShow;
 
+                      const buyColor  = isDark ? "#ea580c" : "#c2410c"; // orange-700 in light
+                      const sellColor = isDark ? "#059669" : "#065f46"; // emerald-900 in light
+                      const dotBuy    = isDark ? "#f97316" : "#ea580c";
+                      const dotSell   = isDark ? "#10b981" : "#059669";
+
                       return (
                         <g>
                           {/* Vertical line */}
-                          {hasBuys && <line x1={cx} y1={cy - 6} x2={cx} y2={Math.max(0, cy - 10 - buyShow.length * (pillH + pillGap) - (buyExtra > 0 ? pillH + pillGap : 0))} stroke="#f97316" strokeWidth={1} strokeDasharray="3 2" opacity={0.3} />}
-                          {hasSells && <line x1={cx} y1={cy + 6} x2={cx} y2={cy + 10 + sellShow.length * (pillH + pillGap) + (sellExtra > 0 ? pillH + pillGap : 0)} stroke="#10b981" strokeWidth={1} strokeDasharray="3 2" opacity={0.} />}
+                          {hasBuys && <line x1={cx} y1={cy - 6} x2={cx} y2={Math.max(0, cy - 10 - buyShow.length * (pillH + pillGap) - (buyExtra > 0 ? pillH + pillGap : 0))} stroke={dotBuy} strokeWidth={1} strokeDasharray="3 2" opacity={0.4} />}
+                          {hasSells && <line x1={cx} y1={cy + 6} x2={cx} y2={cy + 10 + sellShow.length * (pillH + pillGap) + (sellExtra > 0 ? pillH + pillGap : 0)} stroke={dotSell} strokeWidth={1} strokeDasharray="3 2" opacity={0.4} />}
                           {/* Dot */}
-                          <circle cx={cx} cy={cy} r={4} fill={hasBuys ? "#f97316" : "#10b981"} stroke="#111827" strokeWidth={1.5} />
+                          <circle cx={cx} cy={cy} r={4.5} fill={hasBuys ? dotBuy : dotSell} stroke={isDark ? "#111827" : "#ffffff"} strokeWidth={2} />
                           {/* Buy pills — stacked above the dot */}
                           {buyShow.map((b, i) => {
-                            const w = Math.min(42, Math.max(30, b.symbol.length * 6.5 + 8));
+                            const w = Math.min(48, Math.max(32, b.symbol.length * 6.5 + 12));
                             const py = cy - 10 - (i + 1) * (pillH + pillGap) + pillGap;
                             return (
                               <g key={`b${i}`}>
-                                <rect x={cx - w / 2} y={py} width={w} height={pillH} rx={4} fill="#f97316" opacity={0.85} />
-                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={8} fontWeight="bold">
+                                <rect x={cx - w / 2} y={py} width={w} height={pillH} rx={4} fill={buyColor} />
+                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" style={{ fill: "#ffffff" }} fontSize={8} fontWeight="bold" letterSpacing="0.3">
                                   {b.symbol.length > 5 ? b.symbol.slice(0, 5) : b.symbol}
                                 </text>
                               </g>
@@ -1617,19 +1625,19 @@ export default function PortfolioPage() {
                             const py = cy - 10 - (maxShow + 1) * (pillH + pillGap) + pillGap;
                             return (
                               <g>
-                                <rect x={cx - 16} y={py} width={32} height={pillH} rx={4} fill="#f97316" opacity={0.5} />
-                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={7} fontWeight="bold">+{buyExtra}</text>
+                                <rect x={cx - 16} y={py} width={32} height={pillH} rx={4} fill={buyColor} opacity={0.75} />
+                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" style={{ fill: "#ffffff" }} fontSize={7} fontWeight="bold">+{buyExtra}</text>
                               </g>
                             );
                           })()}
                           {/* Sell pills — stacked below the dot */}
                           {sellShow.map((s, i) => {
-                            const w = Math.min(42, Math.max(30, s.symbol.length * 6.5 + 8));
+                            const w = Math.min(48, Math.max(32, s.symbol.length * 6.5 + 12));
                             const py = cy + 10 + i * (pillH + pillGap);
                             return (
                               <g key={`s${i}`}>
-                                <rect x={cx - w / 2} y={py} width={w} height={pillH} rx={4} fill="#10b981" opacity={0.85} />
-                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={8} fontWeight="bold">
+                                <rect x={cx - w / 2} y={py} width={w} height={pillH} rx={4} fill={sellColor} />
+                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" style={{ fill: "#ffffff" }} fontSize={8} fontWeight="bold" letterSpacing="0.3">
                                   {s.symbol.length > 5 ? s.symbol.slice(0, 5) : s.symbol}
                                 </text>
                               </g>
@@ -1639,8 +1647,8 @@ export default function PortfolioPage() {
                             const py = cy + 10 + maxShow * (pillH + pillGap);
                             return (
                               <g>
-                                <rect x={cx - 16} y={py} width={32} height={pillH} rx={4} fill="#10b981" opacity={0.5} />
-                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize={7} fontWeight="bold">+{sellExtra}</text>
+                                <rect x={cx - 16} y={py} width={32} height={pillH} rx={4} fill={sellColor} opacity={0.75} />
+                                <text x={cx} y={py + pillH / 2} textAnchor="middle" dominantBaseline="central" style={{ fill: "#ffffff" }} fontSize={7} fontWeight="bold">+{sellExtra}</text>
                               </g>
                             );
                           })()}
@@ -1652,13 +1660,13 @@ export default function PortfolioPage() {
               </div>
 
               {/* Chart Legend */}
-              <div className="px-4 sm:px-6 pb-4 pt-1">
-                <div className="flex flex-wrap gap-x-5 gap-y-1.5 justify-center text-[11px] text-gray-500">
+              <div className="px-3 sm:px-6 pb-3 pt-0">
+                <div className="flex flex-wrap gap-x-3 sm:gap-x-5 gap-y-1 justify-center text-[9px] sm:text-[11px] text-gray-500">
                   <span className="flex items-center gap-1.5"><span className="w-5 h-[2px] bg-blue-500 inline-block rounded-full" /> {t("analytics.portfolioOverTime")}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-3 bg-orange-500 inline-block rounded text-[7px] text-white font-bold text-center leading-3">B</span> {t("common.buy")}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-3 bg-emerald-500 inline-block rounded text-[7px] text-white font-bold text-center leading-3">S</span> {t("common.sell")}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-2 bg-emerald-500/30 inline-block rounded-sm" /> {t("common.profit")}</span>
-                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-2 bg-red-500/30 inline-block rounded-sm" /> {t("common.loss")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-3 bg-orange-600 dark:bg-orange-700 inline-block rounded text-[7px] text-white font-bold text-center leading-3">B</span> {t("common.buy")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-3 bg-emerald-800 dark:bg-emerald-700 inline-block rounded text-[7px] text-white font-bold text-center leading-3">S</span> {t("common.sell")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-2 bg-emerald-400/60 dark:bg-emerald-500/30 inline-block rounded-sm" /> {t("common.profit")}</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3.5 h-2 bg-red-400/60 dark:bg-red-500/30 inline-block rounded-sm" /> {t("common.loss")}</span>
                   <span className="flex items-center gap-1.5"><span className="w-4 h-0 border-t border-dashed border-yellow-500/60 inline-block" /> {t("pos.costBasis")}</span>
                 </div>
               </div>
@@ -1690,10 +1698,10 @@ export default function PortfolioPage() {
           if (allocBySymbol.length === 0) return null;
           const fmtValue = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
           return (
-          <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-3 sm:space-y-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-5 space-y-3 sm:space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h2 className="text-white font-semibold text-sm">{t("analytics.symbolAlloc")}</h2>
+                <h2 className="text-gray-900 dark:text-white font-semibold text-sm">{t("analytics.symbolAlloc")}</h2>
                 <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
               </div>
               <SectionRangeBtns range={allocRange} setRange={setAllocRange} />
@@ -1812,7 +1820,7 @@ export default function PortfolioPage() {
             <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-gray-500 text-xs border-b border-gray-800">
+                <tr className="text-gray-500 text-xs border-b border-gray-200 dark:border-gray-800">
                   <th className="text-left px-3 sm:px-4 py-3">{t("common.symbol")}</th>
                   <th className="text-right px-3 sm:px-4 py-3 hidden sm:table-cell">{t("common.qty")}</th>
                   <th className="text-right px-3 sm:px-4 py-3 hidden md:table-cell">{t("common.avgCost")}</th>
@@ -1866,7 +1874,7 @@ export default function PortfolioPage() {
                         <td className="px-3 sm:px-4 py-3 font-bold text-white">
                           <div className="flex items-center gap-2">
                           <Link
-                            href={`/stocks/${pos.symbol}`}
+                            href={pos.symbol.startsWith("GOLD_") ? `/gold/${pos.symbol}` : `/stocks/${pos.symbol}`}
                             onClick={(e) => e.stopPropagation()}
                             className="hover:text-blue-400 transition-colors"
                           >
@@ -2038,7 +2046,7 @@ export default function PortfolioPage() {
               </div>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-gray-500 text-xs border-b border-gray-800">
+                  <tr className="text-gray-500 text-xs border-b border-gray-200 dark:border-gray-800">
                     <th className="text-left px-4 py-3">{t("common.symbol")}</th>
                     <th className="text-right px-4 py-3">{t("closed.invested")}</th>
                     <th className="text-right px-4 py-3">{t("closed.proceeds")}</th>
@@ -2097,7 +2105,7 @@ export default function PortfolioPage() {
                 </tbody>
               </table>
               {closedPositions.length > 5 && (
-                <div className="px-4 py-3 border-t border-gray-800 text-center">
+                <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 text-center">
                   <Link href="/portfolio/closed-positions" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
                     {t("common.viewAll")} ({closedPositions.length})
                   </Link>

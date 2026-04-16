@@ -17,8 +17,8 @@ export default function RangeSelector({ range, onChange, ranges = DEFAULT_RANGES
         <button
           key={r}
           onClick={() => onChange(r as DateRange)}
-          className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
-            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+          className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs font-medium active:scale-95 transition-all duration-150 ${
+            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
           }`}
         >
           {r}

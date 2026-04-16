@@ -150,7 +150,7 @@ function SectionRangeBtns({ range, setRange }: { range: ExtendedRange; setRange:
       {RANGES.map((r) => (
         <button key={r} onClick={() => setRange(r)}
           className={`px-2.5 py-1 rounded text-xs font-medium active:scale-95 transition-all duration-150 ${
-            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-white hover:bg-gray-800"
+            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
           }`}>{r}</button>
       ))}
     </div>
@@ -408,7 +408,7 @@ function KpiCard({
     purple: "text-purple-400 bg-purple-900/30",
   };
   return (
-    <div className="bg-gray-900 rounded-xl p-4 flex items-start gap-3">
+    <div className="bg-white dark:bg-gray-900 rounded-xl p-4 flex items-start gap-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
       <div className={`p-2 rounded-lg ${iconColors[color]}`}>
         <Icon size={16} />
       </div>
@@ -417,7 +417,7 @@ function KpiCard({
         {(() => {
           const match = value.match(/^([A-Z]{3})\s*(.+)$/);
           if (match) {
-            const valColor = positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400";
+            const valColor = positive === undefined ? "text-gray-900 dark:text-white" : positive ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400";
             return (
               <div className="mt-0.5">
                 <span className="text-gray-500 text-[10px] font-medium tracking-wider uppercase">{match[1]}</span>
@@ -427,7 +427,7 @@ function KpiCard({
           }
           return (
             <p className={`text-lg font-bold mt-0.5 ${
-              positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"
+              positive === undefined ? "text-gray-900 dark:text-white" : positive ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
             }`}>{value}</p>
           );
         })()}
@@ -440,7 +440,7 @@ function KpiCard({
 function SectionHeader({ title, sub }: { title: string; sub?: string }) {
   return (
     <div>
-      <h2 className="text-white font-semibold text-sm">{title}</h2>
+      <h2 className="text-gray-900 dark:text-white font-semibold text-sm">{title}</h2>
       {sub && <p className="text-gray-500 text-xs mt-0.5">{sub}</p>}
     </div>
   );
@@ -608,7 +608,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* ── Portfolio Timeline ───────────────────────── */}
-        <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+        <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <SectionHeader
               title={t("analytics.portfolioValue")}
@@ -658,7 +658,7 @@ export default function AnalyticsPage() {
 
         {/* ── 1. P&L Breakdown — enhanced with net labels & gradient fills ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <SectionHeader title={t("analytics.pnlByPosition")} sub={t("analytics.pnlSub")} />
               <SectionRangeBtns range={pnlRange} setRange={setPnlRange} />
@@ -741,7 +741,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* ── 2. Risk-Return Scatter — with quadrant labels & symbol annotations ── */}
-          <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <SectionHeader title={t("analytics.riskReturn")} sub={t("analytics.riskReturnSub")} />
               <SectionRangeBtns range={riskRange} setRange={setRiskRange} />
@@ -828,7 +828,7 @@ export default function AnalyticsPage() {
           waterfallData.push({ name: t("analytics.netValue"), value: wfTotalValue, fill: wfTotalValue >= wfInvested ? "#10b981" : "#ef4444", isTotal: true });
           if (waterfallData.length <= 2) return null;
           return (
-          <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <SectionHeader title={t("analytics.valueWaterfall")} sub={t("analytics.valueWaterfallSub")} />
               <SectionRangeBtns range={waterfallRange} setRange={setWaterfallRange} />
@@ -944,10 +944,10 @@ export default function AnalyticsPage() {
               {positionHealthData.map((p) => {
                 const isUp = p.gap >= 0;
                 return (
-                  <div key={p.symbol} className="bg-gray-900 rounded-xl p-4 space-y-3">
+                  <div key={p.symbol} className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
                     {/* Header */}
                     <div className="flex items-center justify-between">
-                      <Link href={`/stocks/${p.symbol}`} className="font-bold text-white text-sm hover:text-blue-400 transition-colors font-mono">
+                      <Link href={p.symbol.startsWith("GOLD_") ? `/gold/${p.symbol}` : `/stocks/${p.symbol}`} className="font-bold text-white text-sm hover:text-blue-400 transition-colors font-mono">
                         {p.symbol}
                       </Link>
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isUp ? "bg-emerald-900/40 text-emerald-400" : "bg-red-900/40 text-red-400"}`}>
@@ -1014,7 +1014,7 @@ export default function AnalyticsPage() {
             .map((p) => ({ symbol: p.symbol, days: p.daysSinceFirstBuy ?? 0, returnPct: p.returnPct, invested: p.investedNum, isPositive: p.returnPct >= 0 }));
           if (returnVsDurationData.length === 0) return null;
           return (
-          <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <SectionHeader title={t("analytics.returnVsDuration")} sub={t("analytics.returnVsDurationSub")} />
               <SectionRangeBtns range={durationRange} setRange={setDurationRange} />
@@ -1122,7 +1122,7 @@ export default function AnalyticsPage() {
                         onClick={() => setExpandedSymbol(isExpanded ? null : p.symbol)}
                       >
                         <td className="px-3 sm:px-4 py-3">
-                          <Link href={`/stocks/${p.symbol}`} className="font-bold text-white hover:text-blue-400 transition-colors" onClick={(e) => e.stopPropagation()}>
+                          <Link href={p.symbol.startsWith("GOLD_") ? `/gold/${p.symbol}` : `/stocks/${p.symbol}`} className="font-bold text-white hover:text-blue-400 transition-colors" onClick={(e) => e.stopPropagation()}>
                             {p.symbol}
                           </Link>
                         </td>
@@ -1201,7 +1201,7 @@ export default function AnalyticsPage() {
 
         {/* ── Fee breakdown ────────────────────────────── */}
         {fees > 0 && (
-          <div className="bg-gray-900 rounded-xl p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
             <SectionHeader title={t("analytics.feeImpact")} sub={t("analytics.feeImpactSub")} />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <div className="text-center">
@@ -1265,7 +1265,7 @@ function InsightsPanel() {
   if (insights.length === 0) return null;
 
   return (
-    <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+    <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
       <div className="flex items-center gap-2">
         <Shield size={16} className="text-blue-400" />
         <SectionHeader title={t("analytics.smartInsights")} sub={t("analytics.smartInsightsSub")} />
@@ -1354,7 +1354,7 @@ function PnLCalendar() {
   const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
   return (
-    <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+    <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Calendar size={16} className="text-gray-400" />
@@ -1462,7 +1462,7 @@ function ClosedTradeScoring() {
   const totalGrades = gradeData.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="bg-gray-900 rounded-xl p-4 space-y-4">
+    <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Award size={16} className="text-amber-400" />
@@ -1485,7 +1485,7 @@ function ClosedTradeScoring() {
           ].map(({ label, value, cls }) => (
             <div key={label} className="bg-gray-800 rounded-xl p-3 text-center">
               <p className="text-gray-500 text-xs mb-1">{label}</p>
-              <p className={`text-xl font-bold ${cls ?? "text-white"}`}>{value}</p>
+              <p className={`text-xl font-bold ${cls ?? "text-gray-900 dark:text-white"}`}>{value}</p>
             </div>
           ))}
         </div>

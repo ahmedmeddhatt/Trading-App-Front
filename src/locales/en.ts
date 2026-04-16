@@ -53,6 +53,7 @@ const en = {
   "common.allSectors":   "All sectors",
   "common.gainers":      "Gainers",
   "common.losers":       "Losers",
+  "common.loss":         "Loss",
 
   // ── Portfolio ────────────────────────────────────────────────────────────────
   "portfolio.title":          "Portfolio",
@@ -291,6 +292,8 @@ const en = {
   "trade.cantSell":        "Cannot sell",
   "trade.youOnlyOwn":      "you only own",
   "trade.sharesUnit":      "shares",
+  "trade.orderDetails":    "Order Details",
+  "trade.reviewConfirm":   "Review & Confirm",
 
   // ── Portfolio extras ──────────────────────────────────────────────────────────
   "portfolio.positionSingular": "position",

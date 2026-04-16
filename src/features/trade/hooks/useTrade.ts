@@ -33,11 +33,15 @@ export function useTrade() {
         clientMutationId: clientMutationId.current,
       }),
 
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       // Rotate ID so the next submission gets a fresh idempotency key
       clientMutationId.current = uuidv4();
 
+      // Invalidate all portfolio + gold queries so both modes refresh correctly
       queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+      if (variables.assetType === "GOLD") {
+        queryClient.invalidateQueries({ queryKey: ["gold"] });
+      }
 
       toast.success("Order placed", {
         description: `Order ${data.orderId} is ${data.status}.`,

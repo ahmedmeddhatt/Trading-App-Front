@@ -10,6 +10,7 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { useTradingModeStore } from "@/store/useTradingMode";
 import { apiClient } from "@/lib/apiClient";
 import DynamicFavicon from "@/components/DynamicFavicon";
+import SessionExpiredOverlay from "@/components/SessionExpiredOverlay";
 
 function ThemedToaster() {
   const { theme } = useTheme();
@@ -40,6 +41,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <DynamicFavicon />
           {children}
           <ThemedToaster />
+          <SessionExpiredOverlay />
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
       </ThemeProvider>

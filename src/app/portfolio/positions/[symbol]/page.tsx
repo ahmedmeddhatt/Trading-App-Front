@@ -298,14 +298,14 @@ export default function PositionDetailPage() {
               </div>
               <div className="flex gap-2 sm:flex-col">
                 <Link
-                  href={`/stocks/${symbol}`}
+                  href={symbol.startsWith("GOLD_") ? `/gold/${symbol}` : `/stocks/${symbol}`}
                   className="px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-400 text-white text-center transition-colors"
                 >
                   {t("trade.buy")}
                 </Link>
                 {!isClosed && (
                   <Link
-                    href={`/stocks/${symbol}`}
+                    href={symbol.startsWith("GOLD_") ? `/gold/${symbol}` : `/stocks/${symbol}`}
                     className="px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-white text-center transition-colors"
                   >
                     {t("trade.sell")}

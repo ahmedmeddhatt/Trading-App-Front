@@ -82,19 +82,19 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-sm bg-gray-900 border-l border-gray-800 z-50 flex flex-col shadow-2xl transition-transform duration-300 ${
+        className={`fixed top-0 right-0 h-full w-full max-w-sm bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 z-50 flex flex-col shadow-2xl transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-800 shrink-0">
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-800 shrink-0">
           <div>
-            <h2 className="font-bold text-white">Transaction History</h2>
+            <h2 className="font-bold text-gray-900 dark:text-white">Transaction History</h2>
             <p className="text-gray-500 text-sm">{symbol}</p>
           </div>
           <Link
             href={`/portfolio/positions/${symbol}`}
-            className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs mr-2 transition-colors"
+            className="flex items-center gap-1 text-blue-500 dark:text-blue-400 hover:text-blue-400 dark:hover:text-blue-300 text-xs mr-2 transition-colors"
             onClick={onClose}
           >
             <span>Full Details</span>
@@ -102,7 +102,7 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
           </Link>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
             aria-label="Close"
           >
             <X size={18} />
@@ -118,7 +118,7 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
           )}
 
           {!isLoading && transactions.length === 0 && (
-            <div className="text-center py-12 text-gray-600 text-sm">
+            <div className="text-center py-12 text-gray-500 dark:text-gray-600 text-sm">
               No transactions yet for {symbol}.
             </div>
           )}
@@ -129,14 +129,14 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
             return (
               <div
                 key={i}
-                className="bg-gray-800 rounded-xl p-4 space-y-2"
+                className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4 space-y-2"
               >
                 <div className="flex items-center justify-between">
                   <span
                     className={`px-2 py-0.5 rounded text-xs font-bold ${
                       isBuy
-                        ? "bg-emerald-900/60 text-emerald-400"
-                        : "bg-orange-900/60 text-orange-400"
+                        ? "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400"
+                        : "bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-400"
                     }`}
                   >
                     {tx.type}
@@ -149,18 +149,19 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
                     })}
                     {" · "}
                     {new Date(tx.timestamp).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
+                      hour: "numeric",
                       minute: "2-digit",
+                      hour12: true,
                     })}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">
+                  <span className="text-gray-500 dark:text-gray-400">
                     {tx.quantity} shares @ {fmt.format(tx.price)}
                   </span>
                   <span
                     className={`font-bold ${
-                      isBuy ? "text-orange-400" : "text-emerald-400"
+                      isBuy ? "text-orange-500 dark:text-orange-400" : "text-emerald-500 dark:text-emerald-400"
                     }`}
                   >
                     {isBuy ? "−" : "+"}
@@ -174,20 +175,20 @@ export default function TransactionHistoryDrawer({ symbol, open, onClose }: Prop
 
         {/* Footer summary */}
         {transactions.length > 0 && (
-          <div className="border-t border-gray-800 p-5 shrink-0 space-y-2">
+          <div className="border-t border-gray-200 dark:border-gray-800 p-5 shrink-0 space-y-2">
             <div className="flex justify-between text-xs text-gray-500">
               <span>Total bought</span>
-              <span className="text-orange-400">{fmt.format(totalBought)}</span>
+              <span className="text-orange-500 dark:text-orange-400">{fmt.format(totalBought)}</span>
             </div>
             <div className="flex justify-between text-xs text-gray-500">
               <span>Total sold</span>
-              <span className="text-emerald-400">{fmt.format(totalSold)}</span>
+              <span className="text-emerald-500 dark:text-emerald-400">{fmt.format(totalSold)}</span>
             </div>
-            <div className="flex justify-between text-sm font-bold border-t border-gray-800 pt-2 mt-2">
-              <span className="text-gray-400">Net cash flow</span>
+            <div className="flex justify-between text-sm font-bold border-t border-gray-200 dark:border-gray-800 pt-2 mt-2">
+              <span className="text-gray-500 dark:text-gray-400">Net cash flow</span>
               <span
                 className={`flex items-center gap-1 ${
-                  netFlow >= 0 ? "text-emerald-400" : "text-red-400"
+                  netFlow >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
                 }`}
               >
                 {netFlow >= 0 ? (
