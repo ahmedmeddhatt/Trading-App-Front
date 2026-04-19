@@ -153,7 +153,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Desktop nav */}
           <nav className="td-desktop-nav items-center gap-0.5 min-w-0 overflow-x-auto">
-            {PRIMARY_NAV.map(({ href, key }) => (
+            {PRIMARY_NAV.filter(({ key }) => !(isGoldMode && key === "nav.stocks")).map(({ href, key }) => (
               <Link key={href} href={href} className={navLinkCls(isActive(href, pathname))}>
                 {t(key)}
               </Link>
@@ -249,7 +249,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             paddingBottom: "env(safe-area-inset-bottom, 0px)",
           }}
         >
-          {MOBILE_NAV_KEYS.map(({ href, key, icon: Icon }) => {
+          {MOBILE_NAV_KEYS.filter(({ key }) => !(isGoldMode && key === "nav.stocks")).map(({ href, key, icon: Icon }) => {
             const active = isActive(href, pathname);
             return (
               <Link
@@ -260,12 +260,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 }`}
                 style={{ minWidth: 52, flex: "1 0 52px" }}
               >
-                {/* Active indicator bar */}
                 {active && (
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-blue-500" />
                 )}
                 <Icon size={20} strokeWidth={active ? 2.5 : 1.5} />
-                <span style={{ fontSize: 11, lineHeight: 1.2, textAlign: "center", fontWeight: active ? 600 : 500 }}>{t(key)}</span>
+                <span style={{ fontSize: 11, lineHeight: 1.2, textAlign: "center", fontWeight: active ? 600 : 500 }}>
+                  {t(key)}
+                </span>
               </Link>
             );
           })}

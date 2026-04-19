@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Coins, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { apiClient } from "@/lib/apiClient";
@@ -31,7 +31,6 @@ export default function GoldListPage() {
     refetchInterval: 60_000,
   });
 
-  // Use the first category's data for the global daily change & last update
   const firstCat = categories?.[0];
   const dailyChange = firstCat?.changePercent ?? 0;
   const dailyIsPos = dailyChange >= 0;
@@ -39,85 +38,105 @@ export default function GoldListPage() {
 
   return (
     <AppShell>
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        <div>
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Coins className="text-amber-500" size={24} />
-              {isAr ? "أسعار الذهب اليوم" : "Gold Prices Today"}
+      <main className="max-w-3xl mx-auto px-3 sm:px-4 py-4 space-y-3">
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                {isAr ? "أسعار الذهب اليوم" : "Gold Prices Today"}
+              </h1>
               {dailyChange !== 0 && (
-                <span className={`text-sm font-medium flex items-center gap-0.5 ${dailyIsPos ? "text-emerald-400" : "text-red-400"}`}>
-                  {dailyIsPos ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                <span className={`text-xs font-semibold flex items-center gap-0.5 px-1.5 py-0.5 rounded-md ${
+                  dailyIsPos
+                    ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
+                    : "text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30"
+                }`}>
+                  {dailyIsPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
                   {dailyIsPos ? "+" : "−"}{Math.abs(dailyChange).toFixed(2)}%
                 </span>
               )}
-            </h1>
-            <button
-              onClick={async () => {
-                try { await fetch("/api/gold/refresh", { method: "POST" }); } catch {}
-                refetch();
-              }}
-              disabled={isFetching}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
-              {isFetching ? (isAr ? "جاري التحديث..." : "Refreshing...") : (isAr ? "تحديث الأسعار" : "Refresh Prices")}
-            </button>
-          </div>
-          <div className="flex items-center gap-3 mt-1">
-            <p className="text-gray-500 text-sm">
+            </div>
+            <p className="text-gray-500 dark:text-gray-500 text-xs mt-0.5">
               {isAr ? "أسعار الذهب في مصر بجميع الأعيرة" : "Egyptian gold prices across all karats"}
+              {lastUpdate && (
+                <span className="ml-2">
+                  · {isAr ? "آخر تحديث" : "Last updated"}{" "}
+                  {new Date(lastUpdate).toLocaleTimeString(isAr ? "ar-EG" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                </span>
+              )}
             </p>
-            {lastUpdate && (
-              <span className="text-gray-500 text-sm">
-                · {isAr ? "آخر تحديث" : "Last updated"}{" "}
-                {new Date(lastUpdate).toLocaleTimeString(isAr ? "ar-EG" : "en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
-              </span>
-            )}
           </div>
+          <button
+            onClick={async () => {
+              try { await fetch("/api/gold/refresh", { method: "POST" }); } catch {}
+              refetch();
+            }}
+            disabled={isFetching}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 rounded-lg border border-amber-200 dark:border-amber-500/20 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={isFetching ? "animate-spin" : ""} />
+            {isFetching ? (isAr ? "..." : "...") : (isAr ? "تحديث" : "Refresh")}
+          </button>
         </div>
 
+        {/* List */}
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="bg-gray-900 rounded-xl p-5 h-40 animate-pulse" />
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-gray-100 dark:bg-gray-900 rounded-xl h-16 animate-pulse border border-gray-200 dark:border-gray-800" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-2">
             {(categories ?? []).map((cat) => {
               const name = isAr ? cat.nameAr : cat.nameEn;
+              const isPos = cat.changePercent >= 0;
 
               return (
                 <Link key={cat.categoryId} href={`/gold/${cat.categoryId}`}>
-                  <div className="bg-gray-900 rounded-xl p-5 space-y-3 border border-gray-800 hover:border-amber-700/50 transition-all hover:shadow-lg hover:shadow-amber-900/10">
-                    <div className="flex items-center gap-2">
-                      <Coins size={18} className="text-amber-500" />
-                      <div>
-                        <h3 className="font-bold text-amber-300 text-lg">{name}</h3>
-                        <p className="text-gray-600 text-xs">
-                          {cat.purity && `Purity: ${(parseFloat(cat.purity) * 100).toFixed(1)}%`}
-                          {cat.weightGrams && ` · ${cat.weightGrams}g`}
-                        </p>
-                      </div>
+                  <div className="group bg-white dark:bg-gray-900 rounded-xl px-4 py-3 border border-gray-200 dark:border-gray-800 hover:border-amber-300 dark:hover:border-amber-700/50 hover:shadow-sm transition-all flex items-center gap-3">
+
+                    {/* Gold icon */}
+                    <div className="shrink-0 w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-500/20 flex items-center justify-center">
+                      <span className="text-amber-500 text-sm font-bold leading-none">
+                        {cat.purity ? `${Math.round(parseFloat(cat.purity) * 24)}K` : "Au"}
+                      </span>
                     </div>
 
-                    {cat.sellPrice != null && (
-                      <div className="space-y-1">
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-gray-500 text-sm">{isAr ? "شراء" : "Buy"}</span>
-                          <span className="text-white font-bold text-xl">{cat.buyPrice?.toLocaleString()} EGP</span>
-                        </div>
-                        <div className="flex justify-between items-baseline">
-                          <span className="text-gray-500 text-sm">{isAr ? "بيع" : "Sell"}</span>
-                          <span className="text-gray-300 text-base">{cat.sellPrice.toLocaleString()} EGP</span>
-                        </div>
-                      </div>
-                    )}
+                    {/* Name + purity */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-amber-700 dark:text-amber-300 truncate">{name}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-600">
+                        {cat.purity && `${(parseFloat(cat.purity) * 100).toFixed(0)}% purity`}
+                        {cat.unit && ` · /${cat.unit}`}
+                      </p>
+                    </div>
 
-                    <div className="flex justify-between text-xs text-gray-600 pt-1 border-t border-gray-800">
-                      <span>/{cat.unit}</span>
-                      {cat.spread != null && <span>{isAr ? "هامش" : "Spread"}: {cat.spread}%</span>}
+                    {/* Prices */}
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">
+                        {cat.buyPrice?.toLocaleString()}
+                        <span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-1">EGP</span>
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        Sell: {cat.sellPrice?.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* Change + spread */}
+                    <div className="shrink-0 text-right w-14">
+                      {cat.changePercent !== 0 && (
+                        <p className={`text-xs font-semibold ${isPos ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                          {isPos ? "+" : "−"}{Math.abs(cat.changePercent).toFixed(2)}%
+                        </p>
+                      )}
+                      {cat.spread != null && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-700">
+                          {cat.spread}% spread
+                        </p>
+                      )}
                     </div>
                   </div>
                 </Link>

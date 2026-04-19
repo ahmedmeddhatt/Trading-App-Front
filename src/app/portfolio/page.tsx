@@ -14,6 +14,10 @@ import {
   ChevronsUpDown,
   ArrowDownRight,
   ArrowUpRight,
+  DollarSign,
+  Activity,
+  Clock,
+  BarChart2,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import RangeSelector from "@/components/RangeSelector";
@@ -286,14 +290,23 @@ function useClosedPositions() {
 
 const RANGE_DAYS: Record<string, number> = { "1W": 7, "1M": 30, "3M": 90, "6M": 180, "1Y": 365, "ALL": 365 * 100 };
 
+function formatDuration(days: number): string {
+  if (days < 30) return `${days}d`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo`;
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+  return remMonths > 0 ? `${years}y ${remMonths}mo` : `${years}y`;
+}
+
 function SectionRangeBtns({ range, setRange }: { range: DateRange; setRange: (r: DateRange) => void }) {
   const RANGE_OPTIONS: DateRange[] = ["1W", "1M", "3M", "6M", "1Y", "ALL"];
   return (
-    <div className="flex gap-1 range-btns">
+    <div className="flex gap-0.5 bg-gray-100 dark:bg-gray-800/60 rounded-lg p-1">
       {RANGE_OPTIONS.map((r) => (
         <button key={r} onClick={() => setRange(r)}
           className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium active:scale-95 transition-all duration-150 whitespace-nowrap ${
-            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+            range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-white/60 dark:hover:bg-gray-700/50"
           }`}>{r}</button>
       ))}
     </div>
@@ -354,9 +367,10 @@ function reconstructPositionsForRange(analytics: Analytics | null, range: DateRa
     }
   }
 
-  // Positions at start of range (replay txs before cutoff)
+  // Positions at start of range (replay txs before cutoff) — must be sorted ascending
+  const sortedTxsAsc = [...txs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const posAtStart = new Map<string, { qty: number; totalCost: number }>();
-  for (const tx of txs) {
+  for (const tx of sortedTxsAsc) {
     const txMs = new Date(tx.date).getTime();
     if (txMs >= cutoffMs) break;
     const qty = parseFloat(tx.quantity);
@@ -534,32 +548,56 @@ function StatCard({
   positive,
   sub,
   valueClass,
+  badge,
+  icon,
+  accent,
 }: {
   label: string;
   value: string;
   positive?: boolean;
   sub?: string;
   valueClass?: string;
+  badge?: string;
+  icon?: React.ReactNode;
+  accent?: "blue" | "green" | "red" | "amber" | "purple" | "neutral";
 }) {
-  const autoClass = positive === undefined ? "text-gray-900 dark:text-white" : positive ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400";
+  const autoClass = positive === undefined ? "text-gray-900 dark:text-white" : positive ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400";
+  const accentBg: Record<string, string> = {
+    blue: "bg-blue-50 dark:bg-blue-900/20 text-blue-500 dark:text-blue-400",
+    green: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400",
+    red: "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400",
+    amber: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
+    purple: "bg-purple-50 dark:bg-purple-900/20 text-purple-500 dark:text-purple-400",
+    neutral: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+  };
+  const match = value.match(/^([+\-−]?)([A-Z]{3})\s*(.+)$/);
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl p-2.5 sm:p-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
-      <p className="text-gray-500 text-[9px] sm:text-xs mb-0.5 sm:mb-1 truncate font-medium">{label}</p>
-      {(() => {
-        const match = value.match(/^([A-Z]{3})\s*(.+)$/);
-        if (match) {
-          return (
-            <div>
-              <span className="text-gray-400 text-[9px] font-medium tracking-wider uppercase">{match[1]}</span>
-              <p className={`text-xs sm:text-lg font-bold leading-tight truncate ${valueClass ?? autoClass}`}>{match[2]}</p>
-            </div>
-          );
-        }
-        return (
-          <p className={`text-xs sm:text-lg font-bold truncate ${valueClass ?? autoClass}`}>{value}</p>
-        );
-      })()}
-      {sub && <p className="text-gray-400 text-[9px] sm:text-xs mt-0.5 truncate">{sub}</p>}
+    <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm dark:shadow-none flex flex-col gap-2 hover:shadow-md dark:hover:border-gray-700/50 transition-all duration-200">
+      <div className="flex items-center justify-between">
+        {icon && (
+          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${accent ? accentBg[accent] : accentBg.neutral}`}>
+            {icon}
+          </div>
+        )}
+        {badge && (
+          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ml-auto ${positive === true ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : positive === false ? "bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400" : "bg-gray-100 dark:bg-gray-800 text-gray-500"}`}>
+            {badge}
+          </span>
+        )}
+      </div>
+      <div className="flex-1">
+        <p className="text-gray-400 dark:text-gray-500 text-xs sm:text-xs font-medium uppercase tracking-wide mb-1">{label}</p>
+        {match ? (
+          <div className="flex items-baseline gap-0.5 flex-wrap">
+            {match[1] && <span className={`text-sm sm:text-sm font-bold ${valueClass ?? autoClass}`}>{match[1]}</span>}
+            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">{match[2]}</span>
+            <span className={`text-lg sm:text-xl font-bold leading-tight ${valueClass ?? autoClass}`}>{match[3]}</span>
+          </div>
+        ) : (
+          <p className={`text-lg sm:text-xl font-bold leading-tight ${valueClass ?? autoClass}`}>{value}</p>
+        )}
+        {sub && <p className="text-gray-400 dark:text-gray-500 text-xs sm:text-xs mt-1">{sub}</p>}
+      </div>
     </div>
   );
 }
@@ -570,34 +608,62 @@ function winRateClass(rate: number) {
   return "text-orange-400";
 }
 
-function WinRateBadge({ positions, apiWinRate }: { positions: AnalyticsPosition[]; apiWinRate?: string | number | null }) {
+function WinRateBadge({ positions, closedPositions }: { positions: AnalyticsPosition[]; closedPositions: ClosedPosition[] }) {
   const { t } = useLanguage();
 
-  // Prefer the API win rate (closed trades). API returns it as "65.3%" string or null.
-  if (apiWinRate != null) {
-    const rate = parseFloat(String(apiWinRate));
-    if (!isNaN(rate)) {
-      return (
-        <StatCard
-          label={t("portfolio.winRate")}
-          value={`${rate.toFixed(1)}%`}
-          valueClass={winRateClass(rate)}
-        />
-      );
-    }
-  }
-
-  // Fallback: compute from open positions that have price data (skip null unrealizedPnL)
+  // Unrealized: open positions
   const priced = positions.filter((p) => p.unrealizedPnL != null);
-  const winning = priced.filter((p) => parseFloat(String(p.unrealizedPnL)) >= 0).length;
-  const rate = priced.length > 0 ? (winning / priced.length) * 100 : 0;
+  const unrealizedWins = priced.filter((p) => parseFloat(String(p.unrealizedPnL)) >= 0).length;
+  const unrealizedLosses = priced.length - unrealizedWins;
+
+  // Realized: closed positions (sum of individual trade wins/losses)
+  const realizedWins = closedPositions.reduce((s, cp) => s + (cp.winCount ?? 0), 0);
+  const realizedLosses = closedPositions.reduce((s, cp) => s + (cp.lossCount ?? 0), 0);
+
+  const totalWins = unrealizedWins + realizedWins;
+  const totalLosses = unrealizedLosses + realizedLosses;
+  const total = totalWins + totalLosses;
+  const rate = total > 0 ? (totalWins / total) * 100 : 0;
+  const hasData = total > 0;
+
+  const accentBg: Record<string, string> = {
+    green: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400",
+    amber: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
+    red: "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400",
+    neutral: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+  };
+  const accentKey = rate >= 50 ? "green" : rate > 0 ? "amber" : "red";
+
   return (
-    <StatCard
-      label={t("portfolio.winRate")}
-      value={priced.length > 0 ? `${rate.toFixed(0)}%` : "—"}
-      valueClass={priced.length > 0 ? winRateClass(rate) : "text-gray-400"}
-      sub={priced.length > 0 ? `${winning} / ${priced.length} ${t("analytics.positions")}` : undefined}
-    />
+    <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm flex flex-col gap-2 hover:shadow-md dark:hover:border-gray-700/50 transition-all duration-200">
+      <div className="flex items-center justify-between">
+        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${accentBg[accentKey]}`}>
+          <span className="text-xs font-bold">W/L</span>
+        </div>
+      </div>
+      <div>
+        <p className="text-gray-400 dark:text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">{t("portfolio.winRate")}</p>
+        <p className={`text-lg sm:text-xl font-bold leading-tight ${hasData ? winRateClass(rate) : "text-gray-400"}`}>
+          {hasData ? `${rate.toFixed(1)}%` : "—"}
+        </p>
+        {hasData && (
+          <div className="mt-1.5 space-y-0.5">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              <span className="text-emerald-500 font-medium">{unrealizedWins}W</span>
+              <span className="mx-1">·</span>
+              <span className="text-red-400 font-medium">{unrealizedLosses}L</span>
+              <span className="text-gray-400 ml-1">open</span>
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              <span className="text-emerald-500 font-medium">{realizedWins}W</span>
+              <span className="mx-1">·</span>
+              <span className="text-red-400 font-medium">{realizedLosses}L</span>
+              <span className="text-gray-400 ml-1">closed</span>
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -859,7 +925,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
           <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg px-3 py-2">
             <p className="text-gray-500 text-xs mb-0.5">Avg Hold Days</p>
             <p className="text-sm font-bold text-gray-900 dark:text-white">
-              {summary.avgHoldDays != null ? `${summary.avgHoldDays}d` : "—"}
+              {summary.avgHoldDays != null ? formatDuration(summary.avgHoldDays) : "—"}
             </p>
           </div>
           <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg px-3 py-2">
@@ -997,14 +1063,14 @@ export default function PortfolioPage() {
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
   // Per-section independent range states
-  const [timelineRange, setTimelineRange] = useState<DateRange>("1M");
-  const [allocRange, setAllocRange] = useState<DateRange>("1M");
+  const [timelineRange, setTimelineRange] = useState<DateRange>("ALL");
+  const [allocRange, setAllocRange] = useState<DateRange>("ALL");
   const [allocExpanded, setAllocExpanded] = useState(false);
   const [positionsExpanded, setPositionsExpanded] = useState(false);
-  const [positionsRange, setPositionsRange] = useState<DateRange>("1M");
-  const [closedRange, setClosedRange] = useState<DateRange>("1M");
+  const [positionsRange, setPositionsRange] = useState<DateRange>("ALL");
+  const [closedRange, setClosedRange] = useState<DateRange>("ALL");
   const [tradingHistoryRange, setTradingHistoryRange] = useState<DateRange>("ALL");
-  const [realizedRange, setRealizedRange] = useState<DateRange>("1M");
+  const [realizedRange, setRealizedRange] = useState<DateRange>("ALL");
 
   // Fetch ALL data once — no refetch on range change
   const { data: portfolio, isLoading, isError } = usePortfolio();
@@ -1260,70 +1326,122 @@ export default function PortfolioPage() {
 
   return (
     <AppShell>
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-6">
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
-          <StatCard
-            label={t("analytics.portfolioValue")}
-            value={`EGP ${(currentInvested + unrealized).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
-          />
-          <StatCard
-            label={t("portfolio.capitalDeployed")}
-            value={`EGP ${capitalDeployed.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
-            sub={`${t("portfolio.totalTraded")}: EGP ${totalTraded.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-          />
-          <StatCard
-            label={t("portfolio.unrealizedPnl")}
-            value={`${unrealized >= 0 ? "+" : "−"}EGP ${Math.abs(unrealized).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
-            positive={unrealized >= 0}
-          />
-          <StatCard
-            label={realized !== null ? t("portfolio.realizedPnl") : t("portfolio.totalPnl")}
-            value={`${(realized ?? totalPnl) >= 0 ? "+" : "−"}EGP ${Math.abs(realized ?? totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
-            positive={(realized ?? totalPnl) >= 0}
-          />
-          {analytics?.positions && analytics.positions.length > 0 ? (
-            <WinRateBadge positions={analytics.positions} apiWinRate={analytics.winRate} />
-          ) : (
-            <StatCard
-              label={t("portfolio.totalPnl")}
-              value={`${totalPnl >= 0 ? "+" : "−"}EGP ${Math.abs(totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
-              positive={totalPnl >= 0}
-            />
-          )}
-        </div>
-
-        {/* Fee / net P&L / holding stats */}
-        {analytics && (analytics.totalFeesPaid !== undefined || analytics.netPnL !== undefined || analytics.avgHoldingDays !== undefined || analytics.symbolsTraded !== undefined) && (
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            {analytics.totalFeesPaid !== undefined && (
+        {(() => {
+          const currentValue = currentInvested + unrealized;
+          const unrealizedPct = currentInvested > 0 ? (unrealized / currentInvested) * 100 : 0;
+          const portfolioPct = currentInvested > 0 ? ((currentValue - currentInvested) / currentInvested) * 100 : 0;
+          const hasSells = (analytics?.transactions ?? []).some(tx => tx.type === "SELL");
+          const realizedDisplay = hasSells ? (realized ?? 0) : 0;
+          const netPnlVal = analytics?.netPnL != null ? parseFloat(analytics.netPnL) : null;
+          // Compute hold periods from transactions — first BUY per symbol to today (open) or last sell (closed)
+          const holdStats = (() => {
+            const txs = analytics?.transactions ?? [];
+            const now = Date.now();
+            const firstBuy = new Map<string, number>();
+            const lastSell = new Map<string, number>();
+            for (const tx of txs) {
+              const ms = new Date(tx.date).getTime();
+              if (tx.type === "BUY" && (!firstBuy.has(tx.symbol) || ms < firstBuy.get(tx.symbol)!)) firstBuy.set(tx.symbol, ms);
+              if (tx.type === "SELL" && (!lastSell.has(tx.symbol) || ms > lastSell.get(tx.symbol)!)) lastSell.set(tx.symbol, ms);
+            }
+            const openSymbols = new Set((analytics?.positions ?? []).map(p => p.symbol));
+            const allDays: number[] = [];
+            for (const [sym, buyMs] of firstBuy) {
+              const endMs = openSymbols.has(sym) ? now : (lastSell.get(sym) ?? now);
+              const d = Math.round((endMs - buyMs) / 86400000);
+              if (d > 0) allDays.push(d);
+            }
+            if (allDays.length === 0) {
+              for (const cp of allClosedPositions) {
+                if (cp.holdDays != null && cp.holdDays > 0) allDays.push(cp.holdDays);
+              }
+            }
+            // Total = from very first buy ever to today
+            const earliestBuy = firstBuy.size > 0 ? Math.min(...firstBuy.values()) : null;
+            const totalDays = earliestBuy != null ? Math.round((now - earliestBuy) / 86400000) : null;
+            const avgDays = allDays.length > 0 ? allDays.reduce((s, d) => s + d, 0) / allDays.length : (analytics?.avgHoldingDays ?? null);
+            return { avg: avgDays, total: totalDays };
+          })();
+          const totalPositions = (analytics?.positions?.length ?? 0) + allClosedPositions.length;
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
               <StatCard
-                label={t("portfolio.totalFees")}
-                value={`EGP ${parseFloat(analytics.totalFeesPaid).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                label={t("analytics.portfolioValue")}
+                value={`EGP ${currentValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                icon={<DollarSign size={14} />}
+                accent="blue"
+                badge={currentInvested > 0 ? `${portfolioPct >= 0 ? "+" : "−"}${Math.abs(portfolioPct).toFixed(2)}%` : undefined}
+                positive={portfolioPct >= 0}
+                sub={`Invested: EGP ${currentInvested.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
               />
-            )}
-            {analytics.netPnL !== undefined && (
               <StatCard
-                label={t("portfolio.netPnl")}
-                value={`${parseFloat(analytics.netPnL) >= 0 ? "+" : "−"}EGP ${Math.abs(parseFloat(analytics.netPnL)).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
-                positive={parseFloat(analytics.netPnL) >= 0}
+                label={t("portfolio.unrealizedPnl")}
+                value={`${unrealized >= 0 ? "+" : "−"}EGP ${Math.abs(unrealized).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                positive={unrealized >= 0}
+                icon={<TrendingUp size={14} />}
+                accent={unrealized >= 0 ? "green" : "red"}
+                badge={`${unrealized >= 0 ? "+" : "−"}${Math.abs(unrealizedPct).toFixed(2)}%`}
               />
-            )}
-            {analytics.avgHoldingDays !== undefined && (
               <StatCard
-                label={t("portfolio.avgHold")}
-                value={`${analytics.avgHoldingDays.toFixed(1)} ${t("common.days")}`}
+                label={t("portfolio.realizedPnl")}
+                value={`${realizedDisplay >= 0 ? "+" : "−"}EGP ${Math.abs(realizedDisplay).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                positive={realizedDisplay >= 0}
+                icon={<BarChart2 size={14} />}
+                accent={realizedDisplay > 0 ? "green" : realizedDisplay < 0 ? "red" : "neutral"}
+                sub={!hasSells ? "No sells yet" : undefined}
               />
-            )}
-            {analytics.symbolsTraded !== undefined && (
-              <StatCard
-                label={t("portfolio.symbolsTraded")}
-                value={analytics.symbolsTraded.toString()}
+              {netPnlVal !== null ? (
+                <StatCard
+                  label={t("portfolio.netPnl")}
+                  value={`${netPnlVal >= 0 ? "+" : "−"}EGP ${Math.abs(netPnlVal).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                  positive={netPnlVal >= 0}
+                  icon={<Activity size={14} />}
+                  accent={netPnlVal >= 0 ? "green" : "red"}
+                  sub={analytics?.totalFeesPaid != null ? `Fees: EGP ${parseFloat(analytics.totalFeesPaid).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : undefined}
+                />
+              ) : (
+                <StatCard
+                  label={t("portfolio.totalPnl")}
+                  value={`${totalPnl >= 0 ? "+" : "−"}EGP ${Math.abs(totalPnl).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                  positive={totalPnl >= 0}
+                  icon={<Activity size={14} />}
+                  accent={totalPnl >= 0 ? "green" : "red"}
+                />
+              )}
+              <WinRateBadge
+                positions={analytics?.positions ?? []}
+                closedPositions={allClosedPositions}
               />
-            )}
-          </div>
-        )}
+              <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm flex flex-col gap-2 hover:shadow-md dark:hover:border-gray-700/50 transition-all duration-200">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                  <Clock size={14} />
+                </div>
+                <div>
+                  <p className="text-gray-400 dark:text-gray-500 text-xs font-medium uppercase tracking-wide mb-1.5">{t("portfolio.avgHold")}</p>
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Avg</p>
+                      <p className="text-lg sm:text-lg font-bold text-gray-900 dark:text-white leading-tight">
+                        {holdStats.avg != null ? formatDuration(Math.round(holdStats.avg)) : "—"}
+                      </p>
+                    </div>
+                    <div className="w-px h-8 bg-gray-100 dark:bg-gray-800" />
+                    <div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Total</p>
+                      <p className="text-lg sm:text-lg font-bold text-gray-900 dark:text-white leading-tight">
+                        {holdStats.total != null ? formatDuration(holdStats.total) : "—"}
+                      </p>
+                    </div>
+                  </div>
+                  {totalPositions > 0 && <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">{totalPositions} positions</p>}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Performer cards */}
         {(analytics?.bestPerformer || analytics?.worstPerformer) && (
@@ -1404,9 +1522,11 @@ export default function PortfolioPage() {
           const seen = new Set<string>();
           const dedupedPts = allPts.filter(p => { if (seen.has(p.date)) return false; seen.add(p.date); return true; });
 
-          // Track holding state
+          // Track holding state and running cost basis from transactions (totalInvested may be absent in timeline)
           let runHoldingQty = 0;
+          let runCostBasis = 0;
           const posQty = new Map<string, number>();
+          const posCost = new Map<string, number>();
           const txsByDateAll = new Map<string, typeof sortedTxs>();
           for (const tx of sortedTxs) {
             const d = new Date(tx.date).toLocaleDateString();
@@ -1419,21 +1539,34 @@ export default function PortfolioPage() {
             if (dayTxs) {
               for (const tx of dayTxs) {
                 const qty = parseFloat(tx.quantity);
+                const price = parseFloat(tx.price);
                 const cur = posQty.get(tx.symbol) ?? 0;
-                if (tx.type === "BUY") { posQty.set(tx.symbol, cur + qty); runHoldingQty += qty; }
-                else { posQty.set(tx.symbol, Math.max(0, cur - qty)); runHoldingQty = Math.max(0, runHoldingQty - qty); }
+                const curCost = posCost.get(tx.symbol) ?? 0;
+                if (tx.type === "BUY") {
+                  posQty.set(tx.symbol, cur + qty);
+                  posCost.set(tx.symbol, curCost + qty * price);
+                  runHoldingQty += qty;
+                  runCostBasis += qty * price;
+                } else {
+                  const avgCost = cur > 0 ? curCost / cur : price;
+                  const reducedCost = avgCost * Math.min(qty, cur);
+                  posQty.set(tx.symbol, Math.max(0, cur - qty));
+                  posCost.set(tx.symbol, Math.max(0, curCost - reducedCost));
+                  runHoldingQty = Math.max(0, runHoldingQty - qty);
+                  runCostBasis = Math.max(0, runCostBasis - reducedCost);
+                }
               }
               txsByDateAll.delete(p.date);
             }
             const markers = markerByDate.get(p.date);
             const val = p.value;
-            const inv = p.invested;
+            const inv = runCostBasis > 0 ? runCostBasis : (p.invested > 0 ? p.invested : 0);
             const holding = runHoldingQty > 0;
             const isProfit = holding && inv > 0 && val > inv;
             const isLoss = holding && inv > 0 && val < inv;
             return {
               date: p.date,
-              shortDate: new Date(p.ts).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+              shortDate: new Date(p.ts).toLocaleDateString("en-US", tradingHistoryRange === "1Y" || tradingHistoryRange === "ALL" ? { month: "short", day: "numeric", year: "2-digit" } : { month: "short", day: "numeric" }),
               value: val,
               invested: inv,
               holdingProfit: isProfit ? val : null,
@@ -1564,13 +1697,13 @@ export default function PortfolioPage() {
                         );
                       }}
                     />
-                    {/* Holding period shading */}
-                    <Area type="monotone" dataKey="holdingProfit" stroke="none" fill="url(#thProfitGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
-                    <Area type="monotone" dataKey="holdingLoss" stroke="none" fill="url(#thLossGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
-                    <Area type="monotone" dataKey="holdingNeutral" stroke="none" fill="url(#thNeutralGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
                     {/* Portfolio value line */}
                     <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="url(#thValueGrad)" strokeWidth={2} dot={false}
                       activeDot={{ r: 5, fill: "#3b82f6", stroke: isDark ? "#1e3a5f" : "#bfdbfe", strokeWidth: 3 }} filter="url(#thGlow)" />
+                    {/* Holding period shading — rendered after value so colors are visible on top */}
+                    <Area type="monotone" dataKey="holdingProfit" stroke="none" fill="url(#thProfitGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
+                    <Area type="monotone" dataKey="holdingLoss" stroke="none" fill="url(#thLossGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
+                    <Area type="monotone" dataKey="holdingNeutral" stroke="none" fill="url(#thNeutralGrad)" strokeWidth={0} dot={false} activeDot={false} connectNulls={false} />
                     {/* Cost basis reference line */}
                     {latestInvested > 0 && (
                       <ReferenceLine y={latestInvested} stroke="#f59e0b" strokeDasharray="6 4" strokeWidth={1} strokeOpacity={0.6}
@@ -1696,86 +1829,126 @@ export default function PortfolioPage() {
             })
             .sort((a, b) => b.value - a.value);
           if (allocBySymbol.length === 0) return null;
-          const fmtValue = (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}K` : v.toFixed(0);
+          const fmtEGP2 = (v: number) => v >= 1_000_000 ? `${(v/1_000_000).toFixed(2)}M` : v >= 1000 ? `${(v/1000).toFixed(1)}K` : v.toFixed(0);
+          const topItem = allocBySymbol[0];
           return (
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-5 space-y-3 sm:space-y-4 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800/50 shadow-sm dark:shadow-none">
+            {/* Header row */}
+            <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-gray-900 dark:text-white font-semibold text-sm">{t("analytics.symbolAlloc")}</h2>
-                <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
               </div>
               <SectionRangeBtns range={allocRange} setRange={setAllocRange} />
             </div>
 
-            <div dir="ltr" className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:gap-6">
-              {/* Donut chart */}
-              <div className="relative flex-shrink-0 mx-auto md:mx-0 w-[180px] h-[180px] sm:w-[220px] sm:h-[220px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={allocBySymbol}
-                      dataKey="percentage"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius="55%"
-                      outerRadius="90%"
-                      paddingAngle={allocBySymbol.length > 1 ? 3 : 0}
-                      stroke="none"
-                      animationBegin={0}
-                      animationDuration={600}
-                    >
-                      {allocBySymbol.map((_, i) => (
-                        <Cell key={i} fill={ALLOC_COLORS[i % ALLOC_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}
-                      formatter={(v: unknown, _: unknown, props: { payload?: { payload?: { value?: number } } }) => [
-                        `${(v as number).toFixed(1)}%  ·  EGP ${(((props.payload?.payload as { value?: number })?.value ?? 0)).toLocaleString()}`,
-                        t("analytics.symbolAlloc"),
-                      ]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-gray-600 text-[8px] sm:text-[10px] uppercase tracking-wider">{t("common.total")}</span>
-                  <span className="text-white text-sm sm:text-lg font-bold">EGP {fmtValue(allocTotal)}</span>
-                  <span className="text-gray-500 text-[9px] sm:text-[11px]">{allocBySymbol.length} {t("analytics.symbols")}</span>
+            <div dir="ltr" className="flex flex-row items-center gap-4 sm:gap-6">
+              {/* Donut + center label — fixed px so absolute overlay is predictable */}
+              <div className="relative shrink-0" style={{ width: 160, height: 160 }}>
+                <PieChart width={160} height={160}>
+                  <Pie
+                    data={allocBySymbol}
+                    dataKey="percentage"
+                    nameKey="name"
+                    cx={80}
+                    cy={80}
+                    innerRadius={52}
+                    outerRadius={74}
+                    paddingAngle={allocBySymbol.length > 1 ? 3 : 0}
+                    stroke="none"
+                    strokeWidth={0}
+                    animationBegin={0}
+                    animationDuration={700}
+                  >
+                    {allocBySymbol.map((_, i) => (
+                      <Cell key={i} fill={ALLOC_COLORS[i % ALLOC_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: isDark ? "#0f172a" : "#fff", border: `1px solid ${isDark ? "#1e293b" : "#e5e7eb"}`, borderRadius: 10, fontSize: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}
+                    formatter={(v: unknown, _: unknown, props: { payload?: { payload?: { value?: number; symbol?: string } } }) => {
+                      const payload = props.payload?.payload;
+                      return [`${(v as number).toFixed(1)}%  ·  EGP ${(payload?.value ?? 0).toLocaleString()}`, payload?.symbol ?? ""];
+                    }}
+                  />
+                </PieChart>
+                {/* Center overlay — absolutely centered within the 160×160 box */}
+                <div
+                  className="pointer-events-none flex flex-col items-center justify-center"
+                  style={{ position: "absolute", top: 0, left: 0, width: 160, height: 160 }}
+                >
+                  <span className="text-gray-400 dark:text-gray-500 font-medium" style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("common.total")}</span>
+                  <span className="text-gray-900 dark:text-white font-extrabold" style={{ fontSize: 15, lineHeight: 1.15 }}>EGP {fmtEGP2(allocTotal)}</span>
+                  <span className="text-gray-400 dark:text-gray-500" style={{ fontSize: 10 }}>{allocBySymbol.length} {t("analytics.symbols")}</span>
                 </div>
               </div>
 
-              {/* Legend cards */}
-              <div className="flex-1 w-full space-y-2">
-                {(allocExpanded ? allocBySymbol : allocBySymbol.slice(0, 5)).map((item, i) => {
+              {/* Legend rows */}
+              <div className="flex-1 w-full min-w-0 space-y-1 sm:space-y-1.5">
+                {(allocExpanded ? allocBySymbol : allocBySymbol.slice(0, 6)).map((item, i) => {
                   const color = ALLOC_COLORS[i % ALLOC_COLORS.length];
+                  const isTop = i === 0;
                   return (
-                    <div key={item.name} className="flex items-center gap-2 sm:gap-3 bg-gray-800/50 rounded-lg px-2 sm:px-3 py-2 sm:py-2.5 hover:bg-gray-800 transition-colors">
-                      <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+                    <div
+                      key={item.name}
+                      className={`group flex items-center gap-2 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 transition-all duration-150 cursor-default ${
+                        isTop
+                          ? "bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/50"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                      }`}
+                    >
+                      {/* Color dot */}
+                      <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+
+                      {/* Symbol + sub */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-white text-xs sm:text-sm font-semibold">{item.symbol}</span>
-                          {item.isSold && <span className="px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-gray-700 text-gray-400 uppercase">Sold</span>}
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-900 dark:text-white text-[11px] sm:text-xs font-bold truncate">{item.symbol}</span>
+                          {item.isSold && (
+                            <span className="hidden sm:inline px-1 py-px rounded text-[9px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500">sold</span>
+                          )}
+                          {isTop && (
+                            <span className="px-1 py-px rounded text-[8px] sm:text-[9px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400">top</span>
+                          )}
                         </div>
-                        <span className="text-gray-500 text-[10px] sm:text-xs truncate block">{item.qty} shares · EGP {item.value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                        <span className="text-gray-400 dark:text-gray-500 text-[9px] sm:text-[10px]">
+                          EGP {item.value.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                        </span>
                       </div>
-                      {/* Percentage bar */}
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-                        <div className="w-10 sm:w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${item.percentage}%`, backgroundColor: color }} />
+
+                      {/* Bar + pct */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="w-10 sm:w-20 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{ width: `${Math.min(item.percentage, 100)}%`, backgroundColor: color }}
+                          />
                         </div>
-                        <span className="text-white text-xs sm:text-sm font-semibold w-10 sm:w-12 text-right">{item.percentage.toFixed(1)}%</span>
+                        <span className="text-gray-700 dark:text-gray-300 text-[11px] sm:text-xs font-semibold w-8 sm:w-9 text-right tabular-nums">
+                          {item.percentage.toFixed(1)}%
+                        </span>
                       </div>
                     </div>
                   );
                 })}
-                {allocBySymbol.length > 5 && (
+
+                {allocBySymbol.length > 6 && (
                   <button
                     onClick={() => setAllocExpanded(!allocExpanded)}
-                    className="w-full py-2 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                    className="w-full py-1.5 text-xs font-medium text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors"
                   >
-                    {allocExpanded ? `Show less` : `Show more (${allocBySymbol.length - 5})`}
+                    {allocExpanded ? "Show less ↑" : `+${allocBySymbol.length - 6} more`}
                   </button>
+                )}
+
+                {/* Summary footer */}
+                {topItem && (
+                  <div className="flex items-center gap-1.5 pt-1 mt-1 border-t border-gray-100 dark:border-gray-800">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ALLOC_COLORS[0] }} />
+                    <span className="text-gray-400 dark:text-gray-500 text-[10px]">
+                      <span className="font-semibold text-gray-600 dark:text-gray-400">{topItem.symbol}</span> leads at {topItem.percentage.toFixed(1)}% of portfolio
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -1784,8 +1957,8 @@ export default function PortfolioPage() {
         })()}
 
         {/* Positions table */}
-        <div className="bg-gray-900 rounded-xl overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b border-gray-800 gap-2">
+        <div className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden border border-gray-100 dark:border-transparent">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b border-gray-100 dark:border-gray-800 gap-2">
             <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
               {t("portfolio.positions")}
               <span className="text-gray-600 ml-2">{filteredPositions.length}</span>
@@ -1825,6 +1998,7 @@ export default function PortfolioPage() {
                   <th className="text-right px-3 sm:px-4 py-3 hidden sm:table-cell">{t("common.qty")}</th>
                   <th className="text-right px-3 sm:px-4 py-3 hidden md:table-cell">{t("common.avgCost")}</th>
                   <th className="text-right px-3 sm:px-4 py-3 hidden sm:table-cell">{t("common.currentPrice")}</th>
+                  <th className="text-right px-3 sm:px-4 py-3 hidden md:table-cell">{t("common.purchaseValue")}</th>
                   <th className="text-right px-3 sm:px-4 py-3 hidden md:table-cell">{t("common.marketValue")}</th>
                   <th className="text-right px-3 sm:px-4 py-3">{t("portfolio.unrealizedPnl")}</th>
                   <th className="text-right px-3 sm:px-4 py-3">{t("common.return")}</th>
@@ -1868,10 +2042,10 @@ export default function PortfolioPage() {
                   return (
                     <React.Fragment key={pos.symbol}>
                       <tr
-                        className={`td-row border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer ${isSold ? "opacity-60" : ""}`}
+                        className={`td-row border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer ${isSold ? "opacity-60" : ""}`}
                         onClick={() => router.push(`/portfolio/positions/${pos.symbol}`)}
                       >
-                        <td className="px-3 sm:px-4 py-3 font-bold text-white">
+                        <td className="px-3 sm:px-4 py-3 font-bold text-gray-900 dark:text-white">
                           <div className="flex items-center gap-2">
                           <Link
                             href={pos.symbol.startsWith("GOLD_") ? `/gold/${pos.symbol}` : `/stocks/${pos.symbol}`}
@@ -1880,16 +2054,16 @@ export default function PortfolioPage() {
                           >
                             {pos.symbol}
                           </Link>
-                          {isSold && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-700 text-gray-400">SOLD</span>}
+                          {isSold && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">SOLD</span>}
                           </div>
                         </td>
-                        <td className="px-3 sm:px-4 py-3 text-right text-gray-300 hidden sm:table-cell">
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-600 dark:text-gray-300 hidden sm:table-cell">
                           {qty}
                         </td>
-                        <td className="px-3 sm:px-4 py-3 text-right text-gray-300 hidden md:table-cell">
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-600 dark:text-gray-300 hidden md:table-cell">
                           {fmt(avgCost)}
                         </td>
-                        <td className="px-3 sm:px-4 py-3 text-right text-white font-medium hidden sm:table-cell">
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-900 dark:text-white font-medium hidden sm:table-cell">
                           {fmt(currentPrice)}
                           {live && (
                             <span className="block text-xs text-emerald-500 font-normal">
@@ -1897,12 +2071,15 @@ export default function PortfolioPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 sm:px-4 py-3 text-right text-white hidden md:table-cell">
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-600 dark:text-gray-400 hidden md:table-cell">
+                          {fmt(invested)}
+                        </td>
+                        <td className="px-3 sm:px-4 py-3 text-right text-gray-900 dark:text-white hidden md:table-cell">
                           {fmt(marketValue)}
                         </td>
                         <td
                           className={`px-3 sm:px-4 py-3 text-right font-medium ${
-                            isPos ? "text-emerald-400" : "text-red-400"
+                            isPos ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
                           }`}
                         >
                           <span className="flex items-center justify-end gap-0.5 sm:gap-1">
@@ -1918,16 +2095,16 @@ export default function PortfolioPage() {
                         </td>
                         <td
                           className={`px-3 sm:px-4 py-3 text-right font-medium ${
-                            isPos ? "text-emerald-400" : "text-red-400"
+                            isPos ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
                           }`}
                         >
                           {isPos ? "+" : "−"}
-                          {pnlPct.toFixed(2)}%
+                          {Math.abs(pnlPct).toFixed(2)}%
                         </td>
                         {/* Feature 6: Break-even gauge */}
                         <td className="px-4 py-3 hidden lg:table-cell">
                           <div className="flex flex-col items-center gap-0.5">
-                            <div className="w-20 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div className="w-20 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${beGap != null && beGap >= 0 ? "bg-emerald-500" : "bg-red-500"}`}
                                 style={{ width: `${Math.min(100, Math.max(0, 50 + (beGap ?? 0) * 2))}%` }}
@@ -1941,15 +2118,13 @@ export default function PortfolioPage() {
                           </div>
                         </td>
                         {/* Feature 10: Days held */}
-                        <td className="px-4 py-3 text-right text-gray-400 text-xs hidden xl:table-cell">
-                          {daysHeld != null ? `${daysHeld}d` : "—"}
+                        <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500 text-xs hidden xl:table-cell">
+                          {daysHeld != null ? formatDuration(daysHeld) : "—"}
                         </td>
-                        {/* Feature 10: Fees paid */}
-                        <td className="px-4 py-3 text-right text-gray-400 text-xs hidden xl:table-cell">
+                        <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500 text-xs hidden xl:table-cell">
                           {feesPaid != null ? fmt(feesPaid) : "—"}
                         </td>
-                        {/* Feature 10: Portfolio % */}
-                        <td className="px-4 py-3 text-right text-gray-400 text-xs hidden xl:table-cell">
+                        <td className="px-4 py-3 text-right text-gray-400 dark:text-gray-500 text-xs hidden xl:table-cell">
                           {portPct != null ? `${portPct.toFixed(1)}%` : "—"}
                         </td>
                         <td className="px-4 py-3 text-center hidden lg:table-cell">
@@ -1966,8 +2141,8 @@ export default function PortfolioPage() {
                         </td>
                       </tr>
                       {isExpanded && (
-                        <tr className="bg-gray-800/30">
-                          <td colSpan={13} className="px-6 py-3">
+                        <tr className="bg-gray-50 dark:bg-gray-800/30">
+                          <td colSpan={14} className="px-6 py-3">
                             <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-2">
                               {t("portfolio.txHistoryFor")} {pos.symbol}
                             </p>
@@ -1986,7 +2161,7 @@ export default function PortfolioPage() {
             {filteredPositions.length > 5 && (
               <button
                 onClick={() => setPositionsExpanded(!positionsExpanded)}
-                className="w-full py-3 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors border-t border-gray-800"
+                className="w-full py-3 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors border-t border-gray-100 dark:border-gray-800"
               >
                 {positionsExpanded ? `Show less` : `Show more (${filteredPositions.length - 5})`}
               </button>
@@ -2086,7 +2261,7 @@ export default function PortfolioPage() {
                         </td>
                         <td className="px-4 py-3 text-right text-gray-500 text-xs hidden md:table-cell">{fmt(cp.totalFees)}</td>
                         <td className="px-4 py-3 text-right text-gray-400 text-xs hidden lg:table-cell">
-                          {cp.holdDays != null ? `${cp.holdDays}d` : "—"}
+                          {cp.holdDays != null ? formatDuration(cp.holdDays) : "—"}
                         </td>
                         <td className="px-4 py-3 text-center hidden lg:table-cell">
                           <span className="text-emerald-400 text-xs font-medium">{cp.winCount}W</span>

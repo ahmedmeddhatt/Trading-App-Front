@@ -40,8 +40,9 @@ interface Props {
 
 function formatDate(ts: string, range: DateRange) {
   const d = new Date(ts);
-  if (range === "1W") return d.toLocaleDateString("en-US", { weekday: "short" });
-  if (range === "1Y" || range === "ALL") return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  if (range === "1W") return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  if (range === "1Y") return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (range === "ALL") return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
@@ -160,12 +161,12 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
 
   return (
     <div className="bg-gray-900 rounded-xl p-3 sm:p-5 space-y-3 sm:space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest whitespace-nowrap">
             {mode === "value" ? t("analytics.portfolioOverTime") : t("analytics.revenueOverTime")}
           </h2>
-          <div className="flex gap-0.5 bg-gray-800 rounded-lg p-0.5">
+          <div className="flex gap-0.5 bg-gray-800 rounded-lg p-0.5 flex-shrink-0">
             <button
               onClick={() => setMode("value")}
               className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150 ${
@@ -188,7 +189,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
             </button>
           </div>
         </div>
-        <div className="flex gap-1 range-btns">
+        <div className="flex gap-1 bg-gray-800/60 rounded-lg p-1">
           {RANGES.map((r) => (
             <button
               key={r}
@@ -196,7 +197,7 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
               className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium active:scale-95 transition-all duration-150 whitespace-nowrap ${
                 range === r
                   ? "bg-blue-600 text-white shadow-sm"
-                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  : "text-gray-500 hover:text-gray-300 hover:bg-gray-700/50"
               }`}
             >
               {r}

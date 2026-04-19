@@ -20,11 +20,14 @@ function ThemedToaster() {
 /** Syncs trading mode from user profile to Zustand store */
 function TradingModeSync() {
   const setMode = useTradingModeStore((s) => s.setMode);
+  const isLoginPage = typeof window !== "undefined" && window.location.pathname.startsWith("/login");
   const { data } = useQuery<{ tradingMode?: "STOCKS" | "GOLD" }>({
     queryKey: ["auth", "me"],
     queryFn: () => apiClient.get("/api/auth/me"),
     retry: false,
     staleTime: 60_000,
+    enabled: !isLoginPage,
+    throwOnError: false,
   });
   useEffect(() => {
     if (data?.tradingMode) setMode(data.tradingMode);

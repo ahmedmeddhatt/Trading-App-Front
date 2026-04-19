@@ -461,13 +461,12 @@ export default function AnalyticsPage() {
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
   // Per-section independent range states
-  const [timelineRange, setTimelineRange] = useState<ExtendedRange>("1M");
-  const [pnlRange, setPnlRange] = useState<ExtendedRange>("1M");
-  const [riskRange, setRiskRange] = useState<ExtendedRange>("1M");
-  const [waterfallRange, setWaterfallRange] = useState<ExtendedRange>("1M");
-  const [healthRange, setHealthRange] = useState<ExtendedRange>("1M");
-  const [durationRange, setDurationRange] = useState<ExtendedRange>("1M");
-  const [tableRange, setTableRange] = useState<ExtendedRange>("1M");
+  const [timelineRange, setTimelineRange] = useState<ExtendedRange>("ALL");
+  const [pnlRange, setPnlRange] = useState<ExtendedRange>("ALL");
+  const [riskRange, setRiskRange] = useState<ExtendedRange>("ALL");
+  const [healthRange, setHealthRange] = useState<ExtendedRange>("ALL");
+  const [durationRange, setDurationRange] = useState<ExtendedRange>("ALL");
+  const [tableRange, setTableRange] = useState<ExtendedRange>("ALL");
 
   // Fetch ALL data once — no refetch on range change
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
@@ -575,37 +574,147 @@ export default function AnalyticsPage() {
     <AppShell>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-6">
 
-        {/* ── KPI Row ─────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <KpiCard
-            icon={DollarSign} label={t("portfolio.totalInvested")} value={fmtEGP(totalInvested)} color="blue"
-          />
-          <KpiCard
-            icon={TrendingUp} label={t("portfolio.unrealizedPnl")} value={fmtSignedEGP(totalUnrealized)}
-            sub={totalInvested > 0 ? pct((totalUnrealized / totalInvested) * 100) : undefined}
-            positive={totalUnrealized >= 0} color={totalUnrealized >= 0 ? "green" : "red"}
-          />
-          <KpiCard
-            icon={Award} label={t("portfolio.realizedPnl")} value={fmtSignedEGP(totalRealized)}
-            positive={totalRealized >= 0} color={totalRealized >= 0 ? "green" : "red"}
-          />
-          <KpiCard
-            icon={Activity} label={t("analytics.netPnl")} value={netPnL !== null ? fmtSignedEGP(netPnL) : fmtSignedEGP(totalPnL)}
-            sub={fees > 0 ? `${fmtEGP(fees)} ${t("analytics.fees")}` : undefined}
-            positive={(netPnL ?? totalPnL) >= 0} color={(netPnL ?? totalPnL) >= 0 ? "green" : "red"}
-          />
-          <KpiCard
-            icon={Target} label={t("analytics.winRate")}
-            value={analytics.winRate != null ? `${parseFloat(String(analytics.winRate)).toFixed(1)}%` : "—"}
-            sub={`${analytics.symbolsTraded ?? allPositions.length} ${t("analytics.symbols")}`}
-            color="purple"
-          />
-          <KpiCard
-            icon={Clock} label={t("analytics.avgHold")}
-            value={avgHoldDays !== null ? `${avgHoldDays}d` : "—"}
-            color="amber"
-          />
-        </div>
+        {/* ── Advanced Portfolio Metrics ───────────────── */}
+        {(() => {
+          const openPositions = allPositions.filter(p => p.unrealizedNum !== 0 || parseFloat(String(p.totalQuantity)) > 0);
+          const totalPortfolioValue = totalInvested + totalUnrealized;
+
+          // Concentration Risk — % held in top position (HHI-style)
+          const topPos = [...openPositions].sort((a, b) => b.investedNum - a.investedNum)[0];
+          const concentrationPct = totalInvested > 0 && topPos ? (topPos.investedNum / totalInvested) * 100 : null;
+
+          // Momentum — % of open positions currently profitable
+          const profitable = openPositions.filter(p => p.unrealizedNum > 0).length;
+          const momentumPct = openPositions.length > 0 ? (profitable / openPositions.length) * 100 : null;
+
+          // Max Drawdown from timeline
+          const maxDrawdown = (() => {
+            if (fullTimeline.length < 2) return null;
+            let peak = -Infinity, maxDD = 0;
+            for (const pt of fullTimeline) {
+              const v = Number(pt.totalValue);
+              if (v > peak) peak = v;
+              const dd = peak > 0 ? ((peak - v) / peak) * 100 : 0;
+              if (dd > maxDD) maxDD = dd;
+            }
+            return maxDD;
+          })();
+
+          // Annualized Return — (totalPnL / totalInvested) / (avgHoldDays / 365) * 100
+          const annualizedReturn = (() => {
+            if (!totalInvested || !avgHoldDays || avgHoldDays < 30) return null;
+            const simpleReturn = totalPnL / totalInvested;
+            return (simpleReturn / (avgHoldDays / 365)) * 100;
+          })();
+
+          // Capital Efficiency — EGP earned per 100 EGP invested
+          const capitalEfficiency = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : null;
+
+          // Fee Drag — % of gross P&L lost to fees
+          const grossPnL = totalPnL + fees;
+          const feeDrag = grossPnL > 0 && fees > 0 ? (fees / grossPnL) * 100 : 0;
+
+          const metricCard = (
+            label: string,
+            value: string,
+            sub: string,
+            color: string,
+            bgColor: string,
+            icon: React.ReactNode,
+            trend?: "up" | "down" | "neutral",
+          ) => (
+            <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm hover:shadow-md transition-all duration-200`}>
+              <div className="flex items-start justify-between mb-3">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${bgColor}`}>
+                  {icon}
+                </div>
+                {trend && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    trend === "up" ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+                    : trend === "down" ? "bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-500"
+                  }`}>
+                    {trend === "up" ? "▲" : trend === "down" ? "▼" : "●"}
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-400 dark:text-gray-500 text-[10px] font-medium uppercase tracking-wide mb-1">{label}</p>
+              <p className={`text-xl font-bold leading-tight ${color}`}>{value}</p>
+              <p className="text-gray-400 dark:text-gray-500 text-[10px] mt-1">{sub}</p>
+            </div>
+          );
+
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {metricCard(
+                t("analytics.adv.capitalEfficiency"),
+                capitalEfficiency != null ? `${capitalEfficiency >= 0 ? "+" : ""}${capitalEfficiency.toFixed(2)}%` : "—",
+                `${fmtEGP(totalPnL)} ${t("analytics.adv.capitalEfficiencyOn")} ${fmtEGP(totalInvested)}`,
+                capitalEfficiency != null && capitalEfficiency >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400",
+                "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400",
+                <TrendingUp size={14} />,
+                capitalEfficiency != null ? (capitalEfficiency >= 0 ? "up" : "down") : "neutral",
+              )}
+              {metricCard(
+                t("analytics.adv.annualizedReturn"),
+                annualizedReturn != null ? `${annualizedReturn >= 0 ? "+" : ""}${annualizedReturn.toFixed(1)}%` : "—",
+                avgHoldDays != null
+                  ? `${t("analytics.adv.annualizedReturnBasedOn")} ${avgHoldDays}d ${t("analytics.adv.annualizedReturnAvgHold")}`
+                  : t("analytics.adv.annualizedReturnNoData"),
+                annualizedReturn != null && annualizedReturn >= 0 ? "text-blue-600 dark:text-blue-400" : "text-red-500 dark:text-red-400",
+                "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400",
+                <Activity size={14} />,
+                annualizedReturn != null ? (annualizedReturn >= 0 ? "up" : "down") : "neutral",
+              )}
+              {metricCard(
+                t("analytics.adv.maxDrawdown"),
+                maxDrawdown != null ? `−${maxDrawdown.toFixed(2)}%` : "—",
+                maxDrawdown != null && maxDrawdown < 5
+                  ? t("analytics.adv.maxDrawdownLow")
+                  : maxDrawdown != null && maxDrawdown < 15
+                  ? t("analytics.adv.maxDrawdownMid")
+                  : t("analytics.adv.maxDrawdownHigh"),
+                maxDrawdown != null && maxDrawdown < 10 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400",
+                "bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400",
+                <Shield size={14} />,
+                maxDrawdown != null ? (maxDrawdown < 10 ? "up" : "down") : "neutral",
+              )}
+              {metricCard(
+                t("analytics.adv.concentrationRisk"),
+                concentrationPct != null ? `${concentrationPct.toFixed(1)}%` : "—",
+                topPos
+                  ? `${t("analytics.adv.concentrationRiskTop")}: ${topPos.symbol} · ${openPositions.length} ${t("analytics.adv.concentrationRiskPos")}`
+                  : `${openPositions.length} ${t("analytics.adv.concentrationRiskOpen")}`,
+                concentrationPct != null && concentrationPct > 50 ? "text-amber-600 dark:text-amber-400" : "text-gray-900 dark:text-white",
+                "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
+                <Target size={14} />,
+                concentrationPct != null ? (concentrationPct < 40 ? "up" : "down") : "neutral",
+              )}
+              {metricCard(
+                t("analytics.adv.momentumScore"),
+                momentumPct != null ? `${momentumPct.toFixed(0)}%` : "—",
+                momentumPct != null
+                  ? `${profitable}/${openPositions.length} ${t("analytics.adv.momentumScoreProfitable")}`
+                  : t("analytics.adv.momentumScoreEmpty"),
+                momentumPct != null && momentumPct >= 50 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400",
+                "bg-purple-50 dark:bg-purple-900/20 text-purple-500 dark:text-purple-400",
+                <Zap size={14} />,
+                momentumPct != null ? (momentumPct >= 50 ? "up" : "down") : "neutral",
+              )}
+              {metricCard(
+                t("analytics.adv.feeDrag"),
+                feeDrag > 0 ? `${feeDrag.toFixed(2)}%` : "0%",
+                feeDrag > 0
+                  ? `${fmtEGP(fees)} ${t("analytics.adv.feeDragFeesOn")} ${fmtEGP(grossPnL)} ${t("analytics.adv.feeDragGross")}`
+                  : t("analytics.adv.feeDragNone"),
+                feeDrag > 5 ? "text-amber-600 dark:text-amber-400" : "text-gray-900 dark:text-white",
+                "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+                <Award size={14} />,
+                feeDrag < 3 ? "up" : "down",
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Portfolio Timeline ───────────────────────── */}
         <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
@@ -811,113 +920,6 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* ── 3. Portfolio Value Waterfall — enhanced with value labels & gradients ── */}
-        {(() => {
-          const wfPositions = reconstructPositionsForRange(analytics ?? null, waterfallRange);
-          const wfInvested = wfPositions.reduce((s, p) => s + p.investedNum, 0);
-          const wfUnrealized = wfPositions.reduce((s, p) => s + p.unrealizedNum, 0);
-          const wfRealized = wfPositions.reduce((s, p) => s + p.realizedNum, 0);
-          const waterfallData: { name: string; value: number; fill: string; isTotal?: boolean }[] = [];
-          waterfallData.push({ name: t("common.invested"), value: wfInvested, fill: "#3b82f6", isTotal: true });
-          [...wfPositions].sort((a, b) => (b.unrealizedNum + b.realizedNum) - (a.unrealizedNum + a.realizedNum)).forEach((p) => {
-            const net = p.unrealizedNum + p.realizedNum;
-            if (Math.abs(net) >= 0.01) waterfallData.push({ name: p.symbol, value: net, fill: net >= 0 ? "#10b981" : "#ef4444" });
-          });
-          if (fees > 0) waterfallData.push({ name: t("common.fees"), value: -fees, fill: "#f59e0b" });
-          const wfTotalValue = wfInvested + wfUnrealized + wfRealized;
-          waterfallData.push({ name: t("analytics.netValue"), value: wfTotalValue, fill: wfTotalValue >= wfInvested ? "#10b981" : "#ef4444", isTotal: true });
-          if (waterfallData.length <= 2) return null;
-          return (
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <SectionHeader title={t("analytics.valueWaterfall")} sub={t("analytics.valueWaterfallSub")} />
-              <SectionRangeBtns range={waterfallRange} setRange={setWaterfallRange} />
-            </div>
-            <div className="flex items-center gap-3 text-xs flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-blue-500 inline-block" />
-                <span className="text-gray-400">{t("common.invested")}: <span className="text-white font-semibold">{fmtEGP(wfInvested)}</span></span>
-              </div>
-              <span className="text-gray-700">→</span>
-              {(() => {
-                const netVal = wfTotalValue;
-                const diff = netVal - wfInvested;
-                return (
-                  <div className="flex items-center gap-1.5">
-                    <span className={`w-3 h-3 rounded inline-block ${diff >= 0 ? "bg-emerald-500" : "bg-red-500"}`} />
-                    <span className="text-gray-400">{t("analytics.netValue")}: <span className={`font-semibold ${diff >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmtEGP(netVal)}</span></span>
-                    <span className={`font-bold ${diff >= 0 ? "text-emerald-400" : "text-red-400"}`}>({fmtSignedEGP(diff)})</span>
-                  </div>
-                );
-              })()}
-            </div>
-            <div dir="ltr">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={(() => {
-                  let running = 0;
-                  return waterfallData.map((d) => {
-                    if (d.isTotal) {
-                      const result = { name: d.name, value: d.value, base: 0, fill: d.fill, isTotal: true, raw: d.value };
-                      running = d.value;
-                      return result;
-                    }
-                    const base = running;
-                    running += d.value;
-                    return { name: d.name, value: Math.abs(d.value), base: d.value >= 0 ? base : base + d.value, fill: d.fill, isTotal: false, raw: d.value };
-                  });
-                })()} margin={{ top: 24, right: 8, left: 0, bottom: 4 }}>
-                  <defs>
-                    <linearGradient id="wfBlue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.95} />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0.8} />
-                    </linearGradient>
-                    <linearGradient id="wfGreen" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6ee7b7" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#059669" stopOpacity={0.75} />
-                    </linearGradient>
-                    <linearGradient id="wfRed" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fca5a5" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#dc2626" stopOpacity={0.75} />
-                    </linearGradient>
-                    <linearGradient id="wfAmber" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fcd34d" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="#d97706" stopOpacity={0.75} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: "#e2e8f0", fontSize: 10, fontWeight: 600 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false} width={60}
-                    tickFormatter={(v) => Math.abs(v as number) >= 1000 ? `${((v as number) / 1000).toFixed(0)}k` : (v as number).toFixed(0)} />
-                  <Tooltip
-                    wrapperStyle={{ backgroundColor: "transparent" }}
-                    contentStyle={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 12, fontSize: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
-                    animationDuration={300}
-                    animationEasing="ease-out"
-                    formatter={(v: unknown, name: unknown, props: { payload?: { raw?: number; isTotal?: boolean } }) => {
-                      if (name === "base") return [null, null];
-                      const raw = props.payload?.raw ?? (v as number);
-                      return [fmtSignedEGP(raw), props.payload?.isTotal ? t("analytics.total") : t("analytics.contribution")];
-                    }}
-                  />
-                  <Bar dataKey="base" stackId="w" fill="transparent" />
-                  <Bar dataKey="value" stackId="w" radius={[4, 4, 0, 0]}>
-                    {waterfallData.map((d, i) => {
-                      const gradId = d.fill === "#3b82f6" ? "url(#wfBlue)" : d.fill === "#10b981" ? "url(#wfGreen)" : d.fill === "#ef4444" ? "url(#wfRed)" : "url(#wfAmber)";
-                      return <Cell key={i} fill={gradId} />;
-                    })}
-                    <LabelList
-                      dataKey="raw"
-                      position="top"
-                      formatter={(v) => { const n = Number(v); return Math.abs(n) >= 1000 ? `${(n / 1000).toFixed(1)}k` : n.toFixed(0); }}
-                      style={{ fill: "#94a3b8", fontSize: 9, fontWeight: 700 }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          );
-        })()}
 
         {/* ── 4. Position Health Cards ────────────────────── */}
         {(() => {

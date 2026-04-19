@@ -23,6 +23,7 @@ export default function SessionExpiredOverlay() {
   if (!visible) return null;
 
   const handleLogin = () => {
+    setVisible(false);
     const next = encodeURIComponent(window.location.pathname);
     router.push(`/login?next=${next}`);
   };
