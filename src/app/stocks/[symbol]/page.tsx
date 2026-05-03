@@ -19,6 +19,7 @@ import { usePriceStream } from "@/hooks/usePriceStream";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import TradeForm from "@/features/trade/components/TradeForm";
 import TransactionHistoryDrawer from "@/features/trade/components/TransactionHistoryDrawer";
+import OwnedPositionPanel from "@/features/portfolio/components/OwnedPositionPanel";
 import { useMarketStatus } from "@/hooks/useMarketStatus";
 import { formatPriceAge } from "@/lib/priceUtils";
 import { rangeToFromTo, type DateRange } from "@/lib/rangeToFromTo";
@@ -526,34 +527,6 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
             </div>
           </div>
 
-          {/* My Position (if owned) */}
-          {position && (
-            <div className="bg-gray-900 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{t("stock.myPosition")}</h2>
-                <button
-                  onClick={() => setHistoryOpen(true)}
-                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors"
-                >
-                  <History size={13} />
-                  {t("stock.viewHistory")}
-                </button>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <PositionStat label={t("stock.shares")} value={position.quantity.toString()} />
-                <PositionStat label={t("stock.avgCost")} value={fmtEGP(position.avgCost)} />
-                <PositionStat
-                  label={t("stock.marketValue")}
-                  value={fmtEGP((priceData?.price ?? position.currentPrice) * position.quantity)}
-                />
-                <PositionStat
-                  label={t("stock.unrealizedPnl")}
-                  value={`${position.pnl >= 0 ? "+" : "−"}${fmtEGP(Math.abs(position.pnl))} (${position.pnl >= 0 ? "+" : "−"}${Math.abs(position.pnlPercent).toFixed(2)}%)`}
-                  positive={position.pnl >= 0}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
           {/* Right col: Trade form */}
@@ -565,6 +538,13 @@ export default function StockPage({ params }: { params: Promise<{ symbol: string
             />
           </div>
         </div>
+        )}
+
+        {/* Owned Position Panel — renders rich position/history data when user has any txs for this symbol */}
+        {activeTab === "overview" && (
+          <div className="mt-4 sm:mt-6">
+            <OwnedPositionPanel symbol={symbol} />
+          </div>
         )}
       </main>
 
@@ -583,17 +563,6 @@ function InfoCard({ label, value }: { label: string; value: string }) {
     <div className="bg-gray-900 rounded-xl px-4 py-3">
       <p className="text-gray-500 text-xs">{label}</p>
       <p className="text-white font-medium text-sm mt-0.5">{value}</p>
-    </div>
-  );
-}
-
-function PositionStat({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
-  return (
-    <div className="bg-gray-800 rounded-lg px-3 py-2">
-      <p className="text-gray-500 text-xs">{label}</p>
-      <p className={`font-medium text-sm mt-0.5 ${positive === undefined ? "text-white" : positive ? "text-emerald-400" : "text-red-400"}`}>
-        {value}
-      </p>
     </div>
   );
 }

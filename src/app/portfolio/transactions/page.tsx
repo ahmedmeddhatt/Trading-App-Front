@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, Download, Loader2, ChevronUp, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { ArrowUpDown, Download, Loader2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
@@ -66,6 +66,18 @@ export default function TransactionsPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [data, sortKey, sortDir]);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  // Reset to page 1 whenever filters or sort change
+  useEffect(() => { setPage(1); }, [symbolFilter, typeFilter, from, to, sortKey, sortDir, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => sorted.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [sorted, safePage, pageSize],
+  );
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -148,7 +160,7 @@ export default function TransactionsPage() {
         )}
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 bg-gray-900 rounded-xl p-4">
+        <div className="flex flex-wrap items-center gap-3 bg-gray-900 rounded-xl p-4">
           <input
             placeholder={t("tx.symbolPlaceholder")}
             value={symbolFilter}
@@ -175,6 +187,41 @@ export default function TransactionsPage() {
           {(symbolFilter || typeFilter || from || to) && (
             <button onClick={() => { setSymbolFilter(""); setTypeFilter(""); setFrom(""); setTo(""); }}
               className="text-sm text-gray-500 hover:text-white">{t("common.clear")}</button>
+          )}
+          {!isLoading && sorted.length > 0 && (
+            <div className="ml-auto flex items-center gap-2 text-xs text-gray-400">
+              <span className="hidden sm:inline">
+                {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, sorted.length)} of {sorted.length}
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="bg-gray-800 rounded px-2 py-1 text-xs text-white outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                {[10, 25, 50, 100].map((n) => (
+                  <option key={n} value={n}>{n} / page</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  className="p-1.5 rounded hover:bg-gray-800 disabled:opacity-40 disabled:hover:bg-transparent"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-2 text-gray-300 tabular-nums">{safePage} / {totalPages}</span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  className="p-1.5 rounded hover:bg-gray-800 disabled:opacity-40 disabled:hover:bg-transparent"
+                  aria-label="Next page"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
@@ -207,7 +254,7 @@ export default function TransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((row) => (
+                {paginated.map((row) => (
                   <tr key={row.id} className="td-row border-b border-gray-800/50">
                     <td className="px-4 py-3 text-gray-400">{new Date(row.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3 font-mono font-bold">

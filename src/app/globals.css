@@ -472,6 +472,27 @@ html:not(.dark) .bg-gray-900.overflow-hidden { background-color: var(--gray-900)
   outline-offset: 2px;
 }
 
+/* ── Recharts: kill the dark focus rectangle that appears on click ── */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-wrapper svg,
+.recharts-surface svg,
+.recharts-wrapper *,
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+.recharts-wrapper:focus,
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus,
+.recharts-surface:focus-visible,
+.recharts-wrapper svg:focus,
+.recharts-wrapper svg:focus-visible,
+.recharts-tooltip-wrapper:focus,
+.recharts-tooltip-wrapper:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Skip to content link */
 .skip-to-content {
   position: fixed;

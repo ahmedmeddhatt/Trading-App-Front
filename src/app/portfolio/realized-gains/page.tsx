@@ -53,7 +53,16 @@ function fmt(val: string | number) {
   return fmtCurrency.format(parseFloat(String(val)));
 }
 
-type RGSortKey = "date" | "symbol" | "quantity" | "sellPrice" | "avgPrice" | "profit" | "returnPct" | "fees";
+type RGSortKey = "date" | "symbol" | "quantity" | "sellPrice" | "avgPrice" | "profit" | "returnPct" | "fees" | "holdDays";
+
+function formatDuration(days: number): string {
+  if (days < 30) return `${days}d`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo`;
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+  return remMonths > 0 ? `${years}y ${remMonths}mo` : `${years}y`;
+}
 type RGFilter  = "all" | "wins" | "losses";
 type RGPreset  = "newest" | "oldest" | "biggestWin" | "biggestLoss" | "bestReturn" | "worstReturn" | "mostShares" | "symbol" | null;
 
@@ -151,6 +160,9 @@ export default function RealizedGainsPage() {
       } else if (sortKey === "returnPct") {
         av = a.returnPct != null ? parseFloat(a.returnPct) : -Infinity;
         bv = b.returnPct != null ? parseFloat(b.returnPct) : -Infinity;
+      } else if (sortKey === "holdDays") {
+        av = a.holdDays ?? -Infinity;
+        bv = b.holdDays ?? -Infinity;
       } else {
         av = parseFloat(String(a[sortKey as keyof RealizedGainRecord] ?? "0"));
         bv = parseFloat(String(b[sortKey as keyof RealizedGainRecord] ?? "0"));
@@ -160,14 +172,22 @@ export default function RealizedGainsPage() {
     return rows;
   }, [filtered, sortKey, sortDir]);
 
-  const filteredProfit = useMemo(
-    () => sorted.reduce((s, g) => s + parseFloat(g.profit), 0),
-    [sorted],
-  );
-  const filteredFees = useMemo(
-    () => sorted.reduce((s, g) => s + parseFloat(g.fees), 0),
-    [sorted],
-  );
+  const filteredTotals = useMemo(() => {
+    let profit = 0, fees = 0, shares = 0, invested = 0, proceeds = 0;
+    for (const g of sorted) {
+      const qty = parseFloat(g.quantity);
+      profit += parseFloat(g.profit);
+      fees += parseFloat(g.fees);
+      shares += qty;
+      invested += qty * parseFloat(g.avgPrice);
+      proceeds += qty * parseFloat(g.sellPrice);
+    }
+    const avgCost = shares > 0 ? invested / shares : 0;
+    const returnPct = invested > 0 ? (profit / invested) * 100 : null;
+    return { profit, fees, shares, invested, proceeds, avgCost, returnPct };
+  }, [sorted]);
+  const filteredProfit = filteredTotals.profit;
+  const filteredFees = filteredTotals.fees;
 
   function SortTh({ label, k }: { label: string; k: RGSortKey }) {
     const active = sortKey === k;
@@ -238,7 +258,7 @@ export default function RealizedGainsPage() {
                 </div>
               </div>
               {/* Summary stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="bg-gray-800/50 rounded-lg px-3 py-2">
                   <p className="text-gray-500 text-xs mb-0.5">Total Return</p>
                   <p className={`text-sm font-bold ${summary.totalReturn == null ? "text-gray-400" : parseFloat(summary.totalReturn) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
@@ -261,6 +281,23 @@ export default function RealizedGainsPage() {
                   <p className="text-gray-500 text-xs mb-0.5">Positions</p>
                   <p className="text-sm font-bold text-white">{summary.uniqueSymbols}</p>
                 </div>
+                {/* Avg Fees per Position — absolute amount + percentage of avg cost basis */}
+                {(() => {
+                  const totalFees = parseFloat(summary.totalFees);
+                  const totalCost = parseFloat(summary.totalCostBasis);
+                  const avgFeesPerPosition = summary.uniqueSymbols > 0 ? totalFees / summary.uniqueSymbols : 0;
+                  const avgCostPerPosition = summary.uniqueSymbols > 0 ? totalCost / summary.uniqueSymbols : 0;
+                  const feePctOfPosition = avgCostPerPosition > 0 ? (avgFeesPerPosition / avgCostPerPosition) * 100 : 0;
+                  return (
+                    <div className="bg-gray-800/50 rounded-lg px-3 py-2" title="Average fees paid per closed position, and what fraction of the position size that represents.">
+                      <p className="text-gray-500 text-xs mb-0.5">Avg Fees / Position</p>
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <p className="text-sm font-bold text-amber-400">{fmt(avgFeesPerPosition)}</p>
+                        <p className="text-[10px] font-semibold text-amber-500/80">{feePctOfPosition.toFixed(2)}%</p>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -311,10 +348,14 @@ export default function RealizedGainsPage() {
                           : <ChevronsUpDown size={12} className="opacity-40" />}
                       </span>
                     </th>
-                    <SortTh label={t("tx.date")} k="date" />
+                    <SortTh label={`${t("closed.openDate")} → ${t("closed.closeDate")}`} k="date" />
                     <SortTh label={t("dashboard.shares")} k="quantity" />
                     <SortTh label={t("common.avgCost")} k="avgPrice" />
                     <SortTh label={t("pos.sellPrice")} k="sellPrice" />
+                    <th className="px-3 py-3 text-right whitespace-nowrap text-gray-500 hidden md:table-cell">{t("closed.invested")}</th>
+                    <th className="px-3 py-3 text-right whitespace-nowrap text-gray-500 hidden md:table-cell">{t("closed.proceeds")}</th>
+                    <SortTh label={t("closed.holdDays")} k="holdDays" />
+                    <th className="px-3 py-3 text-center whitespace-nowrap text-gray-500 hidden lg:table-cell">{t("closed.winLoss")}</th>
                     <SortTh label={t("common.profit")} k="profit" />
                     <SortTh label={t("common.return")} k="returnPct" />
                     <SortTh label={t("closed.fees")} k="fees" />
@@ -323,7 +364,7 @@ export default function RealizedGainsPage() {
                 <tbody>
                   {sorted.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-3 py-8 text-center text-gray-600 text-xs">
+                      <td colSpan={12} className="px-3 py-8 text-center text-gray-600 text-xs">
                         No trades match this filter.
                       </td>
                     </tr>
@@ -331,17 +372,35 @@ export default function RealizedGainsPage() {
                     const profit = parseFloat(g.profit);
                     const win = profit >= 0;
                     const retPct = g.returnPct != null ? parseFloat(g.returnPct) : null;
+                    const qty = parseFloat(g.quantity);
+                    const invested = qty * parseFloat(g.avgPrice);
+                    const proceeds = qty * parseFloat(g.sellPrice);
+                    const closeDate = new Date(g.date);
+                    const openDate = g.holdDays != null ? new Date(closeDate.getTime() - g.holdDays * 86400000) : null;
+                    const sameYear = openDate != null && openDate.getFullYear() === closeDate.getFullYear();
+                    const closeStr = closeDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                    const openStr = openDate
+                      ? openDate.toLocaleDateString("en-US", sameYear ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" })
+                      : null;
                     return (
                       <tr key={g.id} className="border-b border-gray-800/60 hover:bg-gray-800/20 transition-colors cursor-pointer" onClick={() => router.push(`/portfolio/positions/${g.symbol}`)}>
                         <td className="px-3 py-2.5">
                           <span className="font-bold text-white font-mono text-xs">{g.symbol}</span>
                         </td>
                         <td className="px-3 py-2.5 text-right text-gray-500 text-xs whitespace-nowrap">
-                          {new Date(g.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          {openStr ? `${openStr} → ${closeStr}` : closeStr}
                         </td>
-                        <td className="px-3 py-2.5 text-right text-gray-300 text-xs">{parseFloat(g.quantity).toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right text-gray-300 text-xs">{qty.toLocaleString()}</td>
                         <td className="px-3 py-2.5 text-right text-gray-400 text-xs">{fmt(parseFloat(g.avgPrice))}</td>
                         <td className="px-3 py-2.5 text-right text-gray-300 text-xs">{fmt(parseFloat(g.sellPrice))}</td>
+                        <td className="px-3 py-2.5 text-right text-gray-400 text-xs hidden md:table-cell">{fmt(invested)}</td>
+                        <td className="px-3 py-2.5 text-right text-gray-300 text-xs hidden md:table-cell">{fmt(proceeds)}</td>
+                        <td className="px-3 py-2.5 text-right text-gray-400 text-xs">{g.holdDays != null ? formatDuration(g.holdDays) : "—"}</td>
+                        <td className="px-3 py-2.5 text-center text-xs hidden lg:table-cell">
+                          <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${win ? "bg-emerald-950/40 text-emerald-400" : "bg-red-950/40 text-red-400"}`}>
+                            {win ? "W" : "L"}
+                          </span>
+                        </td>
                         <td className={`px-3 py-2.5 text-right font-bold text-xs ${win ? "text-emerald-400" : "text-red-400"}`}>
                           {win ? "+" : "−"}{fmt(Math.abs(profit))}
                         </td>
@@ -355,13 +414,31 @@ export default function RealizedGainsPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-gray-700 bg-gray-800/30">
-                    <td colSpan={5} className="px-3 py-2.5 text-gray-500 text-xs font-semibold uppercase tracking-wide">
-                      {t("common.total")} {filter !== "all" && <span className="text-gray-600 normal-case font-normal">({sorted.length} shown)</span>}
+                    <td className="px-3 py-2.5 text-gray-500 text-xs font-semibold uppercase tracking-wide">
+                      {t("common.total")} {filter !== "all" && <span className="text-gray-600 normal-case font-normal">({sorted.length})</span>}
                     </td>
+                    <td className="px-3 py-2.5" />
+                    <td className="px-3 py-2.5 text-right text-gray-300 text-xs font-semibold">
+                      {filteredTotals.shares.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-gray-400 text-xs font-medium" title="Weighted average cost">
+                      {filteredTotals.shares > 0 ? fmt(filteredTotals.avgCost) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5" />
+                    <td className="px-3 py-2.5 text-right text-gray-300 text-xs font-semibold hidden md:table-cell">
+                      {fmt(filteredTotals.invested)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-gray-300 text-xs font-semibold hidden md:table-cell">
+                      {fmt(filteredTotals.proceeds)}
+                    </td>
+                    <td className="px-3 py-2.5" />
+                    <td className="px-3 py-2.5 hidden lg:table-cell" />
                     <td className={`px-3 py-2.5 text-right font-bold text-xs ${filteredIsWin ? "text-emerald-400" : "text-red-400"}`}>
                       {filteredIsWin ? "+" : "−"}{fmt(Math.abs(filteredProfit))}
                     </td>
-                    <td className="px-3 py-2.5" />
+                    <td className={`px-3 py-2.5 text-right text-xs font-bold ${filteredTotals.returnPct == null ? "text-gray-500" : filteredTotals.returnPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                      {filteredTotals.returnPct != null ? `${filteredTotals.returnPct >= 0 ? "+" : "−"}${Math.abs(filteredTotals.returnPct).toFixed(2)}%` : "—"}
+                    </td>
                     <td className="px-3 py-2.5 text-right text-gray-400 text-xs font-medium">{fmt(filteredFees)}</td>
                   </tr>
                 </tfoot>

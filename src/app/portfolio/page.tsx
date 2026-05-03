@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { usePriceStream } from "@/hooks/usePriceStream";
 import { useTradingMode, useAssetType, withAssetType } from "@/store/useTradingMode";
 import { useTheme } from "@/context/ThemeContext";
-import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, LabelList, ComposedChart, Area, Scatter, ReferenceLine } from "recharts";
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, LabelList, ComposedChart, Area, Scatter, ReferenceLine } from "recharts";
 import type { DateRange } from "@/features/portfolio/components/TimelineChart";
 
 const TimelineChart = dynamic(
@@ -97,6 +97,7 @@ interface TimelinePoint {
   timestamp: string;
   totalValue: string | number;
   totalInvested?: string | number;
+  realizedPnL?: string | number;
 }
 
 interface AllocationSlice { name: string; value: number; percentage: number; }
@@ -419,10 +420,15 @@ function reconstructPositionsForRange(analytics: Analytics | null, range: DateRa
     return closest ? parseFloat(closest.price) : null;
   }
 
-  // Filter out fully sold positions — they belong in the Closed Positions section
+  // Include all symbols with activity in the range — currently held *and* fully sold.
+  // (The old "Closed Positions" section was removed; closed positions now live alongside open ones, marked SOLD.)
   return Array.from(relevantSymbols).filter((symbol) => {
     const pos = posMap.get(symbol);
-    return (pos?.qty ?? 0) > 0.0001;
+    const startPos = posAtStart.get(symbol);
+    const totalBought = totalBoughtMap.get(symbol);
+    return (pos?.qty ?? 0) > 0.0001
+      || (startPos?.qty ?? 0) > 0.0001
+      || (totalBought?.qty ?? 0) > 0.0001;
   }).map((symbol) => {
     const currentPos = posMap.get(symbol);
     const startPos = posAtStart.get(symbol);
@@ -570,33 +576,65 @@ function StatCard({
     purple: "bg-purple-50 dark:bg-purple-900/20 text-purple-500 dark:text-purple-400",
     neutral: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
   };
+  const accentRail: Record<string, string> = {
+    blue: "from-blue-400 to-blue-500",
+    green: "from-emerald-400 to-emerald-500",
+    red: "from-red-400 to-red-500",
+    amber: "from-amber-400 to-amber-500",
+    purple: "from-purple-400 to-purple-500",
+    neutral: "from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-600",
+  };
+  const accentGlow: Record<string, string> = {
+    blue: "hover:border-blue-200 dark:hover:border-blue-900/40",
+    green: "hover:border-emerald-200 dark:hover:border-emerald-900/40",
+    red: "hover:border-red-200 dark:hover:border-red-900/40",
+    amber: "hover:border-amber-200 dark:hover:border-amber-900/40",
+    purple: "hover:border-purple-200 dark:hover:border-purple-900/40",
+    neutral: "hover:border-gray-200 dark:hover:border-gray-700/50",
+  };
+  const railClass = accentRail[accent ?? "neutral"];
+  const glowClass = accentGlow[accent ?? "neutral"];
   const match = value.match(/^([+\-−]?)([A-Z]{3})\s*(.+)$/);
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm dark:shadow-none flex flex-col gap-2 hover:shadow-md dark:hover:border-gray-700/50 transition-all duration-200">
-      <div className="flex items-center justify-between">
-        {icon && (
-          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${accent ? accentBg[accent] : accentBg.neutral}`}>
-            {icon}
-          </div>
-        )}
-        {badge && (
-          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ml-auto ${positive === true ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : positive === false ? "bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400" : "bg-gray-100 dark:bg-gray-800 text-gray-500"}`}>
-            {badge}
-          </span>
-        )}
-      </div>
-      <div className="flex-1">
-        <p className="text-gray-400 dark:text-gray-500 text-xs sm:text-xs font-medium uppercase tracking-wide mb-1">{label}</p>
-        {match ? (
-          <div className="flex items-baseline gap-0.5 flex-wrap">
-            {match[1] && <span className={`text-sm sm:text-sm font-bold ${valueClass ?? autoClass}`}>{match[1]}</span>}
-            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">{match[2]}</span>
-            <span className={`text-lg sm:text-xl font-bold leading-tight ${valueClass ?? autoClass}`}>{match[3]}</span>
-          </div>
-        ) : (
-          <p className={`text-lg sm:text-xl font-bold leading-tight ${valueClass ?? autoClass}`}>{value}</p>
-        )}
-        {sub && <p className="text-gray-400 dark:text-gray-500 text-xs sm:text-xs mt-1">{sub}</p>}
+    <div className={`relative overflow-hidden bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800/60 shadow-sm dark:shadow-none transition-all duration-200 hover:shadow-md ${glowClass}`}>
+      {/* Top accent rail */}
+      <div className={`h-1 w-full bg-gradient-to-r ${railClass}`} />
+
+      <div className="p-3 sm:p-4 flex flex-col gap-2.5">
+        {/* Top row: icon pill + label + optional badge */}
+        <div className="flex items-center gap-2">
+          {icon && (
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${accent ? accentBg[accent] : accentBg.neutral}`}>
+              {icon}
+            </div>
+          )}
+          <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-[11px] font-bold uppercase tracking-widest leading-tight flex-1 min-w-0">
+            {label}
+          </p>
+          {badge && (
+            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none ${positive === true ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400" : positive === false ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400" : "bg-gray-100 dark:bg-gray-800 text-gray-500"}`}>
+              {badge}
+            </span>
+          )}
+        </div>
+
+        {/* Value */}
+        <div>
+          {match ? (
+            <div className="flex items-baseline gap-1 flex-wrap">
+              {match[1] && <span className={`text-base font-bold leading-none ${valueClass ?? autoClass}`}>{match[1]}</span>}
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold tracking-wider">{match[2]}</span>
+              <span className={`text-xl sm:text-2xl font-extrabold leading-none ${valueClass ?? autoClass}`}>{match[3]}</span>
+            </div>
+          ) : (
+            <p className={`text-xl sm:text-2xl font-extrabold leading-none ${valueClass ?? autoClass}`}>{value}</p>
+          )}
+          {sub && (
+            <p className="text-gray-400 dark:text-gray-500 text-[10px] sm:text-[11px] mt-1.5 leading-tight">
+              {sub}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -608,8 +646,16 @@ function winRateClass(rate: number) {
   return "text-orange-400";
 }
 
-function WinRateBadge({ positions, closedPositions }: { positions: AnalyticsPosition[]; closedPositions: ClosedPosition[] }) {
+function WinRateBadge({
+  positions, closedPositions,
+}: {
+  positions: AnalyticsPosition[];
+  closedPositions: ClosedPosition[];
+}) {
   const { t } = useLanguage();
+  // Reuses the same React Query cache key used by RealizedGainsTable, so this is a free re-read.
+  const { data: realizedGainsData } = useRealizedGains();
+  const realizedGains = realizedGainsData?.gains;
 
   // Unrealized: open positions
   const priced = positions.filter((p) => p.unrealizedPnL != null);
@@ -626,6 +672,29 @@ function WinRateBadge({ positions, closedPositions }: { positions: AnalyticsPosi
   const rate = total > 0 ? (totalWins / total) * 100 : 0;
   const hasData = total > 0;
 
+  // Profit factor, avg win/loss, dollar-weighted return — bridges win rate (count) with $ outcome
+  const { avgWin, avgLoss, profitFactor, totalProfit, totalReturnPct } = (() => {
+    const gains = realizedGains ?? [];
+    if (gains.length === 0) {
+      return { avgWin: 0, avgLoss: 0, profitFactor: null as number | null, totalProfit: 0, totalReturnPct: null as number | null };
+    }
+    let sumWin = 0, sumLoss = 0, winN = 0, lossN = 0, sumProfit = 0, sumCost = 0;
+    for (const g of gains) {
+      const p = parseFloat(g.profit);
+      sumProfit += p;
+      sumCost += parseFloat(g.quantity) * parseFloat(g.avgPrice);
+      if (p > 0) { sumWin += p; winN++; }
+      else if (p < 0) { sumLoss += Math.abs(p); lossN++; }
+    }
+    return {
+      avgWin: winN > 0 ? sumWin / winN : 0,
+      avgLoss: lossN > 0 ? sumLoss / lossN : 0,
+      profitFactor: sumLoss > 0 ? sumWin / sumLoss : null,
+      totalProfit: sumProfit,
+      totalReturnPct: sumCost > 0 ? (sumProfit / sumCost) * 100 : null,
+    };
+  })();
+
   const accentBg: Record<string, string> = {
     green: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400",
     amber: "bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400",
@@ -634,34 +703,112 @@ function WinRateBadge({ positions, closedPositions }: { positions: AnalyticsPosi
   };
   const accentKey = rate >= 50 ? "green" : rate > 0 ? "amber" : "red";
 
+  const explainTitle = t("winRate.explainTooltip");
+
+  // Visual proportion of wins vs losses (closed trades preferred — they are the dollar-realized ones)
+  const closedTotal = realizedWins + realizedLosses;
+  const winBarPct = closedTotal > 0 ? (realizedWins / closedTotal) * 100 : 0;
+
+  const railGradient = accentKey === "green"
+    ? "from-emerald-400 to-emerald-500"
+    : accentKey === "amber"
+      ? "from-amber-400 to-amber-500"
+      : accentKey === "red"
+        ? "from-red-400 to-red-500"
+        : "from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-600";
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm flex flex-col gap-2 hover:shadow-md dark:hover:border-gray-700/50 transition-all duration-200">
+    <div
+      className="relative overflow-hidden bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800/60 shadow-sm flex flex-col hover:shadow-md dark:hover:border-gray-700/50 transition-all duration-200 h-full"
+      title={explainTitle}
+    >
+      <div className={`h-1 w-full bg-gradient-to-r ${railGradient}`} />
+      <div className="p-3 sm:p-4 flex flex-col gap-2.5 flex-1">
+      {/* Top row: badge + PF chip */}
       <div className="flex items-center justify-between">
-        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${accentBg[accentKey]}`}>
-          <span className="text-xs font-bold">W/L</span>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${accentBg[accentKey]}`}>
+          <span className="text-[10px] font-bold tracking-tight">W/L</span>
         </div>
+        {profitFactor != null && (
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full leading-none ${profitFactor >= 1 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400"}`}
+            title={t("winRate.profitFactorTooltip")}
+          >
+            PF · {profitFactor.toFixed(2)}
+          </span>
+        )}
       </div>
+
+      {/* Headline: Win Rate label + big % alone (matches Avg Holding Period structure) */}
       <div>
-        <p className="text-gray-400 dark:text-gray-500 text-xs font-medium uppercase tracking-wide mb-1">{t("portfolio.winRate")}</p>
-        <p className={`text-lg sm:text-xl font-bold leading-tight ${hasData ? winRateClass(rate) : "text-gray-400"}`}>
+        <p className="text-gray-400 dark:text-gray-500 text-[10px] font-semibold uppercase tracking-wider mb-0.5">{t("portfolio.winRate")}</p>
+        <p className={`text-2xl font-bold leading-none ${
+          !hasData ? "text-gray-400"
+          : totalProfit > 0 ? "text-emerald-500 dark:text-emerald-400"
+          : totalProfit < 0 ? "text-red-500 dark:text-red-400"
+          : winRateClass(rate)
+        }`}>
           {hasData ? `${rate.toFixed(1)}%` : "—"}
         </p>
-        {hasData && (
-          <div className="mt-1.5 space-y-0.5">
-            <p className="text-xs text-gray-400 dark:text-gray-500">
-              <span className="text-emerald-500 font-medium">{unrealizedWins}W</span>
-              <span className="mx-1">·</span>
-              <span className="text-red-400 font-medium">{unrealizedLosses}L</span>
-              <span className="text-gray-400 ml-1">open</span>
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">
-              <span className="text-emerald-500 font-medium">{realizedWins}W</span>
-              <span className="mx-1">·</span>
-              <span className="text-red-400 font-medium">{realizedLosses}L</span>
-              <span className="text-gray-400 ml-1">closed</span>
-            </p>
+      </div>
+
+      {/* W/L progress bar — labelled like "avg vs total" on the Avg Holding card */}
+      {closedTotal > 0 && (
+        <div>
+          <div className="flex justify-between text-[9px] text-gray-500 dark:text-gray-500 mb-1">
+            <span className="opacity-70">wins vs losses</span>
+            <span className="font-semibold tabular-nums">
+              <span className="text-emerald-500 dark:text-emerald-400">{totalWins}W</span>
+              <span className="mx-1 opacity-60">/</span>
+              <span className="text-red-500 dark:text-red-400">{totalLosses}L</span>
+            </span>
           </div>
-        )}
+          <div
+            className="h-1.5 rounded-full bg-red-100 dark:bg-red-950/40 overflow-hidden"
+            title={`${realizedWins} ${t("winRate.winning")} · ${realizedLosses} ${t("winRate.losing")}`}
+          >
+            <div className="h-full bg-emerald-400 dark:bg-emerald-500 transition-all duration-500" style={{ width: `${winBarPct}%` }} />
+          </div>
+        </div>
+      )}
+
+      {/* Total Return — dollar-weighted, panel matches "Total Time Invested" panel on Avg Holding card */}
+      {hasData && totalReturnPct != null && (
+        <div
+          className="rounded-lg bg-gray-50 dark:bg-gray-800/50 px-2.5 py-2"
+          title={t("winRate.totalReturnTooltip")}
+        >
+          <span className="text-[10px] text-gray-500 dark:text-gray-500 uppercase tracking-wider font-semibold">{t("winRate.totalReturn")}</span>
+          <p className={`text-base font-bold leading-none mt-0.5 ${totalReturnPct >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+            {totalReturnPct >= 0 ? "+" : "−"}{Math.abs(totalReturnPct).toFixed(2)}%
+            <span className={`ml-1.5 text-[11px] font-medium ${totalProfit >= 0 ? "text-emerald-500/80 dark:text-emerald-400/80" : "text-red-500/80 dark:text-red-400/80"}`}>
+              {totalProfit >= 0 ? "+" : "−"}{fmt(Math.abs(totalProfit))}
+            </span>
+          </p>
+        </div>
+      )}
+
+      {/* Avg win / avg loss — 2-col footer matches OPEN/CLOSED on Avg Holding card */}
+      {hasData && (avgWin > 0 || avgLoss > 0) && (
+        <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+          <div className="rounded bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-1" title={t("winRate.avgWinTooltip")}>
+            <p className="text-emerald-600/70 dark:text-emerald-500/70 font-semibold uppercase tracking-wide leading-tight">{t("winRate.avgWin")}</p>
+            <p className="text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">{fmt(avgWin)}</p>
+          </div>
+          <div className="rounded bg-red-50 dark:bg-red-950/30 px-1.5 py-1" title={t("winRate.avgLossTooltip")}>
+            <p className="text-red-500/70 dark:text-red-500/70 font-semibold uppercase tracking-wide leading-tight">{t("winRate.avgLoss")}</p>
+            <p className="text-red-500 dark:text-red-400 font-bold leading-tight mt-0.5">{fmt(avgLoss)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Open positions footnote (if any) */}
+      {hasData && (unrealizedWins + unrealizedLosses) > 0 && (
+        <p className="text-[10px] text-gray-400 dark:text-gray-600 leading-tight">
+          {t("winRate.openLabel")}: <span className="text-emerald-500/80 font-medium">{unrealizedWins}W</span>
+          <span className="mx-0.5 opacity-60">·</span>
+          <span className="text-red-500/80 font-medium">{unrealizedLosses}L</span>
+        </p>
+      )}
       </div>
     </div>
   );
@@ -733,7 +880,7 @@ function ExpandedHistory({ symbol }: { symbol: string }) {
 
 // ─── Realized Gains Table ─────────────────────────────────────────────────────
 
-type RGSortKey = "date" | "symbol" | "quantity" | "sellPrice" | "avgPrice" | "profit" | "returnPct" | "fees";
+type RGSortKey = "date" | "symbol" | "quantity" | "sellPrice" | "avgPrice" | "profit" | "returnPct" | "fees" | "holdDays";
 type RGFilter  = "all" | "wins" | "losses";
 type RGPreset  = "newest" | "oldest" | "biggestWin" | "biggestLoss" | "bestReturn" | "worstReturn" | "mostShares" | "symbol" | null;
 
@@ -826,6 +973,9 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
       } else if (sortKey === "returnPct") {
         av = a.returnPct != null ? parseFloat(a.returnPct) : -Infinity;
         bv = b.returnPct != null ? parseFloat(b.returnPct) : -Infinity;
+      } else if (sortKey === "holdDays") {
+        av = a.holdDays ?? -Infinity;
+        bv = b.holdDays ?? -Infinity;
       } else {
         av = parseFloat(String(a[sortKey as keyof RealizedGainRecord] ?? "0"));
         bv = parseFloat(String(b[sortKey as keyof RealizedGainRecord] ?? "0"));
@@ -836,14 +986,22 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
   }, [filtered, sortKey, sortDir]);
 
   // Totals over the filtered set
-  const filteredProfit = useMemo(
-    () => sorted.reduce((s, g) => s + parseFloat(g.profit), 0),
-    [sorted],
-  );
-  const filteredFees = useMemo(
-    () => sorted.reduce((s, g) => s + parseFloat(g.fees), 0),
-    [sorted],
-  );
+  const filteredTotals = useMemo(() => {
+    let profit = 0, fees = 0, shares = 0, invested = 0, proceeds = 0;
+    for (const g of sorted) {
+      const qty = parseFloat(g.quantity);
+      profit += parseFloat(g.profit);
+      fees += parseFloat(g.fees);
+      shares += qty;
+      invested += qty * parseFloat(g.avgPrice);
+      proceeds += qty * parseFloat(g.sellPrice);
+    }
+    const avgCost = shares > 0 ? invested / shares : 0;
+    const returnPct = invested > 0 ? (profit / invested) * 100 : null;
+    return { profit, fees, shares, invested, proceeds, avgCost, returnPct };
+  }, [sorted]);
+  const filteredProfit = filteredTotals.profit;
+  const filteredFees = filteredTotals.fees;
 
   function SortTh({ label, k }: { label: string; k: RGSortKey }) {
     const active = sortKey === k;
@@ -870,7 +1028,33 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
       </div>
     );
   }
-  if (!summary || summary.count === 0) return null;
+  if (!summary || summary.count === 0) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden border border-gray-200 dark:border-transparent shadow-sm dark:shadow-none">
+        <div className="px-3 sm:px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest">
+                {t("portfolio.realizedPnl")} — {t("realized.allTrades")}
+              </h2>
+              <p className="text-gray-600 text-[10px] sm:text-xs mt-0.5">0 {t("realized.trades")}</p>
+            </div>
+            <div className="flex gap-1 range-btns">
+              {RANGE_OPTIONS.map((r) => (
+                <button key={r} onClick={() => onRangeChange(r)}
+                  className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium active:scale-95 transition-all duration-150 whitespace-nowrap ${
+                    range === r ? "bg-blue-600 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+                  }`}>{r}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="px-3 py-10 text-center text-gray-500 dark:text-gray-600 text-xs">
+          No realized trades in this range.
+        </div>
+      </div>
+    );
+  }
 
   const totalProfit = parseFloat(summary.totalProfit);
   const isWin = totalProfit >= 0;
@@ -909,7 +1093,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
           </div>
         </div>
         {/* Summary stat row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg px-3 py-2">
             <p className="text-gray-500 text-xs mb-0.5">Total Return</p>
             <p className={`text-sm font-bold ${totalReturn == null ? "text-gray-400" : totalReturn >= 0 ? "text-emerald-400" : "text-red-400"}`}>
@@ -932,6 +1116,28 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
             <p className="text-gray-500 text-xs mb-0.5">Positions</p>
             <p className="text-sm font-bold text-gray-900 dark:text-white">{summary.uniqueSymbols}</p>
           </div>
+          {/* Avg Fees per Position — absolute amount + percentage of avg cost basis */}
+          {(() => {
+            const totalFees = parseFloat(summary.totalFees);
+            const totalCost = parseFloat(summary.totalCostBasis);
+            const avgFeesPerPosition = summary.uniqueSymbols > 0 ? totalFees / summary.uniqueSymbols : 0;
+            const avgCostPerPosition = summary.uniqueSymbols > 0 ? totalCost / summary.uniqueSymbols : 0;
+            // Fees as % of average position size — answers "what % of each position went to fees?"
+            const feePctOfPosition = avgCostPerPosition > 0 ? (avgFeesPerPosition / avgCostPerPosition) * 100 : 0;
+            return (
+              <div className="bg-gray-100 dark:bg-gray-800/50 rounded-lg px-3 py-2" title="Average fees paid per closed position, and what fraction of the position size that represents.">
+                <p className="text-gray-500 text-xs mb-0.5">Avg Fees / Position</p>
+                <div className="flex items-baseline gap-1.5 flex-wrap">
+                  <p className="text-sm font-bold text-amber-500 dark:text-amber-400">
+                    {fmt(avgFeesPerPosition)}
+                  </p>
+                  <p className="text-[10px] font-semibold text-amber-600/70 dark:text-amber-500/80">
+                    {feePctOfPosition.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -983,10 +1189,14 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
                   : <ChevronsUpDown size={12} className="opacity-40" />}
               </span>
             </th>
-            <SortTh label={t("tx.date")} k="date" />
+            <SortTh label={`${t("closed.openDate")} → ${t("closed.closeDate")}`} k="date" />
             <SortTh label={t("dashboard.shares")} k="quantity" />
             <SortTh label={t("common.avgCost")} k="avgPrice" />
             <SortTh label={t("pos.sellPrice")} k="sellPrice" />
+            <th className="px-3 py-3 text-right whitespace-nowrap text-gray-500 hidden md:table-cell">{t("closed.invested")}</th>
+            <th className="px-3 py-3 text-right whitespace-nowrap text-gray-500 hidden md:table-cell">{t("closed.proceeds")}</th>
+            <SortTh label={t("closed.holdDays")} k="holdDays" />
+            <th className="px-3 py-3 text-center whitespace-nowrap text-gray-500 hidden lg:table-cell">{t("closed.winLoss")}</th>
             <SortTh label={t("common.profit")} k="profit" />
             <SortTh label={t("common.return")} k="returnPct" />
             <SortTh label={t("closed.fees")} k="fees" />
@@ -995,7 +1205,7 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
         <tbody>
           {sorted.length === 0 ? (
             <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-gray-600 text-xs">
+              <td colSpan={12} className="px-3 py-8 text-center text-gray-600 text-xs">
                 No trades match this filter.
               </td>
             </tr>
@@ -1003,17 +1213,35 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
             const profit = parseFloat(g.profit);
             const win = profit >= 0;
             const retPct = g.returnPct != null ? parseFloat(g.returnPct) : null;
+            const qty = parseFloat(g.quantity);
+            const invested = qty * parseFloat(g.avgPrice);
+            const proceeds = qty * parseFloat(g.sellPrice);
+            const closeDate = new Date(g.date);
+            const openDate = g.holdDays != null ? new Date(closeDate.getTime() - g.holdDays * 86400000) : null;
+            const sameYear = openDate != null && openDate.getFullYear() === closeDate.getFullYear();
+            const closeStr = closeDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            const openStr = openDate
+              ? openDate.toLocaleDateString("en-US", sameYear ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" })
+              : null;
             return (
               <tr key={g.id} className="td-row border-b border-gray-100 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-800/20 cursor-pointer transition-colors" onClick={() => rgRouter.push(`/portfolio/positions/${g.symbol}`)}>
                 <td className="px-3 py-2.5">
                   <span className="font-bold text-gray-900 dark:text-white font-mono text-xs">{g.symbol}</span>
                 </td>
                 <td className="px-3 py-2.5 text-right text-gray-500 text-xs whitespace-nowrap">
-                  {new Date(g.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  {openStr ? `${openStr} → ${closeStr}` : closeStr}
                 </td>
-                <td className="px-3 py-2.5 text-right text-gray-300 text-xs">{parseFloat(g.quantity).toLocaleString()}</td>
+                <td className="px-3 py-2.5 text-right text-gray-300 text-xs">{qty.toLocaleString()}</td>
                 <td className="px-3 py-2.5 text-right text-gray-400 text-xs">{fmt(parseFloat(g.avgPrice))}</td>
                 <td className="px-3 py-2.5 text-right text-gray-300 text-xs">{fmt(parseFloat(g.sellPrice))}</td>
+                <td className="px-3 py-2.5 text-right text-gray-400 text-xs hidden md:table-cell">{fmt(invested)}</td>
+                <td className="px-3 py-2.5 text-right text-gray-300 text-xs hidden md:table-cell">{fmt(proceeds)}</td>
+                <td className="px-3 py-2.5 text-right text-gray-400 text-xs">{g.holdDays != null ? formatDuration(g.holdDays) : "—"}</td>
+                <td className="px-3 py-2.5 text-center text-xs hidden lg:table-cell">
+                  <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${win ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400"}`}>
+                    {win ? "W" : "L"}
+                  </span>
+                </td>
                 <td className={`px-3 py-2.5 text-right font-bold text-xs ${win ? "text-emerald-400" : "text-red-400"}`}>
                   {win ? "+" : "−"}{fmt(Math.abs(profit))}
                 </td>
@@ -1027,13 +1255,31 @@ function RealizedGainsTable({ range, onRangeChange }: { range: DateRange; onRang
         </tbody>
         <tfoot>
           <tr className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30">
-            <td colSpan={5} className="px-3 py-2.5 text-gray-500 text-xs font-semibold uppercase tracking-wide">
-              {t("common.total")} {filter !== "all" && <span className="text-gray-600 normal-case font-normal">({sorted.length} shown)</span>}
+            <td className="px-3 py-2.5 text-gray-500 text-xs font-semibold uppercase tracking-wide">
+              {t("common.total")} {filter !== "all" && <span className="text-gray-600 normal-case font-normal">({sorted.length})</span>}
             </td>
+            <td className="px-3 py-2.5" />
+            <td className="px-3 py-2.5 text-right text-gray-300 text-xs font-semibold">
+              {filteredTotals.shares.toLocaleString()}
+            </td>
+            <td className="px-3 py-2.5 text-right text-gray-400 text-xs font-medium" title="Weighted average cost">
+              {filteredTotals.shares > 0 ? fmt(filteredTotals.avgCost) : "—"}
+            </td>
+            <td className="px-3 py-2.5" />
+            <td className="px-3 py-2.5 text-right text-gray-300 text-xs font-semibold hidden md:table-cell">
+              {fmt(filteredTotals.invested)}
+            </td>
+            <td className="px-3 py-2.5 text-right text-gray-300 text-xs font-semibold hidden md:table-cell">
+              {fmt(filteredTotals.proceeds)}
+            </td>
+            <td className="px-3 py-2.5" />
+            <td className="px-3 py-2.5 hidden lg:table-cell" />
             <td className={`px-3 py-2.5 text-right font-bold text-xs ${filteredIsWin ? "text-emerald-400" : "text-red-400"}`}>
               {filteredIsWin ? "+" : "−"}{fmt(Math.abs(filteredProfit))}
             </td>
-            <td className="px-3 py-2.5" />
+            <td className={`px-3 py-2.5 text-right text-xs font-bold ${filteredTotals.returnPct == null ? "text-gray-500" : filteredTotals.returnPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {filteredTotals.returnPct != null ? `${filteredTotals.returnPct >= 0 ? "+" : "−"}${Math.abs(filteredTotals.returnPct).toFixed(2)}%` : "—"}
+            </td>
             <td className="px-3 py-2.5 text-right text-gray-400 text-xs font-medium">{fmt(filteredFees)}</td>
           </tr>
         </tfoot>
@@ -1062,15 +1308,24 @@ export default function PortfolioPage() {
   const router = useRouter();
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
 
-  // Per-section independent range states
-  const [timelineRange, setTimelineRange] = useState<DateRange>("ALL");
-  const [allocRange, setAllocRange] = useState<DateRange>("ALL");
+  // Per-section independent range states — default to 1M across the board so the dashboard
+  // shows the most-recent month by default; users can switch to longer windows per section.
+  const [timelineRange, setTimelineRange] = useState<DateRange>("1M");
+  const [allocRange, setAllocRange] = useState<DateRange>("1M");
   const [allocExpanded, setAllocExpanded] = useState(false);
+  // Allocation donut grows on mobile (more breathing room since it stacks above the legend),
+  // stays compact on desktop where it sits next to the legend.
+  const [donutSize, setDonutSize] = useState(160);
+  useEffect(() => {
+    const update = () => setDonutSize(window.innerWidth < 640 ? 220 : 160);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
   const [positionsExpanded, setPositionsExpanded] = useState(false);
-  const [positionsRange, setPositionsRange] = useState<DateRange>("ALL");
-  const [closedRange, setClosedRange] = useState<DateRange>("ALL");
-  const [tradingHistoryRange, setTradingHistoryRange] = useState<DateRange>("ALL");
-  const [realizedRange, setRealizedRange] = useState<DateRange>("ALL");
+  const [positionsRange, setPositionsRange] = useState<DateRange>("1M");
+  const [tradingHistoryRange, setTradingHistoryRange] = useState<DateRange>("1M");
+  const [realizedRange, setRealizedRange] = useState<DateRange>("1M");
 
   // Fetch ALL data once — no refetch on range change
   const { data: portfolio, isLoading, isError } = usePortfolio();
@@ -1199,6 +1454,7 @@ export default function PortfolioPage() {
     }
 
     const pts: TimelinePoint[] = [];
+    let cumRealized = 0;
     for (const date of allDates) {
       // Process all transactions on or before this date
       while (txIdx < sortedTxs.length) {
@@ -1214,6 +1470,8 @@ export default function PortfolioPage() {
         } else {
           if (h.qty > 0) {
             const avgCost = h.totalCost / h.qty;
+            const sellQty = Math.min(qty, h.qty);
+            cumRealized += (price - avgCost) * sellQty;
             h.qty = Math.max(0, h.qty - qty);
             h.totalCost = h.qty * avgCost;
           }
@@ -1237,8 +1495,9 @@ export default function PortfolioPage() {
         }
       }
 
-      if (totalValue > 0 || totalInvested > 0) {
-        pts.push({ timestamp: date, totalValue, totalInvested });
+      // Always emit a point if there's cumulative activity (even after fully closing positions)
+      if (totalValue > 0 || totalInvested > 0 || cumRealized !== 0) {
+        pts.push({ timestamp: date, totalValue, totalInvested, realizedPnL: cumRealized });
       }
     }
 
@@ -1271,24 +1530,6 @@ export default function PortfolioPage() {
     const cutoffMs = Date.now() - (RANGE_DAYS[tradingHistoryRange] ?? 30) * 86400000;
     return fullTimeline.filter(p => new Date(p.timestamp).getTime() >= cutoffMs);
   }, [fullTimeline, tradingHistoryRange]);
-
-  // Filter closed positions by their own range
-  const closedPositions = useMemo(() => {
-    if (closedRange === "ALL") return [...allClosedPositions].sort((a, b) => {
-      const da = new Date(a.closeDate ?? a.lastSellDate ?? 0).getTime();
-      const db = new Date(b.closeDate ?? b.lastSellDate ?? 0).getTime();
-      return db - da;
-    });
-    const cutoffMs = Date.now() - (RANGE_DAYS[closedRange] ?? 30) * 86400000;
-    return allClosedPositions.filter((cp) => {
-      const d = cp.closeDate ?? cp.lastSellDate;
-      return d && new Date(d).getTime() >= cutoffMs;
-    }).sort((a, b) => {
-      const da = new Date(a.closeDate ?? a.lastSellDate ?? 0).getTime();
-      const db = new Date(b.closeDate ?? b.lastSellDate ?? 0).getTime();
-      return db - da;
-    });
-  }, [allClosedPositions, closedRange]);
 
   const analyticsMap = useMemo(
     () =>
@@ -1367,7 +1608,7 @@ export default function PortfolioPage() {
           })();
           const totalPositions = (analytics?.positions?.length ?? 0) + allClosedPositions.length;
           return (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:auto-rows-fr">
               <StatCard
                 label={t("analytics.portfolioValue")}
                 value={`EGP ${currentValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
@@ -1385,6 +1626,9 @@ export default function PortfolioPage() {
                 accent={unrealized >= 0 ? "green" : "red"}
                 badge={`${unrealized >= 0 ? "+" : "−"}${Math.abs(unrealizedPct).toFixed(2)}%`}
               />
+              {/* The 4 P&L cards come first in source order so on mobile/tablet they stack at the top.
+                  On desktop, Win Rate + Avg Hold use lg:col-start-3/4 and lg:row-span-2 to claim the
+                  right-hand columns, and the grid auto-flow places RPL/TPL into the empty 2nd row. */}
               <StatCard
                 label={t("portfolio.realizedPnl")}
                 value={`${realizedDisplay >= 0 ? "+" : "−"}EGP ${Math.abs(realizedDisplay).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
@@ -1411,32 +1655,79 @@ export default function PortfolioPage() {
                   accent={totalPnl >= 0 ? "green" : "red"}
                 />
               )}
-              <WinRateBadge
-                positions={analytics?.positions ?? []}
-                closedPositions={allClosedPositions}
-              />
-              <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 border border-gray-100 dark:border-gray-800/50 shadow-sm flex flex-col gap-2 hover:shadow-md dark:hover:border-gray-700/50 transition-all duration-200">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
-                  <Clock size={14} />
-                </div>
-                <div>
-                  <p className="text-gray-400 dark:text-gray-500 text-xs font-medium uppercase tracking-wide mb-1.5">{t("portfolio.avgHold")}</p>
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <div>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Avg</p>
-                      <p className="text-lg sm:text-lg font-bold text-gray-900 dark:text-white leading-tight">
-                        {holdStats.avg != null ? formatDuration(Math.round(holdStats.avg)) : "—"}
-                      </p>
+              {/* Win Rate — placed in column 3 spanning 2 rows on desktop */}
+              <div className="lg:row-span-2 lg:col-start-3 lg:row-start-1">
+                <WinRateBadge
+                  positions={analytics?.positions ?? []}
+                  closedPositions={allClosedPositions}
+                />
+              </div>
+              {/* Avg Hold — column 4 spanning 2 rows on desktop */}
+              <div className="lg:row-span-2 lg:col-start-4 lg:row-start-1 relative overflow-hidden bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800/60 shadow-sm flex flex-col hover:shadow-md dark:hover:border-amber-900/40 hover:border-amber-200 transition-all duration-200 h-full">
+                <div className="h-1 w-full bg-gradient-to-r from-amber-400 to-amber-500" />
+                <div className="p-3 sm:p-4 flex flex-col gap-2.5 flex-1">
+                  {/* Top row: icon + positions chip */}
+                  <div className="flex items-center justify-between">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                      <Clock size={14} />
                     </div>
-                    <div className="w-px h-8 bg-gray-100 dark:bg-gray-800" />
-                    <div>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide">Total</p>
-                      <p className="text-lg sm:text-lg font-bold text-gray-900 dark:text-white leading-tight">
-                        {holdStats.total != null ? formatDuration(holdStats.total) : "—"}
-                      </p>
-                    </div>
+                    {totalPositions > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full leading-none bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                        {totalPositions} pos
+                      </span>
+                    )}
                   </div>
-                  {totalPositions > 0 && <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">{totalPositions} positions</p>}
+
+                  {/* Headline: avg holding */}
+                  <div>
+                    <p className="text-gray-400 dark:text-gray-500 text-[10px] font-semibold uppercase tracking-wider mb-0.5">{t("portfolio.avgHold")}</p>
+                    <p className="text-2xl font-bold leading-none text-amber-600 dark:text-amber-400">
+                      {holdStats.avg != null ? formatDuration(Math.round(holdStats.avg)) : "—"}
+                    </p>
+                  </div>
+
+                  {/* Avg vs Total bar — visualizes how typical hold compares to total time invested */}
+                  {holdStats.avg != null && holdStats.total != null && holdStats.total > 0 && (
+                    <div>
+                      <div className="flex justify-between text-[9px] text-gray-500 dark:text-gray-500 mb-1">
+                        <span className="opacity-70">avg vs total</span>
+                        <span className="font-semibold tabular-nums">{((holdStats.avg / holdStats.total) * 100).toFixed(0)}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-amber-100 dark:bg-amber-950/40 overflow-hidden">
+                        <div
+                          className="h-full bg-amber-400 dark:bg-amber-500 transition-all duration-500"
+                          style={{ width: `${Math.min(100, (holdStats.avg / holdStats.total) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Total elapsed — secondary metric in a panel like Win Rate's Total Return */}
+                  {holdStats.total != null && (
+                    <div
+                      className="rounded-lg bg-gray-50 dark:bg-gray-800/50 px-2.5 py-2"
+                      title="Time elapsed from your very first buy until today (or the last sell). Tracks how long you've been deploying capital overall."
+                    >
+                      <span className="text-[10px] text-gray-500 dark:text-gray-500 uppercase tracking-wider font-semibold">Total Time Invested</span>
+                      <p className="text-base font-bold leading-none text-gray-900 dark:text-white mt-0.5">
+                        {formatDuration(holdStats.total)}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Mini grid: open vs closed counts */}
+                  {totalPositions > 0 && (
+                    <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                      <div className="rounded bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-1" title="Currently held positions">
+                        <p className="text-emerald-600/70 dark:text-emerald-500/70 font-semibold uppercase tracking-wide leading-tight">Open</p>
+                        <p className="text-emerald-600 dark:text-emerald-400 font-bold leading-tight mt-0.5">{analytics?.positions?.length ?? 0}</p>
+                      </div>
+                      <div className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-1" title="Fully closed positions">
+                        <p className="text-gray-500 dark:text-gray-500 font-semibold uppercase tracking-wide leading-tight">Closed</p>
+                        <p className="text-gray-700 dark:text-gray-300 font-bold leading-tight mt-0.5">{allClosedPositions.length}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1460,7 +1751,31 @@ export default function PortfolioPage() {
         />
 
         {/* Trading History */}
-        {tradingHistoryTimeline.length >= 2 && (() => {
+        {(() => {
+          if (tradingHistoryTimeline.length < 2) {
+            return (
+              <div className="bg-white dark:bg-gradient-to-b dark:from-gray-900 dark:to-gray-900/95 rounded-2xl border border-gray-200 dark:border-gray-800/60 overflow-hidden shadow-sm dark:shadow-none">
+                <div className="px-3 sm:px-6 pt-3 sm:pt-5 pb-2 sm:pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                        <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{t("pos.tradingHistory")}</h2>
+                      </div>
+                    </div>
+                    <RangeSelector range={tradingHistoryRange} onChange={setTradingHistoryRange} ranges={["1M", "3M", "6M", "1Y", "ALL"]} />
+                  </div>
+                </div>
+                <div className="px-3 sm:px-6 pb-6 pt-2">
+                  <div className="h-52 sm:h-64 flex items-center justify-center text-gray-500 dark:text-gray-600 text-xs border border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
+                    No trading activity in this range.
+                  </div>
+                </div>
+              </div>
+            );
+          }
           const txs = analytics?.transactions ?? [];
           const sortedTxs = [...txs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -1825,10 +2140,38 @@ export default function PortfolioPage() {
               const isSold = !!(p as AnalyticsPosition & { _isClosed?: boolean })._isClosed;
               const price = isSold ? parseFloat(String(p.averagePrice)) : (p.currentPrice ?? parseFloat(String(p.averagePrice)));
               const value = qty * price;
-              return { symbol: p.symbol, name: isSold ? `${p.symbol}` : p.symbol, value, percentage: allocTotal > 0 ? (value / allocTotal) * 100 : 0, isSold, qty };
+              const unrealized = parseFloat(String(p.unrealizedPnL ?? "0"));
+              const realized = parseFloat(String(p.realizedPnL ?? "0"));
+              const totalPnl = unrealized + realized;
+              const returnPct = p.returnPercent != null ? parseFloat(String(p.returnPercent)) : 0;
+              return {
+                symbol: p.symbol,
+                name: isSold ? `${p.symbol}` : p.symbol,
+                value,
+                percentage: allocTotal > 0 ? (value / allocTotal) * 100 : 0,
+                isSold,
+                qty,
+                pnl: totalPnl,
+                returnPct,
+              };
             })
             .sort((a, b) => b.value - a.value);
-          if (allocBySymbol.length === 0) return null;
+          if (allocBySymbol.length === 0) {
+            return (
+              <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-gray-800/50 shadow-sm dark:shadow-none">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div>
+                    <h2 className="text-gray-900 dark:text-white font-semibold text-sm">{t("analytics.symbolAlloc")}</h2>
+                    <p className="text-gray-400 dark:text-gray-500 text-xs mt-0.5">{t("analytics.symbolAllocSub")}</p>
+                  </div>
+                  <SectionRangeBtns range={allocRange} setRange={setAllocRange} />
+                </div>
+                <div className="h-40 flex items-center justify-center text-gray-500 dark:text-gray-600 text-xs border border-dashed border-gray-200 dark:border-gray-800 rounded-lg">
+                  No positions in this range.
+                </div>
+              </div>
+            );
+          }
           const fmtEGP2 = (v: number) => v >= 1_000_000 ? `${(v/1_000_000).toFixed(2)}M` : v >= 1000 ? `${(v/1000).toFixed(1)}K` : v.toFixed(0);
           const topItem = allocBySymbol[0];
           return (
@@ -1842,18 +2185,18 @@ export default function PortfolioPage() {
               <SectionRangeBtns range={allocRange} setRange={setAllocRange} />
             </div>
 
-            <div dir="ltr" className="flex flex-row items-center gap-4 sm:gap-6">
-              {/* Donut + center label — fixed px so absolute overlay is predictable */}
-              <div className="relative shrink-0" style={{ width: 160, height: 160 }}>
-                <PieChart width={160} height={160}>
+            <div dir="ltr" className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+              {/* Donut + center label — fixed px so absolute overlay is predictable, centered + larger on mobile */}
+              <div className="relative shrink-0 mx-auto sm:mx-0" style={{ width: donutSize, height: donutSize }}>
+                <PieChart width={donutSize} height={donutSize}>
                   <Pie
                     data={allocBySymbol}
                     dataKey="percentage"
                     nameKey="name"
-                    cx={80}
-                    cy={80}
-                    innerRadius={52}
-                    outerRadius={74}
+                    cx={donutSize / 2}
+                    cy={donutSize / 2}
+                    innerRadius={donutSize * 0.325}
+                    outerRadius={donutSize * 0.4625}
                     paddingAngle={allocBySymbol.length > 1 ? 3 : 0}
                     stroke="none"
                     strokeWidth={0}
@@ -1865,17 +2208,62 @@ export default function PortfolioPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ background: isDark ? "#0f172a" : "#fff", border: `1px solid ${isDark ? "#1e293b" : "#e5e7eb"}`, borderRadius: 10, fontSize: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}
-                    formatter={(v: unknown, _: unknown, props: { payload?: { payload?: { value?: number; symbol?: string } } }) => {
-                      const payload = props.payload?.payload;
-                      return [`${(v as number).toFixed(1)}%  ·  EGP ${(payload?.value ?? 0).toLocaleString()}`, payload?.symbol ?? ""];
+                    wrapperStyle={{ zIndex: 50, outline: "none" }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const slice = payload[0]?.payload as {
+                        symbol: string; value: number; percentage: number;
+                        pnl: number; returnPct: number; isSold: boolean; qty: number;
+                      } | undefined;
+                      if (!slice) return null;
+                      const pnlPositive = slice.pnl >= 0;
+                      return (
+                        <div style={{
+                          background: isDark ? "rgba(15,23,42,0.97)" : "rgba(255,255,255,0.98)",
+                          border: `1px solid ${isDark ? "#1e293b" : "#e5e7eb"}`,
+                          borderRadius: 10,
+                          padding: "10px 12px",
+                          fontSize: 12,
+                          minWidth: 180,
+                          boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+                          backdropFilter: "blur(8px)",
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                            <span style={{ color: isDark ? "#fff" : "#111827", fontSize: 13, fontWeight: 700, fontFamily: "monospace" }}>{slice.symbol}</span>
+                            {slice.isSold && (
+                              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: isDark ? "#1f2937" : "#f3f4f6", color: isDark ? "#9ca3af" : "#6b7280", letterSpacing: "0.05em" }}>SOLD</span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", color: isDark ? "#9ca3af" : "#6b7280", marginBottom: 3 }}>
+                            <span>{t("common.qty")}</span>
+                            <span style={{ color: isDark ? "#d1d5db" : "#111827" }}>{slice.qty.toLocaleString()}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", color: isDark ? "#9ca3af" : "#6b7280", marginBottom: 3 }}>
+                            <span>{t("common.marketValue")}</span>
+                            <span style={{ color: isDark ? "#d1d5db" : "#111827", fontWeight: 600 }}>{fmt(slice.value)}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", color: isDark ? "#9ca3af" : "#6b7280", marginBottom: 6 }}>
+                            <span>{t("portfolio.portfolioPct")}</span>
+                            <span style={{ color: isDark ? "#d1d5db" : "#111827", fontWeight: 600 }}>{slice.percentage.toFixed(1)}%</span>
+                          </div>
+                          <div style={{ paddingTop: 6, borderTop: `1px solid ${isDark ? "#1f2937" : "#e5e7eb"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ color: isDark ? "#9ca3af" : "#6b7280" }}>{slice.isSold ? t("portfolio.realizedPnl") : t("common.profit")}</span>
+                            <span style={{ color: pnlPositive ? "#10b981" : "#ef4444", fontWeight: 700, fontSize: 13 }}>
+                              {pnlPositive ? "+" : "−"}{fmt(Math.abs(slice.pnl))}
+                              {slice.returnPct !== 0 && (
+                                <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.85 }}>({slice.returnPct >= 0 ? "+" : "−"}{Math.abs(slice.returnPct).toFixed(1)}%)</span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      );
                     }}
                   />
                 </PieChart>
-                {/* Center overlay — absolutely centered within the 160×160 box */}
+                {/* Center overlay — absolutely centered, follows the donut size */}
                 <div
                   className="pointer-events-none flex flex-col items-center justify-center"
-                  style={{ position: "absolute", top: 0, left: 0, width: 160, height: 160 }}
+                  style={{ position: "absolute", top: 0, left: 0, width: donutSize, height: donutSize, zIndex: 1 }}
                 >
                   <span className="text-gray-400 dark:text-gray-500 font-medium" style={{ fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("common.total")}</span>
                   <span className="text-gray-900 dark:text-white font-extrabold" style={{ fontSize: 15, lineHeight: 1.15 }}>EGP {fmtEGP2(allocTotal)}</span>
@@ -1891,7 +2279,7 @@ export default function PortfolioPage() {
                   return (
                     <div
                       key={item.name}
-                      className={`group flex items-center gap-2 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 transition-all duration-150 cursor-default ${
+                      className={`group grid items-center gap-2 sm:gap-3 rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 transition-all duration-150 cursor-default [grid-template-columns:auto_minmax(0,1fr)_minmax(40px,1.2fr)_auto] sm:[grid-template-columns:auto_minmax(120px,30%)_1fr_auto] ${
                         isTop
                           ? "bg-gray-50 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700/50"
                           : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
@@ -1900,9 +2288,9 @@ export default function PortfolioPage() {
                       {/* Color dot */}
                       <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
 
-                      {/* Symbol + sub */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
+                      {/* Symbol + sub — fixed-width col so the bar always has room */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1 flex-wrap">
                           <span className="text-gray-900 dark:text-white text-[11px] sm:text-xs font-bold truncate">{item.symbol}</span>
                           {item.isSold && (
                             <span className="hidden sm:inline px-1 py-px rounded text-[9px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500">sold</span>
@@ -1916,18 +2304,18 @@ export default function PortfolioPage() {
                         </span>
                       </div>
 
-                      {/* Bar + pct */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <div className="w-10 sm:w-20 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{ width: `${Math.min(item.percentage, 100)}%`, backgroundColor: color }}
-                          />
-                        </div>
-                        <span className="text-gray-700 dark:text-gray-300 text-[11px] sm:text-xs font-semibold w-8 sm:w-9 text-right tabular-nums">
-                          {item.percentage.toFixed(1)}%
-                        </span>
+                      {/* Bar — flex-1 so it stretches across the empty space */}
+                      <div className="h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${Math.min(item.percentage, 100)}%`, backgroundColor: color }}
+                        />
                       </div>
+
+                      {/* % */}
+                      <span className="text-gray-700 dark:text-gray-300 text-[11px] sm:text-xs font-semibold w-12 text-right tabular-nums">
+                        {item.percentage.toFixed(1)}%
+                      </span>
                     </div>
                   );
                 })}
@@ -1990,8 +2378,8 @@ export default function PortfolioPage() {
           )}
 
           {!isLoading && filteredPositions.length > 0 && (
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <div className="w-full">
+            <table className="w-full text-sm table-auto">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-200 dark:border-gray-800">
                   <th className="text-left px-3 sm:px-4 py-3">{t("common.symbol")}</th>
@@ -2169,126 +2557,6 @@ export default function PortfolioPage() {
             </div>
           )}
         </div>
-
-        {/* ── Closed Positions ─────────────────────────────────────── */}
-        {closedPositions.length > 0 && (
-          <div className="space-y-4">
-            {/* P&L bar chart */}
-            <div className="bg-gray-900 rounded-xl p-3 sm:p-4 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-white font-semibold text-sm">{t("closed.sectionTitle")}</h2>
-                  <p className="text-gray-500 text-[10px] sm:text-xs mt-0.5">{t("closed.sectionSub")}</p>
-                </div>
-                <SectionRangeBtns range={closedRange} setRange={setClosedRange} />
-              </div>
-              <div dir="ltr">
-                <ResponsiveContainer width="100%" height={Math.max(120, closedPositions.length * 42)}>
-                  <BarChart
-                    data={closedPositions.map((p) => ({
-                      symbol: p.symbol,
-                      profit: parseFloat(p.totalProfit),
-                    }))}
-                    layout="vertical"
-                    margin={{ top: 4, right: 72, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} tickLine={false} axisLine={false}
-                      tickFormatter={(v) => `EGP ${(Math.abs(v as number) / 1000).toFixed(1)}k`} />
-                    <YAxis type="category" dataKey="symbol" tick={{ fill: "#9ca3af", fontSize: 11 }} tickLine={false} axisLine={false} width={52} />
-                    <Tooltip
-                      contentStyle={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: unknown) => [
-                        `EGP ${(v as number).toLocaleString("en-EG", { minimumFractionDigits: 2 })}`,
-                        t("common.profit"),
-                      ]}
-                    />
-                    <Bar dataKey="profit" radius={[0, 4, 4, 0]}>
-                      {closedPositions.map((p, i) => (
-                        <Cell key={i} fill={parseFloat(p.totalProfit) >= 0 ? "#10b981" : "#ef4444"} fillOpacity={0.85} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Closed Positions Table */}
-            <div className="bg-gray-900 rounded-xl overflow-x-auto">
-              <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-                <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">{t("closed.tableTitle")}</h2>
-                <span className="text-gray-600 text-xs">{closedPositions.length} {t("closed.symbols")}</span>
-              </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-500 text-xs border-b border-gray-200 dark:border-gray-800">
-                    <th className="text-left px-4 py-3">{t("common.symbol")}</th>
-                    <th className="text-right px-4 py-3">{t("closed.invested")}</th>
-                    <th className="text-right px-4 py-3">{t("closed.proceeds")}</th>
-                    <th className="text-right px-4 py-3">{t("common.profit")}</th>
-                    <th className="text-right px-4 py-3">{t("common.return")}</th>
-                    <th className="text-right px-4 py-3 hidden md:table-cell">{t("closed.fees")}</th>
-                    <th className="text-right px-4 py-3 hidden lg:table-cell">{t("closed.holdDays")}</th>
-                    <th className="text-center px-4 py-3 hidden lg:table-cell">{t("closed.winLoss")}</th>
-                    <th className="text-right px-4 py-3 hidden xl:table-cell">{t("closed.openDate")}</th>
-                    <th className="text-right px-4 py-3 hidden xl:table-cell">{t("closed.closeDate")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {closedPositions.slice(0, 5).map((cp) => {
-                    const profit = parseFloat(cp.totalProfit);
-                    const isWin = profit >= 0;
-                    const retPct = cp.returnPct != null ? parseFloat(cp.returnPct) : null;
-                    const displayDate = cp.isClosed ? cp.closeDate : cp.lastSellDate;
-                    return (
-                      <tr key={cp.symbol} className="td-row border-b border-gray-800/60 cursor-pointer" onClick={() => router.push(`/portfolio/positions/${cp.symbol}`)}>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-bold text-white font-mono">{cp.symbol}</span>
-                            {cp.isClosed
-                              ? <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">Closed</span>
-                              : <span className="text-[10px] text-amber-500 font-medium uppercase tracking-wide">Partial</span>
-                            }
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-400">{fmt(cp.totalBuyCost)}</td>
-                        <td className="px-4 py-3 text-right text-gray-300">{fmt(cp.totalProceeds)}</td>
-                        <td className={`px-4 py-3 text-right font-bold ${isWin ? "text-emerald-400" : "text-red-400"}`}>
-                          {isWin ? "+" : "−"}{fmt(Math.abs(profit))}
-                        </td>
-                        <td className={`px-4 py-3 text-right font-medium ${isWin ? "text-emerald-400" : "text-red-400"}`}>
-                          {retPct != null ? `${retPct >= 0 ? "+" : "−"}${Math.abs(retPct).toFixed(2)}%` : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-500 text-xs hidden md:table-cell">{fmt(cp.totalFees)}</td>
-                        <td className="px-4 py-3 text-right text-gray-400 text-xs hidden lg:table-cell">
-                          {cp.holdDays != null ? formatDuration(cp.holdDays) : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-center hidden lg:table-cell">
-                          <span className="text-emerald-400 text-xs font-medium">{cp.winCount}W</span>
-                          <span className="text-gray-600 mx-1">/</span>
-                          <span className="text-orange-400 text-xs font-medium">{cp.lossCount}L</span>
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-500 text-xs hidden xl:table-cell">
-                          {cp.openDate ? new Date(cp.openDate).toLocaleDateString() : "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-500 text-xs hidden xl:table-cell">
-                          {displayDate ? new Date(displayDate).toLocaleDateString() : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {closedPositions.length > 5 && (
-                <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 text-center">
-                  <Link href="/portfolio/closed-positions" className="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                    {t("common.viewAll")} ({closedPositions.length})
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* ── Realized P&L Detail Table ─────────────────────────── */}
         <RealizedGainsTable range={realizedRange} onRangeChange={setRealizedRange} />

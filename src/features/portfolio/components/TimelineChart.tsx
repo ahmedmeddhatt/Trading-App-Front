@@ -20,6 +20,7 @@ export interface TimelinePoint {
   timestamp: string;
   totalValue: string | number;
   totalInvested?: string | number;
+  realizedPnL?: string | number;
 }
 
 const fmt = new Intl.NumberFormat("en-EG", {
@@ -48,11 +49,18 @@ function formatDate(ts: string, range: DateRange) {
 
 interface TooltipEntry {
   value: number;
-  payload: { fullDate: string; totalValue: number; revenue: number };
+  payload: {
+    fullDate: string;
+    totalValue: number;
+    invested: number;
+    realized: number;
+    unrealized: number;
+    revenue: number;
+  };
 }
 
 function ChartTooltip({
-  active, payload, firstValue, lineColor, mode,
+  active, payload, firstValue, mode,
 }: {
   active?: boolean;
   payload?: TooltipEntry[];
@@ -61,40 +69,75 @@ function ChartTooltip({
   mode: ChartMode;
 }) {
   if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
   const value = payload[0].value;
-  const fullDate = payload[0].payload.fullDate;
-  const revenue = payload[0].payload.revenue;
 
-  // In revenue mode, the value IS the gain/loss — color by its sign
-  // In value mode, compare against the first data point
   const isRevenueMode = mode === "revenue";
   const isGain = isRevenueMode ? value >= 0 : value >= firstValue;
   const pointColor = isGain ? "#34d399" : value === 0 ? "#9ca3af" : "#f87171";
 
-  const change = isRevenueMode ? value : value - firstValue;
-  const changePct = isRevenueMode
-    ? 0 // not meaningful for revenue
-    : firstValue > 0 ? (change / firstValue) * 100 : 0;
+  const change = value - firstValue;
+  const changePct = firstValue !== 0 ? (change / Math.abs(firstValue)) * 100 : 0;
+
+  // Return % vs invested — only meaningful when there's been investment
+  const investedRef = p.invested > 0 ? p.invested : 0;
+  const revenueReturnPct = investedRef > 0 ? (p.revenue / investedRef) * 100 : null;
 
   return (
     <div style={{
       background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
       border: `1px solid ${pointColor}33`,
       borderRadius: 10,
-      padding: "8px 12px",
+      padding: "10px 12px",
       boxShadow: `0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px ${pointColor}15, inset 0 1px 0 rgba(255,255,255,0.05)`,
-      minWidth: 160,
+      minWidth: 200,
       maxWidth: "calc(100vw - 40px)",
       pointerEvents: "none" as const,
       backdropFilter: "blur(12px)",
     }}>
-      <p style={{ color: "#64748b", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
-        {fullDate}
+      <p style={{ color: "#64748b", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
+        {p.fullDate}
       </p>
-      <p style={{ color: pointColor, fontSize: 16, fontWeight: 800, marginBottom: 4, letterSpacing: "-0.02em" }}>
-        {isRevenueMode ? `${value >= 0 ? "+" : "−"}${fmt.format(Math.abs(value))}` : fmt.format(value)}
+      <p style={{ color: pointColor, fontSize: 18, fontWeight: 800, marginBottom: 6, letterSpacing: "-0.02em" }}>
+        {isRevenueMode
+          ? `${value >= 0 ? "+" : "−"}${fmt.format(Math.abs(value))}`
+          : fmt.format(value)}
+        {isRevenueMode && revenueReturnPct != null && (
+          <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.85 }}>
+            ({revenueReturnPct >= 0 ? "+" : "−"}{Math.abs(revenueReturnPct).toFixed(2)}%)
+          </span>
+        )}
       </p>
-      {!isRevenueMode && (
+
+      {isRevenueMode ? (
+        <>
+          <div style={{ height: 1, background: "#1e293b", marginBottom: 6 }} />
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>
+            <span>Realized</span>
+            <span style={{ color: p.realized >= 0 ? "#86efac" : "#fca5a5", fontWeight: 600 }}>
+              {p.realized >= 0 ? "+" : "−"}{fmt.format(Math.abs(p.realized))}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>
+            <span>Unrealized</span>
+            <span style={{ color: p.unrealized >= 0 ? "#86efac" : "#fca5a5", fontWeight: 600 }}>
+              {p.unrealized >= 0 ? "+" : "−"}{fmt.format(Math.abs(p.unrealized))}
+            </span>
+          </div>
+          {p.invested > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8", marginBottom: 3 }}>
+              <span>Cost basis</span>
+              <span style={{ color: "#cbd5e1" }}>{fmt.format(p.invested)}</span>
+            </div>
+          )}
+          {p.totalValue > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#94a3b8" }}>
+              <span>Holdings value</span>
+              <span style={{ color: "#cbd5e1" }}>{fmt.format(p.totalValue)}</span>
+            </div>
+          )}
+        </>
+      ) : (
         <>
           <div style={{ height: 1, background: "#1e293b", marginBottom: 4 }} />
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
@@ -124,19 +167,25 @@ function ChartTooltip({
 
 export default function TimelineChart({ data, range, onRangeChange, loading }: Props) {
   const { t, dir } = useLanguage();
-  const [mode, setMode] = useState<ChartMode>("value");
+  const [mode, setMode] = useState<ChartMode>("revenue");
 
   // API returns totalValue as a decimal string — convert to number throughout
+  // Revenue = unrealized (value - invested) + cumulative realized P&L from sells
   const chartData = data.map((p) => {
     const value = Number(p.totalValue);
     const invested = p.totalInvested != null ? Number(p.totalInvested) : null;
-    const revenue = invested != null ? value - invested : 0;
+    const realized = p.realizedPnL != null ? Number(p.realizedPnL) : 0;
+    const unrealized = invested != null ? value - invested : 0;
+    const revenue = unrealized + realized;
     return {
       date: formatDate(p.timestamp, range),
       fullDate: new Date(p.timestamp).toLocaleDateString("en-US", {
         weekday: "long", year: "numeric", month: "long", day: "numeric",
       }),
       totalValue: value,
+      invested: invested ?? 0,
+      realized,
+      unrealized,
       revenue,
     };
   });
@@ -147,7 +196,9 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
     numericValues.length >= 2
       ? numericValues[numericValues.length - 1] >= numericValues[0]
       : true;
-  const lineColor = isPositive ? "#34d399" : "#f87171";
+  // Portfolio Value is always green (it's a holdings curve, not a gain/loss curve);
+  // Revenue colors by sign: green if up, red if down.
+  const lineColor = mode === "value" ? "#34d399" : isPositive ? "#34d399" : "#f87171";
 
   // For revenue mode: compute gradient offset so green is above 0, red below, gray at 0
   const revenueMax = Math.max(...numericValues, 0);
@@ -168,16 +219,6 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
           </h2>
           <div className="flex gap-0.5 bg-gray-800 rounded-lg p-0.5 flex-shrink-0">
             <button
-              onClick={() => setMode("value")}
-              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150 ${
-                mode === "value"
-                  ? "bg-gray-700 text-white shadow-sm"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              {t("analytics.value")}
-            </button>
-            <button
               onClick={() => setMode("revenue")}
               className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150 ${
                 mode === "revenue"
@@ -186,6 +227,16 @@ export default function TimelineChart({ data, range, onRangeChange, loading }: P
               }`}
             >
               {t("analytics.revenue")}
+            </button>
+            <button
+              onClick={() => setMode("value")}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-150 ${
+                mode === "value"
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {t("analytics.value")}
             </button>
           </div>
         </div>

@@ -429,6 +429,19 @@ const en = {
   "closed.openDate":     "Open Date",
   "closed.closeDate":    "Close Date",
 
+  // ── Win Rate card ─────────────────────────────────────────────────────────
+  "winRate.totalReturn":         "Total Return",
+  "winRate.avgWin":              "Avg Win",
+  "winRate.avgLoss":             "Avg Loss",
+  "winRate.openLabel":           "Open",
+  "winRate.winning":             "winning",
+  "winRate.losing":              "losing",
+  "winRate.explainTooltip":      "Win rate counts trades (a winning trade = positive P&L). Total Return is dollar-weighted: a high win rate with smaller wins than losses can still produce a small or negative total return. Profit Factor (sum of wins ÷ sum of losses) is the dollar-aware version: > 1 means dollars won exceed dollars lost.",
+  "winRate.profitFactorTooltip": "Profit Factor — sum of winning trades ÷ sum of losing trades. Above 1 means $ won > $ lost; below 1 means the opposite.",
+  "winRate.totalReturnTooltip":  "Total Return is dollar-weighted: realized profit ÷ total cost basis sold. It can be small even with a high win rate when wins are smaller than losses.",
+  "winRate.avgWinTooltip":       "Average winning trade size in EGP",
+  "winRate.avgLossTooltip":      "Average losing trade size in EGP",
+
   // ── Realized gains table ───────────────────────────────────────────────────
   "realized.allTrades":  "All Trades",
   "realized.trades":     "trades",
