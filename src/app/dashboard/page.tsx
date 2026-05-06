@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, LineChart, ShieldAlert, Lightbulb, ArrowUpRight, ArrowDownRight, Sparkles, Activity } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { usePortfolio } from "@/features/portfolio/hooks/usePortfolio";
 import { usePriceStream, type PriceData } from "@/hooks/usePriceStream";
@@ -15,6 +15,8 @@ import WeeklyPicksSection from "@/features/recommendations/WeeklyPicksSection";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { useLanguage } from "@/context/LanguageContext";
 import { useTradingMode, useAssetType, withAssetType } from "@/store/useTradingMode";
+import { useIsAdmin } from "@/features/auth/useCurrentUser";
+import { useCanSeeRecommendations } from "@/features/auth/recsAllowList";
 
 /* ─── SVG Stock Illustrations ────────────────────────────────────────────── */
 
@@ -229,6 +231,8 @@ export default function DashboardOverview() {
 function StocksDashboard() {
   const [search, setSearch] = useState("");
   const { t } = useLanguage();
+  const isAdmin = useIsAdmin();
+  const { allowed: showRecs } = useCanSeeRecommendations();
 
   const { data: dashData, isLoading: dashLoading, isError: dashError } = useDashboardStocks();
   const { data: portfolio } = usePortfolio();
@@ -272,25 +276,50 @@ function StocksDashboard() {
         )}
 
         {/* Quick Access — mobile only (these pages are hidden from mobile bottom nav) */}
-        <div className="grid grid-cols-3 gap-2 sm:hidden">
+        <div className="grid grid-cols-2 xs:grid-cols-4 gap-2 sm:hidden">
           <Link href="/analytics">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5 h-full">
               <LineChart size={20} className="text-blue-500 dark:text-blue-400" />
-              <span className="text-base text-gray-700 dark:text-gray-300 font-medium">{t("nav.analytics")}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{t("nav.analytics")}</span>
             </div>
           </Link>
           <Link href="/analytics/risk">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5 h-full">
               <ShieldAlert size={20} className="text-amber-500 dark:text-amber-400" />
-              <span className="text-base text-gray-700 dark:text-gray-300 font-medium">{t("nav.risk")}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{t("nav.risk")}</span>
             </div>
           </Link>
           <Link href="/strategies">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5 h-full">
               <Lightbulb size={20} className="text-emerald-500 dark:text-emerald-400" />
-              <span className="text-base text-gray-700 dark:text-gray-300 font-medium">{t("nav.strategies")}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{t("nav.strategies")}</span>
             </div>
           </Link>
+          {/* Recommendations — sibling Tracker link is rendered absolutely so admins can
+              jump straight to the tracker without leaving the dashboard. Gated to the
+              recs allow-list so other users see a 3-tile row. */}
+          {showRecs && (
+            <div className="relative">
+              <Link href="/recommendations">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 flex flex-col items-center gap-1.5 h-full">
+                  <Sparkles size={20} className="text-amber-500 dark:text-amber-400" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                    {t("nav.recommendations") ?? "Picks"}
+                  </span>
+                </div>
+              </Link>
+              {isAdmin && (
+                <Link
+                  href="/recommendations/tracker"
+                  aria-label={t("nav.tracker") ?? "Tracker"}
+                  title={t("nav.tracker") ?? "Tracker"}
+                  className="absolute top-1 right-1 inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60 active:scale-95 transition-all border border-blue-200/70 dark:border-blue-800/40 shadow-sm"
+                >
+                  <Activity size={12} />
+                </Link>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Recent Transactions */}
@@ -333,8 +362,8 @@ function StocksDashboard() {
           </div>
         )}
 
-        {/* AI Weekly Recommendations */}
-        <WeeklyPicksSection />
+        {/* AI Weekly Recommendations — gated to allow-listed accounts */}
+        {showRecs && <WeeklyPicksSection />}
 
         {dashError ? (
           <div className="flex flex-col items-center gap-3 py-14 bg-gradient-to-b from-gray-900 to-gray-950 border border-red-900/30 rounded-2xl">

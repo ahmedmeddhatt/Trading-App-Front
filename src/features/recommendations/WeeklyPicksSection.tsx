@@ -29,7 +29,7 @@ export default function WeeklyPicksSection() {
       {isLoading ? (
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:overflow-visible sm:pb-0">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="min-w-[220px] sm:min-w-0">
+            <div key={i} className="min-w-[260px] sm:min-w-0">
               <SkeletonCard />
             </div>
           ))}
@@ -37,7 +37,7 @@ export default function WeeklyPicksSection() {
       ) : data?.picks && data.picks.length > 0 ? (
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide sm:grid sm:grid-cols-3 lg:grid-cols-5 sm:overflow-visible sm:pb-0">
           {data.picks.slice(0, 5).map((pick) => (
-            <div key={pick.symbol} className="min-w-[220px] sm:min-w-0">
+            <div key={pick.symbol} className="min-w-[260px] sm:min-w-0">
               <WeeklyPickCard pick={pick} />
             </div>
           ))}
